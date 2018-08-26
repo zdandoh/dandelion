@@ -66,14 +66,30 @@ func tokenizeCode(code string) []Token {
 			tokenData.WriteByte(char)
 			tokenSplit = false
 		} else if char == ' ' || char == ',' {
-			// Ignore spaces
+			// Whitespace characters
 			tokenSplit = false
-		} else if (char >= ASCII_0 && char <= ASCII_9) || char == '.' {
+		} else if ((char >= ASCII_0 && char <= ASCII_9) || char == '.') && tokenData.Len() == 0 {
 			numToken, length := parseNumber(code, i)
 			tokens = append(tokens, numToken)
 			i += length - 1 // Subtract 1 to negate the i++ at the end of the loop
 		} else if char == '=' {
 			newToken = &Token{kind: AssignToken}
+		} else if char == '-' && i+1 < len(code) && code[i+1] == '>' {
+			// Pipe operator
+			newToken = &Token{kind: PipeToken}
+			i++
+		} else if char == '\n' || char == ';' {
+			newToken = &Token{kind: LineEndToken}
+		} else if char == '*' {
+			newToken = &Token{kind: MultOpToken}
+		} else if char == '/' {
+			newToken = &Token{kind: DivideOpToken}
+		} else if char == '-' {
+			newToken = &Token{kind: SubOpToken}
+		} else if char == '+' {
+			newToken = &Token{kind: AddOpToken}
+		} else if char == '%' {
+			newToken = &Token{kind: ModOpToken}
 		} else if char == '(' {
 			newToken = &Token{kind: StartFuncCallToken}
 		} else if char == ')' {

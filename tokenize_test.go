@@ -74,3 +74,39 @@ func TestTokenizeArrayLiteral(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestTokenizeMath(t *testing.T) {
+	answer := stringTokens([]Token{
+		Token{kind: VarToken, data: "var"},
+		Token{kind: ModOpToken},
+		Token{kind: IntLiteralToken, data: "5"},
+		Token{kind: SubOpToken},
+		Token{kind: IntLiteralToken, data: "56"},
+		Token{kind: AddOpToken},
+		Token{kind: IntLiteralToken, data: "34"},
+		Token{kind: DivideOpToken},
+		Token{kind: IntLiteralToken, data: "64"},
+		Token{kind: MultOpToken},
+		Token{kind: IntLiteralToken, data: "23"},
+	})
+
+	result := stringTokens(tokenizeCode(`var % 5 - 56 + 34 / 64 * 23`))
+	fmt.Println(result)
+	if answer != result {
+		t.Fail()
+	}
+}
+
+func TestTokenizePipe(t *testing.T) {
+	answer := stringTokens([]Token{
+		Token{kind: VarToken, data: "func"},
+		Token{kind: PipeToken},
+		Token{kind: VarToken, data: "func2"},
+	})
+
+	result := stringTokens(tokenizeCode(`func -> func2`))
+	fmt.Println(result)
+	if answer != result {
+		t.Fail()
+	}
+}

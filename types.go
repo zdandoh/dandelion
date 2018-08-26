@@ -42,9 +42,19 @@ const (
 	AssignToken
 	StartFuncCallToken
 	EndFuncCallToken
-	OpToken
+	LineEndToken
+
+	// Operations
+	MultOpToken
+	DivideOpToken
+	SubOpToken
+	AddOpToken
+	ModOpToken
+
 	PipeToken
 	EndLineToken
+
+	// Literals
 	StartArrayLiteralToken
 	EndArrayLiteralToken
 	ByteLiteralToken
@@ -63,8 +73,18 @@ func (t TokenType) String() string {
 		return "StartFuncCallToken"
 	case EndFuncCallToken:
 		return "EndFuncCallToken"
-	case OpToken:
-		return "OpToken"
+	case LineEndToken:
+		return "LineEndToken"
+	case MultOpToken:
+		return "MultOpToken"
+	case DivideOpToken:
+		return "DivideOpToken"
+	case SubOpToken:
+		return "SubOpToken"
+	case AddOpToken:
+		return "AddOpToken"
+	case ModOpToken:
+		return "ModOpToken"
 	case PipeToken:
 		return "PipeToken"
 	case EndLineToken:
