@@ -15,23 +15,6 @@ type Token struct {
 	kind TokenType
 }
 
-// func parseCode(code string) *Function {
-// 	main := &Function{}
-// 	currFunc := main
-
-// 	line := strings.Builder{}
-// 	for i := 0; i < len(code); i++ {
-// 		if code[i] == '\n' || code[i] == ';' {
-// 			currFunc.parseLine(line.String())
-// 			line.Reset()
-// 			continue
-// 		}
-// 		line.WriteByte(code[i])
-// 	}
-
-// 	return main
-// }
-
 func stringTokens(tokens []Token) string {
 	result := strings.Builder{}
 
@@ -65,19 +48,27 @@ func tokenizeCode(code string) []Token {
 		if byteLiteralInProgress {
 			tokenData.WriteByte(char)
 			tokenSplit = false
-		} else if char == ' ' || char == ',' {
+		} else if char == ' ' || char == ',' || char == '\r' {
 			// Whitespace characters
 			tokenSplit = false
 		} else if ((char >= ASCII_0 && char <= ASCII_9) || char == '.') && tokenData.Len() == 0 {
 			numToken, length := parseNumber(code, i)
 			tokens = append(tokens, numToken)
 			i += length - 1 // Subtract 1 to negate the i++ at the end of the loop
+		} else if char == '=' && i+1 < len(code) && code[i+1] == '=' {
+			newToken = &Token{kind: EqualityCompareToken}
+			i++
 		} else if char == '=' {
 			newToken = &Token{kind: AssignToken}
 		} else if char == '-' && i+1 < len(code) && code[i+1] == '>' {
 			// Pipe operator
 			newToken = &Token{kind: PipeToken}
 			i++
+		} else if char == 'f' && i+1 < len(code) && code[i+1] == '{' {
+			newToken = &Token{kind: StartFunctionDefinition}
+			i++
+		} else if char == '}' {
+			newToken = &Token{kind: EndFunctionDefinition}
 		} else if char == '\n' || char == ';' {
 			newToken = &Token{kind: LineEndToken}
 		} else if char == '*' {
@@ -150,32 +141,6 @@ func parseNumber(code string, i int) (Token, int) {
 	token.data = numString.String()
 
 	return token, numString.Len()
-}
-
-// func (f *Function) parseLine(line string) {
-// 	var assignToken string
-// 	var callingFunc string
-// 	token := strings.Builder{}
-
-// 	for i := 0; i < len(line); i++ {
-// 		switch line[i] {
-// 		case '=':
-// 			// Assignment to a variable
-// 			assignToken = token.String()
-// 			token.Reset()
-// 		case '(':
-// 			// Function call
-// 			callingFunc = token.String()
-// 			token.Reset()
-// 		default:
-// 			token.WriteByte(line[i])
-// 		}
-// 	}
-
-// }
-
-func (f *Function) parseVar(name string) {
-
 }
 
 func getGlobals(dest map[string]Function) []Function {

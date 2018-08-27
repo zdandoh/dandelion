@@ -37,6 +37,7 @@ const (
 	MapFunc    FuncType = 2
 )
 
+//go:generate stringer -type TokenType
 const (
 	VarToken TokenType = iota
 	AssignToken
@@ -61,47 +62,11 @@ const (
 	IntLiteralToken
 	FloatLiteralToken
 	HexLiteralToken
-)
 
-func (t TokenType) String() string {
-	switch t {
-	case VarToken:
-		return "VarToken"
-	case AssignToken:
-		return "AssignToken"
-	case StartFuncCallToken:
-		return "StartFuncCallToken"
-	case EndFuncCallToken:
-		return "EndFuncCallToken"
-	case LineEndToken:
-		return "LineEndToken"
-	case MultOpToken:
-		return "MultOpToken"
-	case DivideOpToken:
-		return "DivideOpToken"
-	case SubOpToken:
-		return "SubOpToken"
-	case AddOpToken:
-		return "AddOpToken"
-	case ModOpToken:
-		return "ModOpToken"
-	case PipeToken:
-		return "PipeToken"
-	case EndLineToken:
-		return "EndLineToken"
-	case StartArrayLiteralToken:
-		return "StartArrayLiteralToken"
-	case EndArrayLiteralToken:
-		return "EndArrayLiteralToken"
-	case ByteLiteralToken:
-		return "ByteLiteralToken"
-	case IntLiteralToken:
-		return "IntLiteralToken"
-	case FloatLiteralToken:
-		return "FloatLiteralToken"
-	case HexLiteralToken:
-		return "HexLiteralToken"
-	default:
-		panic("Unknown token!")
-	}
-}
+	// Function definitions
+	StartFunctionDefinition
+	EndFunctionDefinition
+
+	// Comparisons
+	EqualityCompareToken
+)
