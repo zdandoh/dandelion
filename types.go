@@ -1,23 +1,37 @@
 package main
 
+import "fmt"
+
 type Program struct {
 	funcs map[string]Function
 }
 
 type Function struct {
-	funcType FuncType
-	funcs    map[string]*Function
-	vars     map[string]*Var
-	args     []*Var
-	code     []Statement
+	funcType   FuncType
+	funcs      map[string]*Function
+	vars       map[string]*Var
+	args       []*Var
+	statements []Statement
 }
+
+func (f Function) String() {
+	return fmt.Sprintf("Statements")
+}
+
+type Var interface{}
+
+type VarFloat float64
+type VarInt int64
+type VarBytes string
+type VarArray []Var
 
 type Var struct {
 	dataType DataType
 	data     []byte
 }
 
-type Statement struct {
+type Statement interface {
+	Run()
 }
 
 type DataType uint8
@@ -41,8 +55,8 @@ const (
 const (
 	VarToken TokenType = iota
 	AssignToken
-	StartFuncCallToken
-	EndFuncCallToken
+	StartVarGroup
+	EndVarGroup
 	LineEndToken
 
 	// Operations

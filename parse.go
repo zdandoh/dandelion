@@ -82,9 +82,9 @@ func tokenizeCode(code string) []Token {
 		} else if char == '%' {
 			newToken = &Token{kind: ModOpToken}
 		} else if char == '(' {
-			newToken = &Token{kind: StartFuncCallToken}
+			newToken = &Token{kind: StartVarGroup}
 		} else if char == ')' {
-			newToken = &Token{kind: EndFuncCallToken}
+			newToken = &Token{kind: EndVarGroup}
 		} else if char == '[' {
 			newToken = &Token{kind: StartArrayLiteralToken}
 		} else if char == ']' {

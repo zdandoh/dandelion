@@ -110,3 +110,16 @@ func TestTokenizePipe(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestTokenizeLine(t *testing.T) {
+	tokens := tokenizeCode(`files = ["hi", "bro", "what's up?"]
+filter = f{ e == "bro" }
+files -> p`)
+
+	fmt.Println(stringTokens(tokens))
+	fmt.Println(compileTokens(tokens))
+}
+
+func TestTokenizeVarGroup(t *testing.T) {
+	fmt.Println(compileTokens(tokenizeCode(`()`)))
+}

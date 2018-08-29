@@ -4,9 +4,9 @@ package main
 
 import "strconv"
 
-const _TokenType_name = "VarTokenAssignTokenStartFuncCallTokenEndFuncCallTokenLineEndTokenMultOpTokenDivideOpTokenSubOpTokenAddOpTokenModOpTokenPipeTokenEndLineTokenStartArrayLiteralTokenEndArrayLiteralTokenByteLiteralTokenIntLiteralTokenFloatLiteralTokenHexLiteralTokenStartFunctionDefinitionEndFunctionDefinitionEqualityCompareToken"
+const _TokenType_name = "VarTokenAssignTokenStartVarGroupEndVarGroupLineEndTokenMultOpTokenDivideOpTokenSubOpTokenAddOpTokenModOpTokenPipeTokenEndLineTokenStartArrayLiteralTokenEndArrayLiteralTokenByteLiteralTokenIntLiteralTokenFloatLiteralTokenHexLiteralTokenStartFunctionDefinitionEndFunctionDefinitionEqualityCompareToken"
 
-var _TokenType_index = [...]uint16{0, 8, 19, 37, 53, 65, 76, 89, 99, 109, 119, 128, 140, 162, 182, 198, 213, 230, 245, 268, 289, 309}
+var _TokenType_index = [...]uint16{0, 8, 19, 32, 43, 55, 66, 79, 89, 99, 109, 118, 130, 152, 172, 188, 203, 220, 235, 258, 279, 299}
 
 func (i TokenType) String() string {
 	if i >= TokenType(len(_TokenType_index)-1) {
