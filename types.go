@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type Program struct {
 	funcs map[string]Function
 }
@@ -12,10 +10,7 @@ type Function struct {
 	vars       map[string]*Var
 	args       []*Var
 	statements []Statement
-}
-
-func (f Function) String() {
-	return fmt.Sprintf("Statements")
+	registers  []Var
 }
 
 type Var interface{}
@@ -24,14 +19,10 @@ type VarFloat float64
 type VarInt int64
 type VarBytes string
 type VarArray []Var
-
-type Var struct {
-	dataType DataType
-	data     []byte
-}
+type VarRegister uint8
 
 type Statement interface {
-	Run()
+	Run() Var
 }
 
 type DataType uint8
@@ -60,11 +51,13 @@ const (
 	LineEndToken
 
 	// Operations
+	OperationsStart
 	MultOpToken
 	DivideOpToken
 	SubOpToken
 	AddOpToken
 	ModOpToken
+	OperationsEnd
 
 	PipeToken
 	EndLineToken

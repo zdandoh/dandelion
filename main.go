@@ -20,5 +20,5 @@ func main() {
 
 	tokens := tokenizeCode(string(code))
 	main := compileTokens(tokens)
-	main.run()
+	main.Run()
 }
