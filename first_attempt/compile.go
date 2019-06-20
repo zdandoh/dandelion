@@ -53,8 +53,7 @@ func (f *Function) compileOperation(tokens []Token, i int) Statement {
 
 		statement = newStatement
 	}
-case FloatLiteralToken:
-	
+	//case FloatLiteralToken:
 
 	return statement
 }
