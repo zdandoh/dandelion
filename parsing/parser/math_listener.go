@@ -16,11 +16,8 @@ type MathListener interface {
 	// EnterParens is called when entering the parens production.
 	EnterParens(c *ParensContext)
 
-	// EnterMulDiv is called when entering the MulDiv production.
-	EnterMulDiv(c *MulDivContext)
-
-	// EnterAddSub is called when entering the AddSub production.
-	EnterAddSub(c *AddSubContext)
+	// EnterBinOp is called when entering the BinOp production.
+	EnterBinOp(c *BinOpContext)
 
 	// EnterInt is called when entering the int production.
 	EnterInt(c *IntContext)
@@ -34,11 +31,8 @@ type MathListener interface {
 	// ExitParens is called when exiting the parens production.
 	ExitParens(c *ParensContext)
 
-	// ExitMulDiv is called when exiting the MulDiv production.
-	ExitMulDiv(c *MulDivContext)
-
-	// ExitAddSub is called when exiting the AddSub production.
-	ExitAddSub(c *AddSubContext)
+	// ExitBinOp is called when exiting the BinOp production.
+	ExitBinOp(c *BinOpContext)
 
 	// ExitInt is called when exiting the int production.
 	ExitInt(c *IntContext)

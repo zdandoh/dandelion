@@ -16,11 +16,8 @@ type MathVisitor interface {
 	// Visit a parse tree produced by MathParser#parens.
 	VisitParens(ctx *ParensContext) interface{}
 
-	// Visit a parse tree produced by MathParser#MulDiv.
-	VisitMulDiv(ctx *MulDivContext) interface{}
-
-	// Visit a parse tree produced by MathParser#AddSub.
-	VisitAddSub(ctx *AddSubContext) interface{}
+	// Visit a parse tree produced by MathParser#BinOp.
+	VisitBinOp(ctx *BinOpContext) interface{}
 
 	// Visit a parse tree produced by MathParser#int.
 	VisitInt(ctx *IntContext) interface{}

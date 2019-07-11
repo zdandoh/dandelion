@@ -19,11 +19,7 @@ func (v *BaseMathVisitor) VisitParens(ctx *ParensContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseMathVisitor) VisitMulDiv(ctx *MulDivContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseMathVisitor) VisitAddSub(ctx *AddSubContext) interface{} {
+func (v *BaseMathVisitor) VisitBinOp(ctx *BinOpContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

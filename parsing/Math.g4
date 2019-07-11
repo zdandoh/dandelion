@@ -6,10 +6,9 @@ line: expr NEWLINE
     | NEWLINE
     ;
 
-expr: expr ('*'|'/') expr   # MulDiv
-    | expr ('+'|'-') expr   # AddSub
-    | INT                   # int
-    | '(' expr ')'          # parens
+expr: expr ('+'|'-'|'*'|'/') expr # BinOp
+    | INT                         # int
+    | '(' expr ')'                # parens
     ;
 
 INT: [0-9]+ ;

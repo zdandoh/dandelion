@@ -38,17 +38,11 @@ func (s *BaseMathListener) EnterParens(ctx *ParensContext) {}
 // ExitParens is called when production parens is exited.
 func (s *BaseMathListener) ExitParens(ctx *ParensContext) {}
 
-// EnterMulDiv is called when production MulDiv is entered.
-func (s *BaseMathListener) EnterMulDiv(ctx *MulDivContext) {}
+// EnterBinOp is called when production BinOp is entered.
+func (s *BaseMathListener) EnterBinOp(ctx *BinOpContext) {}
 
-// ExitMulDiv is called when production MulDiv is exited.
-func (s *BaseMathListener) ExitMulDiv(ctx *MulDivContext) {}
-
-// EnterAddSub is called when production AddSub is entered.
-func (s *BaseMathListener) EnterAddSub(ctx *AddSubContext) {}
-
-// ExitAddSub is called when production AddSub is exited.
-func (s *BaseMathListener) ExitAddSub(ctx *AddSubContext) {}
+// ExitBinOp is called when production BinOp is exited.
+func (s *BaseMathListener) ExitBinOp(ctx *BinOpContext) {}
 
 // EnterInt is called when production int is entered.
 func (s *BaseMathListener) EnterInt(ctx *IntContext) {}
