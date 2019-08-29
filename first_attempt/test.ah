@@ -1,3 +1,0 @@
-files = ["hi", "bro", "what's up?"]
-filter = f{ e == "bro" }
-files -> p
