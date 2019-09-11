@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -198,6 +199,12 @@ func (p *Program) interp() {
 
 func CompareOutput(progText string, output string) bool {
 	prog := ParseProgram(progText)
+	_, err := TypeCheck(prog)
+	if err != nil {
+		log.Fatal("Program doesn't type check: " + err.Error())
+		return false
+	}
+
 	prog.interp()
 
 	reference := strings.Trim(output, "\r\n")

@@ -79,3 +79,27 @@ p(str);`
 		t.Fatal("Output not equal")
 	}
 }
+
+func TestApplyFunc(t *testing.T) {
+	prog := `
+f{
+	x = 1 + 6;
+	y = "bob" * x;
+};
+`
+
+	parsed := ParseProgram(prog)
+
+	newAst := ApplyFunc(parsed.mainFunc, func(node AstNode) AstNode {
+		switch t := node.(type) {
+		case *AddSub:
+			return &AddSub{t.right, t.left, t.op}
+		}
+
+		return nil
+	})
+
+	if parsed.mainFunc.String() == newAst.String() {
+		t.Fatal("Transformed AST equals un-transformed AST")
+	}
+}

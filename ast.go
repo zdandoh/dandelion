@@ -2,10 +2,63 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
+func ApplyFunc(astNode AstNode, fun func(AstNode) AstNode) AstNode {
+	result := fun(astNode)
+	if result != nil {
+		return result
+	}
+	var retVal AstNode
+
+	switch node := astNode.(type) {
+	case *Assign:
+		retVal = &Assign{node.ident, ApplyFunc(node.expr, fun)}
+	case *Num:
+		retVal = node
+	case *Ident:
+		retVal = node
+	case *AddSub:
+		retVal = &AddSub{ApplyFunc(node.left, fun), ApplyFunc(node.right, fun), node.op}
+	case *MulDiv:
+		retVal = &MulDiv{ApplyFunc(node.left, fun), ApplyFunc(node.right, fun), node.op}
+	case *FunDef:
+		newBlock := &Block{ApplyBlock(node.body.lines, fun)}
+		retVal = &FunDef{newBlock, node.args}
+	case *FunApp:
+		retVal = &FunApp{ApplyFunc(node.fun, fun), ApplyBlock(node.args, fun)}
+	case *While:
+		retVal = &While{ApplyFunc(node.cond, fun), &Block{ApplyBlock(node.body.lines, fun)}}
+	case *If:
+		retVal = &If{ApplyFunc(node.cond, fun), &Block{ApplyBlock(node.body.lines, fun)}}
+	case *CompNode:
+		retVal = &CompNode{node.op, ApplyFunc(node.left, fun), ApplyFunc(node.right, fun)}
+	case *ArrayLiteral:
+		retVal = &ArrayLiteral{node.length, ApplyBlock(node.exprs, fun)}
+	case *SliceNode:
+		retVal = &SliceNode{ApplyFunc(node.index, fun), ApplyFunc(node.arr, fun)}
+	case *StrExp:
+		retVal = node
+	default:
+		panic("ApplyFunc not defined for type: " + reflect.TypeOf(astNode).String())
+	}
+
+	return retVal
+}
+
+func ApplyBlock(lines []AstNode, fun func(AstNode) AstNode) []AstNode {
+	newLines := make([]AstNode, 0)
+	for _, line := range lines {
+		newLines = append(newLines, ApplyFunc(line, fun))
+	}
+
+	return newLines
+}
+
 type AstNode interface {
+	String() string
 }
 
 type Line interface {
