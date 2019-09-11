@@ -125,6 +125,8 @@ func (p *Program) interpExp(astNode AstNode) Value {
 		arr := p.interpExp(node.arr).(*Array)
 		index := p.interpExp(node.index).(int)
 		retVal = arr.arr[index]
+	case *StrExp:
+		retVal = node.value
 	default:
 		panic("Interp not defined for type: " + reflect.TypeOf(astNode).String())
 	}

@@ -1,42 +1,7 @@
-// Calc.g4
-grammar Calc;
+parser grammar Calc;
 
-// Tokens
+options { tokenVocab=CalcLex; }
 
-// Primive math ops
-MUL: '*';
-DIV: '/';
-ADD: '+';
-SUB: '-';
-BITWISE_OR: '|';
-BITWISE_AND: '&';
-
-// Control flow
-IF: 'if';
-WHILE: 'while';
-FOR: 'for';
-ELIF: 'elif';
-ELSE: 'else';
-
-// Keywords
-TRUE: 'true';
-FALSE: 'false';
-
-// Conditional ops
-OR: '||';
-AND: '&&';
-LT: '<';
-LTE: '<=';
-GT: '>';
-GTE: '>=';
-EQ: '==';
-
-
-NUMBER: [0-9]+;
-IDENT: [a-zA-Z_]+;
-WHITESPACE: [ \r\n\t]+ -> skip;
-
-// Rules
 start : line+ EOF;
 
 line: (expr|statement) ';';
@@ -55,6 +20,7 @@ expr
    | expr '(' args=explist  ')'                # FunApp
    | expr op=(ADD|SUB) expr                    # AddSub
    | NUMBER                                    # Number
+   | STRING                                    # StrExp
    | IDENT                                     # Ident
    ;
 

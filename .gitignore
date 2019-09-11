@@ -6,6 +6,8 @@
 # Folders
 _obj
 _test
+parser
+.antlr
 
 # Architecture specific extensions/prefixes
 *.[568vq]

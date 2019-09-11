@@ -154,3 +154,11 @@ type SliceNode struct {
 func (n *SliceNode) String() string {
 	return fmt.Sprintf("%v[%v]", n.arr, n.index)
 }
+
+type StrExp struct {
+	value string
+}
+
+func (n *StrExp) String() string {
+	return fmt.Sprintf("\"%s\"", n.value)
+}

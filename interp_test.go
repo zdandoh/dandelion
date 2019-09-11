@@ -69,3 +69,13 @@ p(arr[2]);`
 		t.Fatal("Output not equal")
 	}
 }
+
+func TestString(t *testing.T) {
+	prog := `
+str = "hello, world!";
+p(str);`
+	output := "hello, world!"
+	if !CompareOutput(prog, output) {
+		t.Fatal("Output not equal")
+	}
+}

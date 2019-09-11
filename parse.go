@@ -1,7 +1,7 @@
 package main
 
 import (
-	"another_go/parser"
+	"ahead/parser"
 	"fmt"
 	"math"
 
@@ -231,6 +231,16 @@ func (l *calcListener) ExitSliceExp(c *parser.SliceExpContext) {
 	l.nodeStack.Push(sliceNode)
 }
 
+func (l *calcListener) EnterStrExp(c *parser.StrExpContext) {
+	fmt.Println("Entering string")
+}
+
+func (l *calcListener) ExitStrExp(c *parser.StrExpContext) {
+	fmt.Println("Exiting string")
+	text := c.GetText()[1 : len(c.GetText())-1]
+	l.nodeStack.Push(&StrExp{text})
+}
+
 func filterCommas(elems []antlr.Tree) []antlr.Tree {
 	notCommas := make([]antlr.Tree, 0)
 
@@ -246,11 +256,11 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 func ParseProgram(text string) *Program {
 	is := antlr.NewInputStream(text)
 
-	lexer := parser.NewCalcLexer(is)
+	lexer := parser.NewCalcLex(is)
 
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 
-	p := parser.NewCalcParser(stream)
+	p := parser.NewCalc(stream)
 
 	l := &calcListener{}
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
