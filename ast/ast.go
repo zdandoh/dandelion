@@ -58,7 +58,7 @@ func ApplyBlock(lines []Node, fun func(Node) Node) []Node {
 }
 
 type Program struct {
-	Funcs    []*FunDef
+	Funcs    map[string]*FunDef
 	MainFunc *FunDef
 	Output   string
 }
