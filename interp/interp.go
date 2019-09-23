@@ -1,4 +1,4 @@
-package main
+package interp
 
 import (
 	"ahead/ast"
@@ -186,7 +186,7 @@ func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
 	return lastVal
 }
 
-func (i *Interpreter) interp(p *ast.Program) {
+func (i *Interpreter) Interp(p *ast.Program) {
 	mainApp := &ast.FunApp{}
 	mainApp.Fun = p.MainFunc
 	mainApp.Args = make([]ast.Node, 0)
@@ -202,7 +202,7 @@ func CompareOutput(progText string, output string) bool {
 	// }
 
 	i := NewInterpreter()
-	i.interp(prog)
+	i.Interp(prog)
 
 	reference := strings.Trim(output, "\r\n")
 	produced := strings.Trim(i.Output(), "\r\n")

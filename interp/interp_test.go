@@ -1,4 +1,4 @@
-package main
+package interp
 
 import (
 	"ahead/ast"

@@ -1,5 +1,7 @@
 package transform
 
-func RemFuncs(prog *main.Program) *main.Program {
+import "ahead/ast"
 
+func RemFuncs(prog *ast.Program) *ast.Program {
+	return nil
 }

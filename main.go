@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ahead/interp"
 	"ahead/parser"
 	"fmt"
 )
@@ -16,5 +17,7 @@ f{
 }();
 `)
 
+	i := interp.NewInterpreter()
+	i.Interp(prog)
 	fmt.Println(prog.MainFunc)
 }
