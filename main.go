@@ -1,11 +1,12 @@
 package main
 
 import (
+	"ahead/parser"
 	"fmt"
 )
 
 func main() {
-	prog := ParseProgram(`
+	prog := parser.ParseProgram(`
 x = 12;
 f{
 	while x < 100 {

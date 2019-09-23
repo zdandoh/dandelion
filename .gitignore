@@ -6,7 +6,7 @@
 # Folders
 _obj
 _test
-parser
+aparser
 .antlr
 
 # Architecture specific extensions/prefixes

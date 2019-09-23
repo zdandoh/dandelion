@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"ahead/parser"
+	"testing"
+)
 
 func TestTypeCheck(t *testing.T) {
 	prog := `
@@ -9,7 +12,7 @@ f{
 	y = "bob" + " hi!";
 };
 `
-	p := ParseProgram(prog)
+	p := parser.ParseProgram(prog)
 	checker := NewTypeChecker()
 	checker.TypeCheck(p.MainFunc)
 	if (checker.TEnv["x"] != IntType{}) {

@@ -1,8 +1,8 @@
-package main
+package parser
 
 import (
+	parser "ahead/aparser"
 	"ahead/ast"
-	"ahead/parser"
 	"fmt"
 	"math"
 

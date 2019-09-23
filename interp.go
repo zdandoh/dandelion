@@ -2,6 +2,7 @@ package main
 
 import (
 	"ahead/ast"
+	"ahead/parser"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -193,7 +194,7 @@ func (i *Interpreter) interp(p *ast.Program) {
 }
 
 func CompareOutput(progText string, output string) bool {
-	prog := ParseProgram(progText)
+	prog := parser.ParseProgram(progText)
 	//_, err := TypeCheck(prog)
 	// if err != nil {
 	// 	log.Fatal("Program doesn't type check: " + err.Error())

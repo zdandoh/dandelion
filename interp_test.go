@@ -2,6 +2,7 @@ package main
 
 import (
 	"ahead/ast"
+	"ahead/parser"
 	"fmt"
 	"testing"
 )
@@ -90,7 +91,7 @@ f{
 };
 `
 
-	parsed := ParseProgram(prog)
+	parsed := parser.ParseProgram(prog)
 
 	newAst := ast.ApplyFunc(parsed.MainFunc, func(node ast.Node) ast.Node {
 		switch t := node.(type) {
