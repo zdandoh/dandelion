@@ -1,61 +1,41 @@
 package main
 
-import (
-	"fmt"
-	"strings"
-)
+import "ahead/ast"
 
 type NodeStack struct {
-	arr []AstNode
+	arr []ast.Node
 }
 
-func (s *NodeStack) Push(node AstNode) {
+func (s *NodeStack) Push(node ast.Node) {
 	s.arr = append(s.arr, node)
 }
 
-func (s *NodeStack) Pop() AstNode {
+func (s *NodeStack) Pop() ast.Node {
 	last := s.arr[len(s.arr)-1]
 	s.arr = s.arr[:len(s.arr)-1]
 
 	return last
 }
 
-func (s *NodeStack) Peek() AstNode {
+func (s *NodeStack) Peek() ast.Node {
 	return s.arr[len(s.arr)-1]
 }
 
 func (s *NodeStack) Clear() {
-	s.arr = make([]AstNode, 0)
-}
-
-type Block struct {
-	lines []AstNode
-}
-
-func (b *Block) String() string {
-	lines := ""
-
-	for _, expr := range b.lines {
-		exprLines := strings.Split(fmt.Sprintf("%v", expr), "\n")
-		for _, line := range exprLines {
-			lines += fmt.Sprintf("    %v\n", line)
-		}
-	}
-
-	return lines
+	s.arr = make([]ast.Node, 0)
 }
 
 type BlockStack struct {
-	arr []*Block
-	Top *Block
+	arr []*ast.Block
+	Top *ast.Block
 }
 
-func (s *BlockStack) Push(block *Block) {
+func (s *BlockStack) Push(block *ast.Block) {
 	s.arr = append(s.arr, block)
 	s.Top = block
 }
 
-func (s *BlockStack) Pop() *Block {
+func (s *BlockStack) Pop() *ast.Block {
 	last := s.arr[len(s.arr)-1]
 	s.arr = s.arr[:len(s.arr)-1]
 
@@ -69,6 +49,6 @@ func (s *BlockStack) Pop() *Block {
 }
 
 func (s *BlockStack) Clear() {
-	s.arr = make([]*Block, 0)
+	s.arr = make([]*ast.Block, 0)
 	s.Top = nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ahead/ast"
 	"errors"
 	"fmt"
 	"reflect"
@@ -61,81 +62,106 @@ func (f FuncType) TypeString() string {
 	return fmt.Sprintf("f(%s) %s", argString, f.retType.TypeString())
 }
 
-type TypeChecker struct {
-	TEnv map[string]Type
+type AnyType struct {
 }
 
-func TypeCheck(prog *Program) (Type, error) {
-	checker := &TypeChecker{}
-	checker.TEnv = make(map[string]Type)
+func (f AnyType) TypeString() string {
+	return "any"
+}
 
-	t, err := checker.TypeCheck(prog.mainFunc)
+type TypeInfNode struct {
+	deps []TypeInfNode
+}
+
+type TypeChecker struct {
+	TEnv     map[string]Type
+	TypeInfs map[string]TypeInfNode
+}
+
+func NewTypeChecker() *TypeChecker {
+	checker := &TypeChecker{}
+	checker.TEnv = NewTEnv()
+
+	return checker
+}
+
+func NewTEnv() map[string]Type {
+	tenv := make(map[string]Type)
+	tenv["p"] = FuncType{[]Type{ArrayType{AnyType{}}}, AnyType{}}
+
+	return tenv
+}
+
+func TypeCheck(prog *ast.Program) (Type, error) {
+	checker := NewTypeChecker()
+	t, err := checker.TypeCheck(prog.MainFunc)
 	return t, err
 }
 
-func (c *TypeChecker) TypeCheck(ast AstNode) (Type, error) {
+func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 	var retErr error
 	var retType Type
 
-	switch node := ast.(type) {
-	case *Assign:
+	switch node := astNode.(type) {
+	case *ast.Assign:
+		c.TEnv[node.Ident], retErr = c.TypeCheck(node.Expr)
 		retType = NullType{}
-	case *Num:
+	case *ast.Num:
 		retType = IntType{}
-	case *Ident:
-		retType = c.TEnv[node.value]
-	case *AddSub:
-		left, lerr := c.TypeCheck(node.left)
-		right, rerr := c.TypeCheck(node.right)
+	case *ast.Ident:
+		retType = c.TEnv[node.Value]
+	case *ast.AddSub:
+		left, lerr := c.TypeCheck(node.Left)
+		right, rerr := c.TypeCheck(node.Right)
 		if lerr != nil || rerr != nil || left != right {
 			retErr = errors.New("Types don't match")
 		} else {
 			retType = left
 		}
-	case *MulDiv:
-		left, lerr := c.TypeCheck(node.left)
-		right, rerr := c.TypeCheck(node.right)
+	case *ast.MulDiv:
+		left, lerr := c.TypeCheck(node.Left)
+		right, rerr := c.TypeCheck(node.Right)
 		fmt.Println(left, right)
 		if lerr != nil || rerr != nil || left != right {
 			retErr = errors.New("Types don't match")
 		} else {
 			retType = left
 		}
-	case *FunDef:
-		_, err := c.TypeCheckBlock(node.body.lines)
+	case *ast.FunDef:
+		_, err := c.TypeCheckBlock(node.Body.Lines)
 		if err != nil {
 			retErr = err
 		}
 		// This is where smart type inference needs to happen
 		retType = FuncType{make([]Type, 0), IntType{}}
-	case *FunApp:
-		funType, err := c.TypeCheck(node.fun)
+	case *ast.FunApp:
+		fmt.Println(node.Fun)
+		funType, err := c.TypeCheck(node.Fun)
 		if err != nil {
 			retErr = err
 			break
 		}
-		_, err = c.TypeCheckBlock(node.args)
+		_, err = c.TypeCheckBlock(node.Args)
 		if err != nil {
 			retErr = err
 			break
 		}
 
-		fmt.Println(funType)
 		retType = (funType.(FuncType)).retType
-	case *While:
+	case *ast.While:
 		retType = NullType{}
-	case *If:
+	case *ast.If:
 		retType = NullType{}
-	case *CompNode:
-		left, lerr := c.TypeCheck(node.left)
-		right, rerr := c.TypeCheck(node.right)
+	case *ast.CompNode:
+		left, lerr := c.TypeCheck(node.Left)
+		right, rerr := c.TypeCheck(node.Right)
 		if lerr != nil || rerr != nil || left != right {
 			retErr = errors.New("Types don't match")
 		} else {
 			retType = left
 		}
-	case *ArrayLiteral:
-		exprTypes, err := c.TypeCheckBlock(node.exprs)
+	case *ast.ArrayLiteral:
+		exprTypes, err := c.TypeCheckBlock(node.Exprs)
 		if err != nil {
 			retErr = err
 			break
@@ -148,8 +174,8 @@ func (c *TypeChecker) TypeCheck(ast AstNode) (Type, error) {
 			retType = ArrayType{NullType{}}
 		}
 		retType = ArrayType{exprTypes[0]}
-	case *SliceNode:
-		indexType, err := c.TypeCheck(node.index)
+	case *ast.SliceNode:
+		indexType, err := c.TypeCheck(node.Index)
 		if err != nil {
 			retErr = err
 			break
@@ -160,7 +186,7 @@ func (c *TypeChecker) TypeCheck(ast AstNode) (Type, error) {
 			break
 		}
 
-		arrType, err := c.TypeCheck(node.arr)
+		arrType, err := c.TypeCheck(node.Arr)
 		if err != nil {
 			retErr = err
 			break
@@ -173,16 +199,21 @@ func (c *TypeChecker) TypeCheck(ast AstNode) (Type, error) {
 		}
 
 		retType = arr.subtype
-	case *StrExp:
+	case *ast.StrExp:
 		retType = StringType{}
 	default:
-		panic("ApplyFunc not defined for type: " + reflect.TypeOf(node).String())
+		panic("Typecheck not defined for type: " + reflect.TypeOf(node).String())
 	}
 
 	return retType, retErr
 }
 
-func (c *TypeChecker) TypeCheckBlock(lines []AstNode) ([]Type, error) {
+func (c *TypeChecker) DiscoverTypes(node ast.Node) ast.Node {
+
+	return nil
+}
+
+func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]Type, error) {
 	newLines := make([]Type, 0)
 	for _, line := range lines {
 		lineType, err := c.TypeCheck(line)
@@ -194,6 +225,17 @@ func (c *TypeChecker) TypeCheckBlock(lines []AstNode) ([]Type, error) {
 
 	return newLines, nil
 }
+
+// func (c *TypeCheck) InferTypes(ast AstNode) AstNode {
+// 	var retNode AstNode
+
+// 	switch node := ast.(type) {
+// 	case *FunApp:
+// 		depNode := TypeInfNode{}
+// 	}
+
+// 	return nil
+// }
 
 func (c *TypeChecker) SameType(types []Type) bool {
 	if len(types) == 0 {

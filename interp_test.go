@@ -1,6 +1,8 @@
 package main
 
 import (
+	"ahead/ast"
+	"fmt"
 	"testing"
 )
 
@@ -90,16 +92,16 @@ f{
 
 	parsed := ParseProgram(prog)
 
-	newAst := ApplyFunc(parsed.mainFunc, func(node AstNode) AstNode {
+	newAst := ast.ApplyFunc(parsed.MainFunc, func(node ast.Node) ast.Node {
 		switch t := node.(type) {
-		case *AddSub:
-			return &AddSub{t.right, t.left, t.op}
+		case *ast.AddSub:
+			return &ast.AddSub{t.Right, t.Left, t.Op}
 		}
 
 		return nil
 	})
 
-	if parsed.mainFunc.String() == newAst.String() {
+	if parsed.MainFunc.String() == fmt.Sprintf("%s", newAst) {
 		t.Fatal("Transformed AST equals un-transformed AST")
 	}
 }

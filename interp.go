@@ -1,8 +1,8 @@
 package main
 
 import (
+	"ahead/ast"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -25,38 +25,33 @@ func (a *Array) String() string {
 }
 
 type Env map[string]Value
+
 type PrimFunc = func([]Value) Value
 
-func (n *Null) String() string {
-	return "null"
+type Interpreter struct {
+	Environ Env
+	output  string
 }
 
-type Program struct {
-	mainFunc *FunDef
-	Environ  Env
-	output   string
+func NewInterpreter() *Interpreter {
+	i := &Interpreter{}
+	i.Environ = NewEnv(i)
+
+	return i
 }
 
-func (p *Program) Output() string {
-	return p.output
+func (i *Interpreter) Output() string {
+	return i.output
 }
 
-func NewProgram(mainFunc *FunDef) *Program {
-	newProg := &Program{}
-	newProg.Environ = NewEnv(newProg)
-	newProg.mainFunc = mainFunc
-
-	return newProg
-}
-
-func NewEnv(prog *Program) Env {
+func NewEnv(i *Interpreter) Env {
 	newEnv := make(Env)
 	newEnv["p"] = func(values []Value) Value {
 		for _, value := range values {
 			fmt.Print(value)
-			prog.output += fmt.Sprintf("%v", value)
+			i.output += fmt.Sprintf("%v", value)
 		}
-		prog.output += "\n"
+		i.output += "\n"
 		fmt.Println()
 		return &Null{}
 	}
@@ -64,70 +59,70 @@ func NewEnv(prog *Program) Env {
 	return newEnv
 }
 
-func (p *Program) interpExp(astNode AstNode) Value {
+func (i *Interpreter) interpExp(astNode ast.Node) Value {
 	var retVal Value
 
 	switch node := astNode.(type) {
-	case *Assign:
-		p.Environ[node.ident] = p.interpExp(node.expr)
+	case *ast.Assign:
+		i.Environ[node.Ident] = i.interpExp(node.Expr)
 		retVal = &Null{}
-	case *Num:
-		res, _ := strconv.Atoi(node.value)
+	case *ast.Num:
+		res, _ := strconv.Atoi(node.Value)
 		retVal = res
-	case *Ident:
+	case *ast.Ident:
 		var ok bool
-		retVal, ok = p.Environ[node.value]
+		retVal, ok = i.Environ[node.Value]
 		if !ok {
-			panic("Unbound variable: " + node.value)
+			panic("Unbound variable: " + node.Value)
 		}
-	case *AddSub:
-		if node.op == "+" {
-			retVal = p.interpExp(node.left).(int) + p.interpExp(node.right).(int)
-		} else if node.op == "-" {
-			retVal = p.interpExp(node.left).(int) - p.interpExp(node.right).(int)
+	case *ast.AddSub:
+		if node.Op == "+" {
+			retVal = i.interpExp(node.Left).(int) + i.interpExp(node.Right).(int)
+		} else if node.Op == "-" {
+			retVal = i.interpExp(node.Left).(int) - i.interpExp(node.Right).(int)
 		} else {
 			panic("Unknown AddSub op")
 		}
-	case *MulDiv:
-		retVal = p.interpExp(node.left).(int) * p.interpExp(node.right).(int)
-	case *FunDef:
+	case *ast.MulDiv:
+		retVal = i.interpExp(node.Left).(int) * i.interpExp(node.Right).(int)
+	case *ast.FunDef:
 		retVal = node
-	case *FunApp:
-		retVal = p.interpFunApp(node)
-	case *While:
-		for p.interpExp(node.cond).(int) != 0 {
-			for _, line := range node.body.lines {
-				p.interpExp(line)
+	case *ast.FunApp:
+		retVal = i.interpFunApp(node)
+	case *ast.While:
+		for i.interpExp(node.Cond).(int) != 0 {
+			for _, line := range node.Body.Lines {
+				i.interpExp(line)
 			}
 		}
 
 		retVal = &Null{}
-	case *If:
-		if p.interpExp(node.cond).(int) != 0 {
-			for _, line := range node.body.lines {
-				p.interpExp(line)
+	case *ast.If:
+		if i.interpExp(node.Cond).(int) != 0 {
+			for _, line := range node.Body.Lines {
+				i.interpExp(line)
 			}
 		}
 
 		retVal = &Null{}
-	case *CompNode:
-		retVal = p.interpComp(node)
-	case *ArrayLiteral:
+	case *ast.CompNode:
+		retVal = i.interpComp(node)
+	case *ast.ArrayLiteral:
 		newArr := &Array{}
-		newArr.length = node.length
-		newArr.cap = node.length
+		newArr.length = node.Length
+		newArr.cap = node.Length
 
-		for i := 0; i < node.length; i++ {
-			newArr.arr = append(newArr.arr, p.interpExp(node.exprs[i]))
+		for k := 0; k < node.Length; k++ {
+			newArr.arr = append(newArr.arr, i.interpExp(node.Exprs[k]))
 		}
 
 		retVal = newArr
-	case *SliceNode:
-		arr := p.interpExp(node.arr).(*Array)
-		index := p.interpExp(node.index).(int)
+	case *ast.SliceNode:
+		arr := i.interpExp(node.Arr).(*Array)
+		index := i.interpExp(node.Index).(int)
 		retVal = arr.arr[index]
-	case *StrExp:
-		retVal = node.value
+	case *ast.StrExp:
+		retVal = node.Value
 	default:
 		panic("Interp not defined for type: " + reflect.TypeOf(astNode).String())
 	}
@@ -135,13 +130,13 @@ func (p *Program) interpExp(astNode AstNode) Value {
 	return retVal
 }
 
-func (p *Program) interpComp(comp *CompNode) Value {
-	left := p.interpExp(comp.left).(int)
-	right := p.interpExp(comp.right).(int)
+func (i *Interpreter) interpComp(comp *ast.CompNode) Value {
+	left := i.interpExp(comp.Left).(int)
+	right := i.interpExp(comp.Right).(int)
 
 	var retVal bool
 
-	switch comp.op {
+	switch comp.Op {
 	case ">":
 		retVal = left > right
 	case "<":
@@ -162,53 +157,54 @@ func (p *Program) interpComp(comp *CompNode) Value {
 	return 0
 }
 
-func (p *Program) interpFunApp(funApp *FunApp) Value {
-	funExp := p.interpExp(funApp.fun)
+func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
+	funExp := i.interpExp(funApp.Fun)
 
 	primFunc, isPrimFunc := funExp.(PrimFunc)
 	if isPrimFunc {
 		args := make([]Value, 0)
-		for _, arg := range funApp.args {
-			args = append(args, p.interpExp(arg))
+		for _, arg := range funApp.Args {
+			args = append(args, i.interpExp(arg))
 		}
 
 		return primFunc(args)
 	}
 
-	funVal := funExp.(*FunDef)
-	for i := 0; i < len(funVal.args); i++ {
-		argName := funVal.args[i]
-		argValue := p.interpExp(funApp.args[i])
-		p.Environ[argName] = argValue
+	funVal := funExp.(*ast.FunDef)
+	for k := 0; k < len(funVal.Args); k++ {
+		argName := funVal.Args[k]
+		argValue := i.interpExp(funApp.Args[k])
+		i.Environ[argName] = argValue
 	}
 
 	var lastVal Value
-	for _, line := range funVal.body.lines {
-		lastVal = p.interpExp(line)
+	for _, line := range funVal.Body.Lines {
+		lastVal = i.interpExp(line)
 	}
 
 	return lastVal
 }
 
-func (p *Program) interp() {
-	mainApp := &FunApp{}
-	mainApp.fun = p.mainFunc
-	mainApp.args = make([]AstNode, 0)
-	p.interpFunApp(mainApp)
+func (i *Interpreter) interp(p *ast.Program) {
+	mainApp := &ast.FunApp{}
+	mainApp.Fun = p.MainFunc
+	mainApp.Args = make([]ast.Node, 0)
+	i.interpFunApp(mainApp)
 }
 
 func CompareOutput(progText string, output string) bool {
 	prog := ParseProgram(progText)
-	_, err := TypeCheck(prog)
-	if err != nil {
-		log.Fatal("Program doesn't type check: " + err.Error())
-		return false
-	}
+	//_, err := TypeCheck(prog)
+	// if err != nil {
+	// 	log.Fatal("Program doesn't type check: " + err.Error())
+	// 	return false
+	// }
 
-	prog.interp()
+	i := NewInterpreter()
+	i.interp(prog)
 
 	reference := strings.Trim(output, "\r\n")
-	produced := strings.Trim(prog.Output(), "\r\n")
+	produced := strings.Trim(i.Output(), "\r\n")
 	if reference != produced {
 		DiffOutput(reference, produced)
 		return false

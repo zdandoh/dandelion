@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func main() {
@@ -16,9 +15,5 @@ f{
 }();
 `)
 
-	fmt.Println(prog.mainFunc)
-
-	n := time.Now()
-	prog.interp()
-	fmt.Println("TIME:", time.Since(n))
+	fmt.Println(prog.MainFunc)
 }
