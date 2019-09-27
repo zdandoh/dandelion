@@ -6,8 +6,13 @@ import (
 	"strings"
 )
 
-func ApplyFunc(astNode Node, fun func(Node) Node) Node {
-	result := fun(astNode)
+type AstWalker interface {
+	WalkNode(Node) Node
+	WalkBlock(*Block) *Block
+}
+
+func WalkAst(astNode Node, w AstWalker) Node {
+	result := w.WalkNode(astNode)
 	if result != nil {
 		return result
 	}
@@ -15,46 +20,63 @@ func ApplyFunc(astNode Node, fun func(Node) Node) Node {
 
 	switch node := astNode.(type) {
 	case *Assign:
-		retVal = &Assign{node.Ident, ApplyFunc(node.Expr, fun)}
+		retVal = &Assign{node.Ident, WalkAst(node.Expr, w)}
 	case *Num:
 		retVal = node
 	case *Ident:
 		retVal = node
 	case *AddSub:
-		retVal = &AddSub{ApplyFunc(node.Left, fun), ApplyFunc(node.Right, fun), node.Op}
+		retVal = &AddSub{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *MulDiv:
-		retVal = &MulDiv{ApplyFunc(node.Left, fun), ApplyFunc(node.Right, fun), node.Op}
+		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *FunDef:
-		newBlock := &Block{ApplyBlock(node.Body.Lines, fun)}
+		newBlock := WalkBlock(node.Body, w)
 		retVal = &FunDef{newBlock, node.Args}
 	case *FunApp:
-		retVal = &FunApp{ApplyFunc(node.Fun, fun), ApplyBlock(node.Args, fun)}
+		retVal = &FunApp{WalkAst(node.Fun, w), WalkList(node.Args, w)}
 	case *While:
-		retVal = &While{ApplyFunc(node.Cond, fun), &Block{ApplyBlock(node.Body.Lines, fun)}}
+		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *If:
-		retVal = &If{ApplyFunc(node.Cond, fun), &Block{ApplyBlock(node.Body.Lines, fun)}}
+		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *CompNode:
-		retVal = &CompNode{node.Op, ApplyFunc(node.Left, fun), ApplyFunc(node.Right, fun)}
+		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *ArrayLiteral:
-		retVal = &ArrayLiteral{node.Length, ApplyBlock(node.Exprs, fun)}
+		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w)}
 	case *SliceNode:
-		retVal = &SliceNode{ApplyFunc(node.Index, fun), ApplyFunc(node.Arr, fun)}
+		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w)}
 	case *StrExp:
 		retVal = node
 	default:
-		panic("ApplyFunc not defined for type: " + reflect.TypeOf(astNode).String())
+		panic("WalkAst not defined for type: " + reflect.TypeOf(astNode).String())
 	}
 
 	return retVal
 }
 
-func ApplyBlock(lines []Node, fun func(Node) Node) []Node {
-	newLines := make([]Node, 0)
-	for _, line := range lines {
-		newLines = append(newLines, ApplyFunc(line, fun))
+func WalkList(arr []Node, w AstWalker) []Node {
+	newArr := make([]Node, 0)
+
+	for _, line := range arr {
+		newArr = append(newArr, w.WalkNode(line))
 	}
 
-	return newLines
+	return newArr
+}
+
+func WalkBlock(block *Block, w AstWalker) *Block {
+	newBlock := w.WalkBlock(block)
+	if newBlock != nil {
+		return newBlock
+	}
+
+	newBlock = &Block{}
+	newLines := make([]Node, 0)
+	for _, line := range block.Lines {
+		newLines = append(newLines, WalkAst(line, w))
+	}
+	newBlock.Lines = newLines
+
+	return newBlock
 }
 
 type Program struct {

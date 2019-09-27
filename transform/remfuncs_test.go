@@ -25,12 +25,32 @@ f{
 		t.Fatal("Not enough generated functions")
 	}
 
-	ast.ApplyBlock(prog.MainFunc.Body.Lines, func(astNode ast.Node) ast.Node {
+	ts := &struct{ testfuncinside }{}
+	ts.walkNode = func(astNode ast.Node) ast.Node {
 		switch astNode.(type) {
 		case *ast.FunDef:
+
 			t.Fatal("Found function definition in main function")
 		}
 
 		return nil
-	})
+	}
+	ts.walkBlock = func(block *ast.Block) *ast.Block {
+		return nil
+	}
+
+	ast.WalkBlock(prog.MainFunc.Body, ts)
+}
+
+type testfuncinside struct {
+	walkNode  func(ast.Node) ast.Node
+	walkBlock func(*ast.Block) *ast.Block
+}
+
+func (t *testfuncinside) WalkBlock(block *ast.Block) *ast.Block {
+	return t.walkBlock(block)
+}
+
+func (t *testfuncinside) WalkNode(node ast.Node) ast.Node {
+	return t.walkNode(node)
 }

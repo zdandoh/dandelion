@@ -16,7 +16,7 @@ func RemFuncs(prog *ast.Program) {
 	remover := &FuncRemover{}
 	remover.funcs = make(map[string]*ast.FunDef)
 
-	prog.MainFunc.Body.Lines = ast.ApplyBlock(prog.MainFunc.Body.Lines, remover.remExprFuncs)
+	prog.MainFunc.Body = ast.WalkBlock(prog.MainFunc.Body, remover)
 	prog.Funcs = remover.funcs
 }
 
@@ -26,7 +26,7 @@ func (r *FuncRemover) newFunName() string {
 	return name
 }
 
-func (r *FuncRemover) remExprFuncs(astNode ast.Node) ast.Node {
+func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 	var retVal ast.Node
 
 	switch node := astNode.(type) {
@@ -34,8 +34,12 @@ func (r *FuncRemover) remExprFuncs(astNode ast.Node) ast.Node {
 		newName := r.newFunName()
 		r.funcs[newName] = node
 		retVal = &ast.Ident{newName}
-		r.funcs[newName].Body.Lines = ast.ApplyBlock(node.Body.Lines, r.remExprFuncs)
+		r.funcs[newName].Body = ast.WalkBlock(node.Body, r)
 	}
 
 	return retVal
+}
+
+func (r *FuncRemover) WalkBlock(block *ast.Block) *ast.Block {
+	return nil
 }
