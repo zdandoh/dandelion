@@ -30,8 +30,9 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *MulDiv:
 		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *FunDef:
+		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
-		retVal = &FunDef{newBlock, node.Args}
+		retVal = &FunDef{newBlock, walkedArgs}
 	case *FunApp:
 		retVal = &FunApp{WalkAst(node.Fun, w), WalkList(node.Args, w)}
 	case *While:
@@ -155,20 +156,26 @@ func (n *Ident) String() string {
 
 type FunDef struct {
 	Body *Block
-	Args []string
+	Args []Node
 }
 
 func NewFunDef() *FunDef {
 	newFun := &FunDef{}
-	newFun.Args = make([]string, 0)
+	newFun.Args = make([]Node, 0)
 
 	return newFun
 }
 
 func (n *FunDef) String() string {
 	lines := "f"
+
+	argStrings := make([]string, 0)
+	for _, arg := range n.Args {
+		argStrings = append(argStrings, arg.(*Ident).Value)
+	}
+
 	if len(n.Args) > 0 {
-		lines += "(" + strings.Join(n.Args, ",") + ")"
+		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
 	lines += "{\n"
 	lines += n.Body.String()

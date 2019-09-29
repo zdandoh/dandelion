@@ -10,7 +10,7 @@ type Renamer struct {
 	LocalNames   map[string]string
 }
 
-func (r *Renamer) Clone() *Renamer {
+func (r *Renamer) LocalCopy() *Renamer {
 	newRenamer := &Renamer{}
 	newRenamer.LocalNames = make(map[string]string)
 	newRenamer.NameVersions = r.NameVersions
@@ -60,9 +60,7 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 }
 
 func (r *Renamer) WalkBlock(block *ast.Block) *ast.Block {
-	renameCopy := r.Clone()
-	fmt.Printf("%p\n", renameCopy)
-	fmt.Println("Cloned block:", renameCopy, block)
+	renameCopy := r.LocalCopy()
 
 	newLines := make([]ast.Node, 0)
 	for _, line := range block.Lines {

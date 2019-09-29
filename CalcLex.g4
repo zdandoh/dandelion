@@ -43,7 +43,7 @@ GTE: '>=';
 EQ: '==';
 
 NUMBER: [0-9]+;
-IDENT: [a-zA-Z_]+;
+IDENT: [a-zA-Z_0-9]+;
 STRING: STRING_UNTERM '"';
 STRING_UNTERM: '"' (~["\\\r\n] | '\\' (. | EOF))*;
 WHITESPACE: [ \r\n\t]+ -> skip;

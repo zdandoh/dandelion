@@ -175,7 +175,7 @@ func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
 	for k := 0; k < len(funVal.Args); k++ {
 		argName := funVal.Args[k]
 		argValue := i.interpExp(funApp.Args[k])
-		i.Environ[argName] = argValue
+		i.Environ[argName.(*ast.Ident).Value] = argValue
 	}
 
 	var lastVal Value

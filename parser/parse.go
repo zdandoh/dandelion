@@ -20,7 +20,6 @@ type calcListener struct {
 
 func (l *calcListener) EnterAddSub(c *parser.AddSubContext) {
 	fmt.Println("Enter addsub " + c.GetText())
-	// l.nodeStack.Push(addNode)
 }
 
 func (l *calcListener) ExitAddSub(c *parser.AddSubContext) {
@@ -127,17 +126,17 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 
 	funDef := ast.NewFunDef()
 	args := c.GetArgs()
-	argNames := make([]string, 0)
+	argIdents := make([]ast.Node, 0)
 	if args != nil {
 		notCommas := filterCommas(args.GetChildren())
 		for _, arg := range notCommas {
 			argStr := fmt.Sprintf("%s", arg)
-			argNames = append(argNames, argStr)
+			argIdents = append(argIdents, &ast.Ident{argStr})
 		}
 	} else {
-		argNames = []string{}
+		argIdents = []ast.Node{}
 	}
-	funDef.Args = argNames
+	funDef.Args = argIdents
 	funDef.Body = l.blockStack.Pop()
 	l.nodeStack.Push(funDef)
 }
