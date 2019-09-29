@@ -1,6 +1,8 @@
 package ast
 
-import "reflect"
+import (
+	"reflect"
+)
 
 type AstWalker interface {
 	WalkNode(Node) Node
@@ -43,7 +45,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		newBlock := WalkBlock(node.Body, w)
 		retVal = &FunDef{newBlock, walkedArgs}
 	case *FunApp:
-		retVal = &FunApp{WalkAst(node.Fun, w), WalkList(node.Args, w)}
+		walkedArgs := WalkList(node.Args, w)
+		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}
 	case *While:
 		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *If:
@@ -67,7 +70,7 @@ func WalkList(arr []Node, w AstWalker) []Node {
 	newArr := make([]Node, 0)
 
 	for _, line := range arr {
-		newArr = append(newArr, w.WalkNode(line))
+		newArr = append(newArr, WalkAst(line, w))
 	}
 
 	return newArr

@@ -3,6 +3,7 @@ package interp
 import (
 	"ahead/ast"
 	"ahead/parser"
+	"ahead/transform"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -30,8 +31,9 @@ type Env map[string]Value
 type PrimFunc = func([]Value) Value
 
 type Interpreter struct {
-	Environ Env
-	output  string
+	Environ     Env
+	CurrProgram *ast.Program
+	output      string
 }
 
 func NewInterpreter() *Interpreter {
@@ -47,7 +49,7 @@ func (i *Interpreter) Output() string {
 
 func NewEnv(i *Interpreter) Env {
 	newEnv := make(Env)
-	newEnv["p"] = func(values []Value) Value {
+	newEnv["p_1"] = func(values []Value) Value {
 		for _, value := range values {
 			fmt.Print(value)
 			i.output += fmt.Sprintf("%v", value)
@@ -74,7 +76,11 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		var ok bool
 		retVal, ok = i.Environ[node.Value]
 		if !ok {
-			panic("Unbound variable: " + node.Value)
+			funcVal, ok := i.CurrProgram.Funcs[node.Value]
+			if !ok {
+				panic("Unbound variable: " + node.Value)
+			}
+			retVal = funcVal
 		}
 	case *ast.AddSub:
 		if node.Op == "+" {
@@ -124,6 +130,8 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		retVal = arr.arr[index]
 	case *ast.StrExp:
 		retVal = node.Value
+	case nil:
+		panic("Interp on nil value")
 	default:
 		panic("Interp not defined for type: " + reflect.TypeOf(astNode).String())
 	}
@@ -147,7 +155,7 @@ func (i *Interpreter) interpComp(comp *ast.CompNode) Value {
 	case "<=":
 		retVal = left <= right
 	case "==":
-		retVal = left <= right
+		retVal = left == right
 	default:
 		panic("Invalid comp op")
 	}
@@ -190,11 +198,15 @@ func (i *Interpreter) Interp(p *ast.Program) {
 	mainApp := &ast.FunApp{}
 	mainApp.Fun = p.MainFunc
 	mainApp.Args = make([]ast.Node, 0)
+	i.CurrProgram = p
 	i.interpFunApp(mainApp)
 }
 
 func CompareOutput(progText string, output string) bool {
 	prog := parser.ParseProgram(progText)
+	transform.RenameIdents(prog)
+	transform.RemFuncs(prog)
+
 	//_, err := TypeCheck(prog)
 	// if err != nil {
 	// 	log.Fatal("Program doesn't type check: " + err.Error())
