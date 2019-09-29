@@ -93,14 +93,19 @@ f{
 
 	parsed := parser.ParseProgram(prog)
 
-	newAst := ast.ApplyFunc(parsed.MainFunc, func(node ast.Node) ast.Node {
+	walker := &struct{ ast.BaseWalker }{}
+	walker.WalkN = func(node ast.Node) ast.Node {
 		switch t := node.(type) {
 		case *ast.AddSub:
 			return &ast.AddSub{t.Right, t.Left, t.Op}
 		}
 
 		return nil
-	})
+	}
+	walker.WalkB = func(b *ast.Block) *ast.Block {
+		return nil
+	}
+	newAst := ast.WalkAst(parsed.MainFunc, walker)
 
 	if parsed.MainFunc.String() == fmt.Sprintf("%s", newAst) {
 		t.Fatal("Transformed AST equals un-transformed AST")

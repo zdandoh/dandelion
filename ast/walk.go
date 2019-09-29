@@ -7,6 +7,19 @@ type AstWalker interface {
 	WalkBlock(*Block) *Block
 }
 
+type BaseWalker struct {
+	WalkN func(Node) Node
+	WalkB func(*Block) *Block
+}
+
+func (b *BaseWalker) WalkNode(node Node) Node {
+	return b.WalkN(node)
+}
+
+func (b *BaseWalker) WalkBlock(block *Block) *Block {
+	return b.WalkB(block)
+}
+
 func WalkAst(astNode Node, w AstWalker) Node {
 	result := w.WalkNode(astNode)
 	if result != nil {
