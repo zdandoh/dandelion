@@ -2,9 +2,7 @@ package interp
 
 import (
 	"ahead/parser"
-	"ahead/transform"
 	"ahead/types"
-	"fmt"
 	"testing"
 )
 
@@ -44,10 +42,9 @@ d = 5;
 p(func(dep1(d), dep2(4), dep3(5)));
 `
 
-	prog := parser.ParseProgram(src)
-	transform.TransformAst(prog)
-	i := NewInterpreter()
-	i.Interp(prog)
+	output := "14"
 
-	fmt.Println(i.Output())
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
 }

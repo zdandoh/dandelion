@@ -115,12 +115,54 @@ f{
 func TestPipe(t *testing.T) {
 	src := `
 func = f(i, e, a) {
-	p_1(e);
+	p(e);
 };
 [10, 11, 12, 13, 14, 15] -> func;
 `
 
-	prog := parser.ParseProgram(src)
-	i := NewInterpreter()
-	i.Interp(prog)
+	output := `
+10
+11
+12
+13
+14
+15
+`
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
+}
+
+func TestPipeInline(t *testing.T) {
+	src := `
+[4, 5, 6, 7] -> f{p(e);};
+`
+
+	output := `
+4
+5
+6
+7
+`
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
+}
+
+func TestPipeline(t *testing.T) {
+	src := `
+[1, 2, 3, 4, 5] -> f{ e + 1; } -> f{ e * 2; } -> f{ p(e); };
+`
+
+	output := `
+4
+6
+8
+10
+12
+`
+
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
 }

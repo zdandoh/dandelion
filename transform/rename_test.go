@@ -7,7 +7,7 @@ import (
 
 func TestRename(t *testing.T) {
 	src := `
-f{
+f(){
 	x = 5;
 	if x > 10 {
 		y = 30;
@@ -21,7 +21,7 @@ f{
 `
 
 	destSrc := `
-f{
+f(){
 	x_1 = 5;
 	if x_1 > 10 {
 		y_1 = 30;

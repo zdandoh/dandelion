@@ -5,6 +5,7 @@ import (
 	"ahead/ast"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
@@ -124,19 +125,25 @@ func (l *calcListener) EnterFunDef(c *parser.FunDefContext) {
 func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 	fmt.Println("Exiting fun def")
 
-	funDef := ast.NewFunDef()
-	args := c.GetArgs()
-	argIdents := make([]ast.Node, 0)
-	if args != nil {
-		notCommas := filterCommas(args.GetChildren())
-		for _, arg := range notCommas {
+	// This is definitely bad and should be changed
+	isPipeFunc := strings.HasPrefix(c.GetText(), "f{")
+
+	var args []ast.Node
+	if isPipeFunc {
+		args = []ast.Node{&ast.Ident{"i"}, &ast.Ident{"e"}, &ast.Ident{"a"}}
+	} else if c.GetArgs() != nil {
+		parsedArgs := c.GetArgs()
+		argTokens := filterCommas(parsedArgs.GetChildren())
+		for _, arg := range argTokens {
 			argStr := fmt.Sprintf("%s", arg)
-			argIdents = append(argIdents, &ast.Ident{argStr})
+			args = append(args, &ast.Ident{argStr})
 		}
 	} else {
-		argIdents = []ast.Node{}
+		args = []ast.Node{}
 	}
-	funDef.Args = argIdents
+
+	funDef := ast.NewFunDef()
+	funDef.Args = args
 	funDef.Body = l.blockStack.Pop()
 	l.nodeStack.Push(funDef)
 }
