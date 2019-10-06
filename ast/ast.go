@@ -188,3 +188,12 @@ type StrExp struct {
 func (n *StrExp) String() string {
 	return fmt.Sprintf("\"%s\"", n.Value)
 }
+
+type PipeExp struct {
+	Left Node
+	Right Node
+}
+
+func (n *PipeExp) String() string {
+	return fmt.Sprintf("%v -> %v", n.Left, n.Right)
+}

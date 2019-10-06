@@ -111,3 +111,16 @@ f{
 		t.Fatal("Transformed AST equals un-transformed AST")
 	}
 }
+
+func TestPipe(t *testing.T) {
+	src := `
+func = f(i, e, a) {
+	p_1(e);
+};
+[10, 11, 12, 13, 14, 15] -> func;
+`
+
+	prog := parser.ParseProgram(src)
+	i := NewInterpreter()
+	i.Interp(prog)
+}

@@ -7,13 +7,8 @@ import (
 	"reflect"
 )
 
-type TypeInfNode struct {
-	deps []TypeInfNode
-}
-
 type TypeChecker struct {
-	TEnv     map[string]Type
-	TypeInfs map[string]TypeInfNode
+	TEnv map[string]Type
 }
 
 func NewTypeChecker() *TypeChecker {
@@ -144,11 +139,6 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 	}
 
 	return retType, retErr
-}
-
-func (c *TypeChecker) DiscoverTypes(node ast.Node) ast.Node {
-
-	return nil
 }
 
 func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]Type, error) {

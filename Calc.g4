@@ -14,6 +14,7 @@ expr
    | '[' elems=explist ']'                     # Array
    | expr '[' index=expr ']'                   # SliceExp
    | expr op=(LT|LTE|GT|GTE|EQ) expr           # CompExp
+   | left=expr PIPE right=expr                 # PipeExp
    | expr op=(MUL|DIV) expr                    # MulDiv
    | 'f' '{' body '}'                          # FunDef
    | 'f' '(' args=arglist? ')' '{' body '}'    # FunDef

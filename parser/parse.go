@@ -231,6 +231,20 @@ func (l *calcListener) ExitSliceExp(c *parser.SliceExpContext) {
 	l.nodeStack.Push(sliceNode)
 }
 
+func (l *calcListener) EnterPipeExp(c *parser.PipeExpContext) {
+	fmt.Println("Entering pipe exp")
+}
+
+func (l *calcListener) ExitPipeExp(c *parser.PipeExpContext) {
+	fmt.Println("Exiting pipe exp")
+
+	pipeNode := &ast.PipeExp{}
+	pipeNode.Right = l.nodeStack.Pop()
+	pipeNode.Left = l.nodeStack.Pop()
+
+	l.nodeStack.Push(pipeNode)
+}
+
 func (l *calcListener) EnterStrExp(c *parser.StrExpContext) {
 	fmt.Println("Entering string")
 }

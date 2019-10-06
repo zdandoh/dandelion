@@ -82,6 +82,15 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 			}
 			retVal = funcVal
 		}
+	case *ast.PipeExp:
+		arr := i.interpExp(node.Left).(*Array)
+		appFun := i.interpExp(node.Right)
+		resultArr := &Array{arr.length, arr.length,make([]interface{}, arr.length)}
+		for index := 0; index < arr.length; index++ {
+			result := i.interpFunDef(appFun, []Value{index, arr.arr[index], arr})
+			resultArr.arr[index] = result
+		}
+		retVal = resultArr
 	case *ast.AddSub:
 		if node.Op == "+" {
 			retVal = i.interpExp(node.Left).(int) + i.interpExp(node.Right).(int)
@@ -166,24 +175,16 @@ func (i *Interpreter) interpComp(comp *ast.CompNode) Value {
 	return 0
 }
 
-func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
-	funExp := i.interpExp(funApp.Fun)
-
+func (i *Interpreter) interpFunDef(funExp ast.Node, args []Value) Value {
 	primFunc, isPrimFunc := funExp.(PrimFunc)
 	if isPrimFunc {
-		args := make([]Value, 0)
-		for _, arg := range funApp.Args {
-			args = append(args, i.interpExp(arg))
-		}
-
 		return primFunc(args)
 	}
 
 	funVal := funExp.(*ast.FunDef)
 	for k := 0; k < len(funVal.Args); k++ {
 		argName := funVal.Args[k]
-		argValue := i.interpExp(funApp.Args[k])
-		i.Environ[argName.(*ast.Ident).Value] = argValue
+		i.Environ[argName.(*ast.Ident).Value] = args[k]
 	}
 
 	var lastVal Value
@@ -192,6 +193,17 @@ func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
 	}
 
 	return lastVal
+}
+
+func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
+	funExp := i.interpExp(funApp.Fun)
+
+	args := make([]Value, 0)
+	for _, arg := range funApp.Args {
+		args = append(args, i.interpExp(arg))
+	}
+
+	return i.interpFunDef(funExp, args)
 }
 
 func (i *Interpreter) Interp(p *ast.Program) {
@@ -204,8 +216,7 @@ func (i *Interpreter) Interp(p *ast.Program) {
 
 func CompareOutput(progText string, output string) bool {
 	prog := parser.ParseProgram(progText)
-	transform.RenameIdents(prog)
-	transform.RemFuncs(prog)
+	transform.TransformAst(prog)
 
 	//_, err := TypeCheck(prog)
 	// if err != nil {
@@ -250,11 +261,11 @@ func DiffOutput(reference string, produced string) {
 }
 
 func Strings(items []interface{}) []string {
-	strings := make([]string, 0)
+	strs := make([]string, 0)
 
 	for _, item := range items {
-		strings = append(strings, fmt.Sprintf("%v", item))
+		strs = append(strs, fmt.Sprintf("%v", item))
 	}
 
-	return strings
+	return strs
 }

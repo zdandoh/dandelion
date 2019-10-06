@@ -28,6 +28,7 @@ WHILE: 'while';
 FOR: 'for';
 ELIF: 'elif';
 ELSE: 'else';
+PIPE: '->';
 
 // Keywords
 TRUE: 'true';
