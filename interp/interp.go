@@ -4,7 +4,10 @@ import (
 	"ahead/ast"
 	"ahead/parser"
 	"ahead/transform"
+	"bufio"
+	"errors"
 	"fmt"
+	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
@@ -25,6 +28,16 @@ type Array struct {
 func (a *Array) String() string {
 	return fmt.Sprintf("[%v]", strings.Join(Strings(a.arr), ", "))
 }
+
+type Iterator struct {
+	iter chan Value
+}
+
+func (iter *Iterator) String() string {
+	return "<iterator object>"
+}
+
+var StopIteration = errors.New("Stop iteration")
 
 type Env map[string]Value
 
@@ -49,7 +62,7 @@ func (i *Interpreter) Output() string {
 
 func NewEnv(i *Interpreter) Env {
 	newEnv := make(Env)
-	newEnv["p_1"] = func(values []Value) Value {
+	newEnv["p"] = func(values []Value) Value {
 		for _, value := range values {
 			fmt.Print(value)
 			i.output += fmt.Sprintf("%v", value)
@@ -83,14 +96,62 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 			retVal = funcVal
 		}
 	case *ast.PipeExp:
-		arr := i.interpExp(node.Left).(*Array)
+		iter := i.interpExp(node.Left)
+		arr, isArr := iter.(*Array)
+		iterator, isIter := iter.(*Iterator)
+
 		appFun := i.interpExp(node.Right)
-		resultArr := &Array{arr.length, arr.length,make([]interface{}, arr.length)}
-		for index := 0; index < arr.length; index++ {
-			result := i.interpFunDef(appFun, []Value{index, arr.arr[index], arr})
-			resultArr.arr[index] = result
+		resultArr := make([]interface{}, 0)
+		index := 0
+		for {
+			var result Value
+			if isArr {
+				if index >= arr.length {
+					break
+				}
+				result = i.interpFunDef(appFun, []Value{index, arr.arr[index], arr})
+			} else if isIter {
+				iterVal := <- iterator.iter
+				if iterVal == StopIteration {
+					break
+				}
+				result = i.interpFunDef(appFun, []Value{index, iterVal, iterator})
+			}
+			resultArr = append(resultArr, result)
+			index++
 		}
-		retVal = resultArr
+		retVal = &Array{len(resultArr), len(resultArr), resultArr}
+	case *ast.CommandExp:
+		newIter := &Iterator{}
+		newIter.iter = make(chan Value)
+
+		cmd := exec.Command(node.Command)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			retVal = Array{0, 0, []interface{}{}}
+			break
+		}
+		err = cmd.Start()
+		if err != nil {
+			retVal = Array{0,0,[]interface{}{}}
+			break
+		}
+
+		go func() {
+			reader := bufio.NewReader(stdout)
+
+			for {
+				line, err := reader.ReadString('\n')
+				line = strings.TrimRight(line, "\n")
+				newIter.iter <- line
+				if err != nil {
+					newIter.iter <- StopIteration
+					break
+				}
+			}
+		}()
+
+		retVal = newIter
 	case *ast.AddSub:
 		if node.Op == "+" {
 			retVal = i.interpExp(node.Left).(int) + i.interpExp(node.Right).(int)

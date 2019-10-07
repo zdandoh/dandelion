@@ -197,3 +197,11 @@ type PipeExp struct {
 func (n *PipeExp) String() string {
 	return fmt.Sprintf("%v -> %v", n.Left, n.Right)
 }
+
+type CommandExp struct {
+	Command string
+}
+
+func (n *CommandExp) String() string {
+	return fmt.Sprintf("`%s`", n.Command)
+}

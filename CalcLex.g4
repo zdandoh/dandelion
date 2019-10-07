@@ -45,6 +45,8 @@ EQ: '==';
 
 NUMBER: [0-9]+;
 IDENT: [a-zA-Z_0-9]+;
+COMMAND: COMMAND_UNTERM '`';
+COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;
 STRING: STRING_UNTERM '"';
 STRING_UNTERM: '"' (~["\\\r\n] | '\\' (. | EOF))*;
 WHITESPACE: [ \r\n\t]+ -> skip;

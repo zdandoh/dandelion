@@ -238,6 +238,17 @@ func (l *calcListener) ExitSliceExp(c *parser.SliceExpContext) {
 	l.nodeStack.Push(sliceNode)
 }
 
+func (l *calcListener) EnterCommandExp(c *parser.CommandExpContext) {
+	fmt.Println("Entering command exp")
+}
+
+func (l *calcListener) ExitCommandExp(c *parser.CommandExpContext) {
+	fmt.Println("Exiting command exp")
+	command := &ast.CommandExp{c.GetText()[1:len(c.GetText()) - 1]}
+	fmt.Println(command.Command)
+	l.nodeStack.Push(command)
+}
+
 func (l *calcListener) EnterPipeExp(c *parser.PipeExpContext) {
 	fmt.Println("Entering pipe exp")
 }

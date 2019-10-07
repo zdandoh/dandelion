@@ -22,6 +22,7 @@ expr
    | expr op=(ADD|SUB) expr                    # AddSub
    | NUMBER                                    # Number
    | STRING                                    # StrExp
+   | COMMAND                                   # CommandExp
    | IDENT                                     # Ident
    ;
 

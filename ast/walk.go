@@ -40,6 +40,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &AddSub{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *PipeExp:
 		retVal = &PipeExp{WalkAst(node.Left, w), WalkAst(node.Right, w)}
+	case *CommandExp:
+		retVal = &CommandExp{node.Command}
 	case *MulDiv:
 		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *FunDef:

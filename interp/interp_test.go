@@ -166,3 +166,11 @@ func TestPipeline(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestCommandExec(t *testing.T) {
+	src := "`ls` -> f{p(e);};"
+
+	prog := parser.ParseProgram(src)
+	i := NewInterpreter()
+	i.Interp(prog)
+}
