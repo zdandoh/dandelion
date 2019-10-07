@@ -168,9 +168,35 @@ func TestPipeline(t *testing.T) {
 }
 
 func TestCommandExec(t *testing.T) {
-	src := "`ls` -> f{p(e);};"
+	src := "`printf hello` -> f{p(e);};"
 
-	prog := parser.ParseProgram(src)
-	i := NewInterpreter()
-	i.Interp(prog)
+	if !CompareOutput(src, "hello") {
+		t.FailNow()
+	}
+}
+
+func TestEmptyPipe(t *testing.T) {
+	src := "[] -> f{p(e);};"
+
+	if !CompareOutput(src, "") {
+		t.FailNow()
+	}
+}
+
+func TestReturn(t *testing.T) {
+	src := `
+value = f(){
+	var = 30;
+	if var == 30 {
+		return 5;
+	};
+	p("didnt return");
+	7;
+}();
+p(value);
+`
+
+	if !CompareOutput(src, "5") {
+		t.FailNow()
+	}
 }

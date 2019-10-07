@@ -29,6 +29,8 @@ FOR: 'for';
 ELIF: 'elif';
 ELSE: 'else';
 PIPE: '->';
+RETURN: 'return';
+YIELD: 'yield';
 
 // Keywords
 TRUE: 'true';
@@ -45,6 +47,7 @@ EQ: '==';
 
 NUMBER: [0-9]+;
 IDENT: [a-zA-Z_0-9]+;
+STRUCT: 'struct';
 COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;
 STRING: STRING_UNTERM '"';

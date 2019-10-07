@@ -200,8 +200,25 @@ func (n *PipeExp) String() string {
 
 type CommandExp struct {
 	Command string
+	Args []string
 }
 
 func (n *CommandExp) String() string {
 	return fmt.Sprintf("`%s`", n.Command)
+}
+
+type ReturnExp struct {
+	Target Node
+}
+
+func (n *ReturnExp) String() string {
+	return fmt.Sprintf("return %s", n.Target)
+}
+
+type YieldExp struct {
+	Target Node
+}
+
+func (n *YieldExp) String() string {
+	return fmt.Sprintf("yield %s", n.Target)
 }

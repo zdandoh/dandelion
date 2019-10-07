@@ -180,6 +180,24 @@ func (l *calcListener) ExitIf(c *parser.IfContext) {
 	l.nodeStack.Push(ifNode)
 }
 
+func (l *calcListener) EnterReturn(c *parser.ReturnContext) {
+	fmt.Println("Entering return")
+}
+
+func (l *calcListener) ExitReturn(c *parser.ReturnContext) {
+	fmt.Println("Exiting return")
+	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop()})
+}
+
+func (l *calcListener) EnterYield(c *parser.YieldContext) {
+	fmt.Println("Entering yield")
+}
+
+func (l *calcListener) ExitYield(c *parser.YieldContext) {
+	fmt.Println("Exiting yield")
+	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop()})
+}
+
 func (l *calcListener) EnterAssign(c *parser.AssignContext) {
 	fmt.Println("Enter assign")
 }
@@ -244,8 +262,16 @@ func (l *calcListener) EnterCommandExp(c *parser.CommandExpContext) {
 
 func (l *calcListener) ExitCommandExp(c *parser.CommandExpContext) {
 	fmt.Println("Exiting command exp")
-	command := &ast.CommandExp{c.GetText()[1:len(c.GetText()) - 1]}
-	fmt.Println(command.Command)
+
+	command := &ast.CommandExp{}
+	splitCommand := strings.Split(c.GetText()[1:len(c.GetText()) - 1], " ")
+	command.Command = splitCommand[0]
+
+	// TODO: Support more advanced command syntax
+	for i := 1; i < len(splitCommand); i++ {
+		command.Args = append(command.Args, splitCommand[i])
+	}
+
 	l.nodeStack.Push(command)
 }
 

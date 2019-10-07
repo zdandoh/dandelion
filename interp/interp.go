@@ -125,7 +125,8 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		newIter := &Iterator{}
 		newIter.iter = make(chan Value)
 
-		cmd := exec.Command(node.Command)
+		fmt.Println(node.Command, node.Args)
+		cmd := exec.Command(node.Command, node.Args...)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			retVal = Array{0, 0, []interface{}{}}
@@ -141,7 +142,9 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 			reader := bufio.NewReader(stdout)
 
 			for {
+				fmt.Println("reading")
 				line, err := reader.ReadString('\n')
+				fmt.Println("never read")
 				line = strings.TrimRight(line, "\n")
 				newIter.iter <- line
 				if err != nil {
@@ -174,6 +177,8 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		}
 
 		retVal = &Null{}
+	case *ast.ReturnExp:
+		retVal = i.interpExp(node.Target)
 	case *ast.If:
 		if i.interpExp(node.Cond).(int) != 0 {
 			for _, line := range node.Body.Lines {
@@ -284,7 +289,7 @@ func CompareOutput(progText string, output string) bool {
 	// 	log.Fatal("Program doesn't type check: " + err.Error())
 	// 	return false
 	// }
-
+	fmt.Println(prog)
 	i := NewInterpreter()
 	i.Interp(prog)
 

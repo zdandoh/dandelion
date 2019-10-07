@@ -27,8 +27,10 @@ expr
    ;
 
 statement
-   : ident=IDENT '=' expr           # Assign
-   | IF expr '{' lines=line* '}'    # If
+   : ident=IDENT '=' expr                    # Assign
+   | IF expr '{' lines=line* '}'             # If
    | FOR expr ';' expr ';' expr '{' body '}' # For
-   | WHILE expr '{' body '}' # While
+   | WHILE expr '{' body '}'                 # While
+   | RETURN expr                             # Return
+   | YIELD expr                              # Yield
    ;

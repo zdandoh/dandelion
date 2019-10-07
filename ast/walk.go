@@ -41,7 +41,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *PipeExp:
 		retVal = &PipeExp{WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *CommandExp:
-		retVal = &CommandExp{node.Command}
+		retVal = &CommandExp{node.Command, node.Args}
 	case *MulDiv:
 		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *FunDef:
@@ -55,6 +55,10 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
+	case *ReturnExp:
+		retVal = &ReturnExp{WalkAst(node.Target, w)}
+	case *YieldExp:
+		retVal = &YieldExp{WalkAst(node.Target, w)}
 	case *CompNode:
 		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *ArrayLiteral:
