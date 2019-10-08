@@ -68,7 +68,6 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 		// This is where smart type inference needs to happen
 		retType = FuncType{make([]Type, 0), IntType{}}
 	case *ast.FunApp:
-		fmt.Println(node.Fun)
 		funType, err := c.TypeCheck(node.Fun)
 		if err != nil {
 			retErr = err

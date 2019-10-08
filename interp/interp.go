@@ -14,34 +14,70 @@ import (
 )
 
 type Value interface {
+	ValueString() string
+}
+
+type Int int
+
+func (n Int) ValueString() string {
+	return fmt.Sprintf("%d", int(n))
+}
+
+type String string
+func (n String) ValueString() string {
+	return string(n)
 }
 
 type Null struct {
 }
 
+func (n *Null) ValueString() string {
+	return "null"
+}
+
+type PrimFunc struct {
+	Target func([]Value) Value
+}
+
+func (n *PrimFunc) ValueString() string {
+	return "<builtin>"
+}
+
 type Array struct {
 	length int
 	cap    int
-	arr    []interface{}
+	arr    []Value
 }
 
-func (a *Array) String() string {
-	return fmt.Sprintf("[%v]", strings.Join(Strings(a.arr), ", "))
+func (n *Array) ValueString() string {
+	strs := make([]string, 0)
+	for _, item := range n.arr {
+		strs = append(strs, item.ValueString())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
+}
+
+type Closure struct {
+	Fun *ast.FunDef
+	Env map[string]Value
+}
+
+func (n *Closure) ValueString() string {
+	return fmt.Sprintf("%s", n.Fun)
 }
 
 type Iterator struct {
-	iter chan Value
+	iter chan interface{}
 }
 
-func (iter *Iterator) String() string {
+func (iter *Iterator) ValueString() string {
 	return "<iterator object>"
 }
 
 var StopIteration = errors.New("Stop iteration")
+var ReturnExp = errors.New("Return expression")
 
 type Env map[string]Value
-
-type PrimFunc = func([]Value) Value
 
 type Interpreter struct {
 	Environ     Env
@@ -62,29 +98,36 @@ func (i *Interpreter) Output() string {
 
 func NewEnv(i *Interpreter) Env {
 	newEnv := make(Env)
-	newEnv["p"] = func(values []Value) Value {
+	newEnv["p"] = &PrimFunc{func(values []Value) Value {
 		for _, value := range values {
-			fmt.Print(value)
-			i.output += fmt.Sprintf("%v", value)
+			strVal := value.ValueString()
+			fmt.Print(strVal)
+			i.output += strVal
 		}
 		i.output += "\n"
 		fmt.Println()
 		return &Null{}
-	}
+	}}
 
 	return newEnv
 }
 
-func (i *Interpreter) interpExp(astNode ast.Node) Value {
+func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 	var retVal Value
+	var ctrl error
 
 	switch node := astNode.(type) {
 	case *ast.Assign:
-		i.Environ[node.Ident] = i.interpExp(node.Expr)
+		assignNode, ctrl := i.interpExp(node.Expr)
+		if ctrl != nil {
+			return assignNode, ctrl
+		}
+		i.Environ[node.Ident] = assignNode
+
 		retVal = &Null{}
 	case *ast.Num:
 		res, _ := strconv.Atoi(node.Value)
-		retVal = res
+		retVal = Int(res)
 	case *ast.Ident:
 		var ok bool
 		retVal, ok = i.Environ[node.Value]
@@ -93,15 +136,23 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 			if !ok {
 				panic("Unbound variable: " + node.Value)
 			}
-			retVal = funcVal
+			retVal = &Closure{funcVal, nil}
 		}
 	case *ast.PipeExp:
-		iter := i.interpExp(node.Left)
+		iter, ctrl := i.interpExp(node.Left)
+		if ctrl != nil {
+			return iter, ctrl
+		}
+
 		arr, isArr := iter.(*Array)
 		iterator, isIter := iter.(*Iterator)
 
-		appFun := i.interpExp(node.Right)
-		resultArr := make([]interface{}, 0)
+		appFun, ctrl := i.interpExp(node.Right)
+		if ctrl != nil {
+			return appFun, ctrl
+		}
+
+		resultArr := make([]Value, 0)
 		index := 0
 		for {
 			var result Value
@@ -109,13 +160,20 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 				if index >= arr.length {
 					break
 				}
-				result = i.interpFunDef(appFun, []Value{index, arr.arr[index], arr})
+				result, ctrl = i.interpFunDef(appFun, []Value{Int(index), arr.arr[index], arr})
+				if ctrl != nil {
+					return result, ctrl
+				}
+
 			} else if isIter {
 				iterVal := <- iterator.iter
 				if iterVal == StopIteration {
 					break
 				}
-				result = i.interpFunDef(appFun, []Value{index, iterVal, iterator})
+				result, ctrl = i.interpFunDef(appFun, []Value{Int(index), iterVal.(Value), iterator})
+				if ctrl != nil {
+					return result, ctrl
+				}
 			}
 			resultArr = append(resultArr, result)
 			index++
@@ -123,18 +181,17 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		retVal = &Array{len(resultArr), len(resultArr), resultArr}
 	case *ast.CommandExp:
 		newIter := &Iterator{}
-		newIter.iter = make(chan Value)
+		newIter.iter = make(chan interface{})
 
-		fmt.Println(node.Command, node.Args)
 		cmd := exec.Command(node.Command, node.Args...)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			retVal = Array{0, 0, []interface{}{}}
+			retVal = &Array{0, 0, []Value{}}
 			break
 		}
 		err = cmd.Start()
 		if err != nil {
-			retVal = Array{0,0,[]interface{}{}}
+			retVal = &Array{0,0,[]Value{}}
 			break
 		}
 
@@ -146,7 +203,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 				line, err := reader.ReadString('\n')
 				fmt.Println("never read")
 				line = strings.TrimRight(line, "\n")
-				newIter.iter <- line
+				newIter.iter <- String(line)
 				if err != nil {
 					newIter.iter <- StopIteration
 					break
@@ -157,67 +214,146 @@ func (i *Interpreter) interpExp(astNode ast.Node) Value {
 		retVal = newIter
 	case *ast.AddSub:
 		if node.Op == "+" {
-			retVal = i.interpExp(node.Left).(int) + i.interpExp(node.Right).(int)
+			left, ctrl := i.interpExp(node.Left)
+			if ctrl != nil {
+				return left, ctrl
+			}
+			right, ctrl := i.interpExp(node.Right)
+			if ctrl != nil {
+				return right, ctrl
+			}
+			retVal = left.(Int) + right.(Int)
 		} else if node.Op == "-" {
-			retVal = i.interpExp(node.Left).(int) - i.interpExp(node.Right).(int)
+			left, ctrl := i.interpExp(node.Left)
+			if ctrl != nil {
+				return left, ctrl
+			}
+			right, ctrl := i.interpExp(node.Right)
+			if ctrl != nil {
+				return right, ctrl
+			}
+			retVal = left.(Int) - right.(Int)
 		} else {
 			panic("Unknown AddSub op")
 		}
 	case *ast.MulDiv:
-		retVal = i.interpExp(node.Left).(int) * i.interpExp(node.Right).(int)
+		left, ctrl := i.interpExp(node.Left)
+		if ctrl != nil {
+			return left, ctrl
+		}
+		right, ctrl := i.interpExp(node.Right)
+		if ctrl != nil {
+			return right, ctrl
+		}
+
+		if node.Op == "*" {
+			retVal = left.(Int) * right.(Int)
+		} else {
+			retVal = left.(Int) / right.(Int)
+		}
 	case *ast.FunDef:
-		retVal = node
+		retVal = &Closure{node, nil}
 	case *ast.FunApp:
-		retVal = i.interpFunApp(node)
+		retVal, ctrl = i.interpFunApp(node)
+		if ctrl != nil {
+			return retVal, ctrl
+		}
 	case *ast.While:
-		for i.interpExp(node.Cond).(int) != 0 {
+
+		for {
+			condVal, ctrl := i.interpExp(node.Cond)
+			if ctrl != nil {
+				return condVal, ctrl
+			}
+			if condVal.(Int) == 0 {
+				break
+			}
 			for _, line := range node.Body.Lines {
-				i.interpExp(line)
+				lineVal, ctrl := i.interpExp(line)
+				if ctrl != nil {
+					return lineVal, ctrl
+				}
 			}
 		}
 
 		retVal = &Null{}
 	case *ast.ReturnExp:
-		retVal = i.interpExp(node.Target)
+		retVal, ctrl = i.interpExp(node.Target)
+		if ctrl != nil {
+			return retVal, ctrl
+		}
+		return retVal, ReturnExp
 	case *ast.If:
-		if i.interpExp(node.Cond).(int) != 0 {
+		condVal, ctrl := i.interpExp(node.Cond)
+		if ctrl != nil {
+			return condVal, ctrl
+		}
+
+		if condVal.(Int) != 0 {
 			for _, line := range node.Body.Lines {
-				i.interpExp(line)
+				lineVal, ctrl := i.interpExp(line)
+				if ctrl != nil {
+					return lineVal, ctrl
+				}
 			}
 		}
 
 		retVal = &Null{}
 	case *ast.CompNode:
-		retVal = i.interpComp(node)
+		retVal, ctrl = i.interpComp(node)
+		if ctrl != nil {
+			return retVal, ctrl
+		}
 	case *ast.ArrayLiteral:
 		newArr := &Array{}
 		newArr.length = node.Length
 		newArr.cap = node.Length
 
 		for k := 0; k < node.Length; k++ {
-			newArr.arr = append(newArr.arr, i.interpExp(node.Exprs[k]))
+			arrExp, ctrl := i.interpExp(node.Exprs[k])
+			if ctrl != nil {
+				return arrExp, ctrl
+			}
+			newArr.arr = append(newArr.arr, arrExp)
 		}
 
 		retVal = newArr
 	case *ast.SliceNode:
-		arr := i.interpExp(node.Arr).(*Array)
-		index := i.interpExp(node.Index).(int)
-		retVal = arr.arr[index]
+		arrNode, ctrl := i.interpExp(node.Arr)
+		if ctrl != nil {
+			return arrNode, ctrl
+		}
+
+		indexNode, ctrl := i.interpExp(node.Index)
+		if ctrl != nil {
+			return indexNode, ctrl
+		}
+
+		retVal = arrNode.(*Array).arr[indexNode.(Int)]
 	case *ast.StrExp:
-		retVal = node.Value
+		retVal = String(node.Value)
 	case nil:
 		panic("Interp on nil value")
 	default:
 		panic("Interp not defined for type: " + reflect.TypeOf(astNode).String())
 	}
 
-	return retVal
+	return retVal, ctrl
 }
 
-func (i *Interpreter) interpComp(comp *ast.CompNode) Value {
-	left := i.interpExp(comp.Left).(int)
-	right := i.interpExp(comp.Right).(int)
+func (i *Interpreter) interpComp(comp *ast.CompNode) (Value, error) {
+	leftNode, ctrl := i.interpExp(comp.Left)
+	if ctrl != nil {
+		return leftNode, ctrl
+	}
 
+	rightNode, ctrl := i.interpExp(comp.Right)
+	if ctrl != nil {
+		return rightNode, ctrl
+	}
+
+	left := leftNode.(Int)
+	right := rightNode.(Int)
 	var retVal bool
 
 	switch comp.Op {
@@ -236,37 +372,50 @@ func (i *Interpreter) interpComp(comp *ast.CompNode) Value {
 	}
 
 	if retVal {
-		return 1
+		return Int(1), nil
 	}
-	return 0
+	return Int(0), nil
 }
 
-func (i *Interpreter) interpFunDef(funExp ast.Node, args []Value) Value {
-	primFunc, isPrimFunc := funExp.(PrimFunc)
+func (i *Interpreter) interpFunDef(funExp ast.Node, args []Value) (Value, error) {
+	primFunc, isPrimFunc := funExp.(*PrimFunc)
 	if isPrimFunc {
-		return primFunc(args)
+		return primFunc.Target(args), nil
 	}
 
-	funVal := funExp.(*ast.FunDef)
-	for k := 0; k < len(funVal.Args); k++ {
-		argName := funVal.Args[k]
+	cloVal := funExp.(*Closure)
+	for k := 0; k < len(cloVal.Fun.Args); k++ {
+		argName := cloVal.Fun.Args[k]
 		i.Environ[argName.(*ast.Ident).Value] = args[k]
 	}
 
 	var lastVal Value
-	for _, line := range funVal.Body.Lines {
-		lastVal = i.interpExp(line)
+	var ctrl error
+	for _, line := range cloVal.Fun.Body.Lines {
+		lastVal, ctrl = i.interpExp(line)
+		if ctrl == ReturnExp {
+			return lastVal, nil
+		} else if ctrl != nil {
+			return lastVal, ctrl
+		}
 	}
 
-	return lastVal
+	return lastVal, nil
 }
 
-func (i *Interpreter) interpFunApp(funApp *ast.FunApp) Value {
-	funExp := i.interpExp(funApp.Fun)
+func (i *Interpreter) interpFunApp(funApp *ast.FunApp) (Value, error) {
+	funExp, ctrl := i.interpExp(funApp.Fun)
+	if ctrl != nil {
+		return funExp, ctrl
+	}
 
 	args := make([]Value, 0)
 	for _, arg := range funApp.Args {
-		args = append(args, i.interpExp(arg))
+		argVal, ctrl := i.interpExp(arg)
+		if ctrl != nil {
+			return argVal, ctrl
+		}
+		args = append(args, argVal)
 	}
 
 	return i.interpFunDef(funExp, args)
@@ -289,7 +438,6 @@ func CompareOutput(progText string, output string) bool {
 	// 	log.Fatal("Program doesn't type check: " + err.Error())
 	// 	return false
 	// }
-	fmt.Println(prog)
 	i := NewInterpreter()
 	i.Interp(prog)
 
