@@ -200,3 +200,27 @@ p(value);
 		t.FailNow()
 	}
 }
+
+func TestClosure(t *testing.T) {
+	src := `
+clo1 = f(x){
+	x = x + 1;
+	f(){
+		x * 5;
+	};
+};
+
+clo2 = clo1(6);
+clo3 = clo1(2);
+p(clo2());
+p(clo3());
+`
+
+	output := `
+35
+15
+`
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
+}

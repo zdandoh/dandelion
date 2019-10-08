@@ -190,7 +190,7 @@ func (n *StrExp) String() string {
 }
 
 type PipeExp struct {
-	Left Node
+	Left  Node
 	Right Node
 }
 
@@ -200,7 +200,7 @@ func (n *PipeExp) String() string {
 
 type CommandExp struct {
 	Command string
-	Args []string
+	Args    []string
 }
 
 func (n *CommandExp) String() string {

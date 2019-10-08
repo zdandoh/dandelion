@@ -43,4 +43,3 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 func (r *FuncRemover) WalkBlock(block *ast.Block) *ast.Block {
 	return nil
 }
-

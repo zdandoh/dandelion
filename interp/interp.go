@@ -24,6 +24,7 @@ func (n Int) ValueString() string {
 }
 
 type String string
+
 func (n String) ValueString() string {
 	return string(n)
 }
@@ -58,12 +59,13 @@ func (n *Array) ValueString() string {
 }
 
 type Closure struct {
-	Fun *ast.FunDef
-	Env map[string]Value
+	Body *ast.Block
+	Args []ast.Node
+	Env  Env
 }
 
 func (n *Closure) ValueString() string {
-	return fmt.Sprintf("%s", n.Fun)
+	return "<closure>"
 }
 
 type Iterator struct {
@@ -77,17 +79,62 @@ func (iter *Iterator) ValueString() string {
 var StopIteration = errors.New("Stop iteration")
 var ReturnExp = errors.New("Return expression")
 
-type Env map[string]Value
+type Env map[string]int
+type Memory struct {
+	currEnv  Env
+	store    map[int]Value
+	envStack []Env
+	ptr      int
+}
+
+func (m *Memory) Bind(ident string, val Value) {
+	num, ok := m.currEnv[ident]
+	if ok {
+		m.store[num] = val
+		return
+	}
+
+	m.ptr++
+	m.currEnv[ident] = m.ptr
+	m.store[m.ptr] = val
+}
+
+func (m *Memory) Get(ident string) (Value, bool) {
+	num, ok := m.currEnv[ident]
+	if !ok {
+		return nil, false
+	}
+	return m.store[num], true
+}
+
+func (e Env) Copy() Env {
+	newEnv := make(Env)
+	for key, value := range e {
+		newEnv[key] = value
+	}
+
+	return newEnv
+}
+
+func (m *Memory) PushEnv(env Env) {
+	m.envStack = append(m.envStack, env)
+	m.currEnv = env
+}
+
+func (m *Memory) PopEnv() {
+	m.envStack = m.envStack[:len(m.envStack)-1]
+	m.currEnv = m.envStack[len(m.envStack)-1]
+}
 
 type Interpreter struct {
-	Environ     Env
+	Env         *Memory
 	CurrProgram *ast.Program
 	output      string
 }
 
 func NewInterpreter() *Interpreter {
 	i := &Interpreter{}
-	i.Environ = NewEnv(i)
+	i.Env = NewMemory(i)
 
 	return i
 }
@@ -96,9 +143,14 @@ func (i *Interpreter) Output() string {
 	return i.output
 }
 
-func NewEnv(i *Interpreter) Env {
-	newEnv := make(Env)
-	newEnv["p"] = &PrimFunc{func(values []Value) Value {
+func NewMemory(i *Interpreter) *Memory {
+	mem := &Memory{}
+
+	defaultEnv := make(Env)
+	mem.PushEnv(defaultEnv)
+	mem.store = make(map[int]Value)
+
+	mem.Bind("p", &PrimFunc{func(values []Value) Value {
 		for _, value := range values {
 			strVal := value.ValueString()
 			fmt.Print(strVal)
@@ -107,9 +159,9 @@ func NewEnv(i *Interpreter) Env {
 		i.output += "\n"
 		fmt.Println()
 		return &Null{}
-	}}
+	}})
 
-	return newEnv
+	return mem
 }
 
 func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
@@ -122,22 +174,27 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		if ctrl != nil {
 			return assignNode, ctrl
 		}
-		i.Environ[node.Ident] = assignNode
+		i.Env.Bind(node.Ident, assignNode)
 
 		retVal = &Null{}
 	case *ast.Num:
 		res, _ := strconv.Atoi(node.Value)
 		retVal = Int(res)
 	case *ast.Ident:
-		var ok bool
-		retVal, ok = i.Environ[node.Value]
+		val, ok := i.Env.Get(node.Value)
 		if !ok {
-			funcVal, ok := i.CurrProgram.Funcs[node.Value]
+			// Might be a function definition
+			fun, ok := i.CurrProgram.Funcs[node.Value]
 			if !ok {
-				panic("Unbound variable: " + node.Value)
+				panic("Unbound variable " + node.Value)
 			}
-			retVal = &Closure{funcVal, nil}
+			val, ctrl = i.interpExp(fun)
+			if ctrl != nil {
+				return val, ctrl
+			}
 		}
+
+		retVal = val
 	case *ast.PipeExp:
 		iter, ctrl := i.interpExp(node.Left)
 		if ctrl != nil {
@@ -166,7 +223,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 				}
 
 			} else if isIter {
-				iterVal := <- iterator.iter
+				iterVal := <-iterator.iter
 				if iterVal == StopIteration {
 					break
 				}
@@ -191,7 +248,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		}
 		err = cmd.Start()
 		if err != nil {
-			retVal = &Array{0,0,[]Value{}}
+			retVal = &Array{0, 0, []Value{}}
 			break
 		}
 
@@ -199,9 +256,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 			reader := bufio.NewReader(stdout)
 
 			for {
-				fmt.Println("reading")
 				line, err := reader.ReadString('\n')
-				fmt.Println("never read")
 				line = strings.TrimRight(line, "\n")
 				newIter.iter <- String(line)
 				if err != nil {
@@ -252,14 +307,13 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 			retVal = left.(Int) / right.(Int)
 		}
 	case *ast.FunDef:
-		retVal = &Closure{node, nil}
+		retVal = &Closure{node.Body, node.Args, i.Env.currEnv.Copy()}
 	case *ast.FunApp:
 		retVal, ctrl = i.interpFunApp(node)
 		if ctrl != nil {
 			return retVal, ctrl
 		}
 	case *ast.While:
-
 		for {
 			condVal, ctrl := i.interpExp(node.Cond)
 			if ctrl != nil {
@@ -384,14 +438,15 @@ func (i *Interpreter) interpFunDef(funExp ast.Node, args []Value) (Value, error)
 	}
 
 	cloVal := funExp.(*Closure)
-	for k := 0; k < len(cloVal.Fun.Args); k++ {
-		argName := cloVal.Fun.Args[k]
-		i.Environ[argName.(*ast.Ident).Value] = args[k]
+	i.Env.PushEnv(cloVal.Env.Copy())
+	for k := 0; k < len(cloVal.Args); k++ {
+		argName := cloVal.Args[k]
+		i.Env.Bind(argName.(*ast.Ident).Value, args[k])
 	}
 
 	var lastVal Value
 	var ctrl error
-	for _, line := range cloVal.Fun.Body.Lines {
+	for _, line := range cloVal.Body.Lines {
 		lastVal, ctrl = i.interpExp(line)
 		if ctrl == ReturnExp {
 			return lastVal, nil
@@ -399,6 +454,7 @@ func (i *Interpreter) interpFunDef(funExp ast.Node, args []Value) (Value, error)
 			return lastVal, ctrl
 		}
 	}
+	i.Env.PopEnv()
 
 	return lastVal, nil
 }

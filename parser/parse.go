@@ -264,7 +264,7 @@ func (l *calcListener) ExitCommandExp(c *parser.CommandExpContext) {
 	fmt.Println("Exiting command exp")
 
 	command := &ast.CommandExp{}
-	splitCommand := strings.Split(c.GetText()[1:len(c.GetText()) - 1], " ")
+	splitCommand := strings.Split(c.GetText()[1:len(c.GetText())-1], " ")
 	command.Command = splitCommand[0]
 
 	// TODO: Support more advanced command syntax
