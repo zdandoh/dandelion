@@ -13,13 +13,14 @@ expr
    : '(' expr ')'                              # ParenExp
    | '[' elems=explist ']'                     # Array
    | expr '[' index=expr ']'                   # SliceExp
-   | expr op=(LT|LTE|GT|GTE|EQ) expr           # CompExp
    | left=expr PIPE right=expr                 # PipeExp
    | expr op=(MUL|DIV) expr                    # MulDiv
    | 'f' '{' body '}'                          # FunDef
    | 'f' '(' args=arglist? ')' '{' body '}'    # FunDef
    | expr '(' args=explist  ')'                # FunApp
    | expr op=(ADD|SUB) expr                    # AddSub
+   | expr MOD expr                             # ModExp
+   | expr op=(LT|LTE|GT|GTE|EQ) expr           # CompExp
    | NUMBER                                    # Number
    | STRING                                    # StrExp
    | COMMAND                                   # CommandExp

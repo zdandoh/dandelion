@@ -17,16 +17,28 @@ type Value interface {
 	ValueString() string
 }
 
+type Addable interface {
+	Add(Value) Value
+}
+
 type Int int
 
 func (n Int) ValueString() string {
 	return fmt.Sprintf("%d", int(n))
 }
 
+func (n Int) Add(other Value) Value {
+	return n + other.(Int)
+}
+
 type String string
 
 func (n String) ValueString() string {
 	return string(n)
+}
+
+func (n String) Add(other Value) Value {
+	return n + other.(String)
 }
 
 type Null struct {
@@ -277,7 +289,12 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 			if ctrl != nil {
 				return right, ctrl
 			}
-			retVal = left.(Int) + right.(Int)
+			addable, ok := left.(Addable)
+			if ok {
+				retVal = addable.Add(right)
+			} else {
+				panic("type is not addable")
+			}
 		} else if node.Op == "-" {
 			left, ctrl := i.interpExp(node.Left)
 			if ctrl != nil {
@@ -306,6 +323,17 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		} else {
 			retVal = left.(Int) / right.(Int)
 		}
+	case *ast.Mod:
+		left, ctrl := i.interpExp(node.Left)
+		if ctrl != nil {
+			return left, ctrl
+		}
+		right, ctrl := i.interpExp(node.Right)
+		if ctrl != nil {
+			return right, ctrl
+		}
+
+		retVal = left.(Int) % right.(Int)
 	case *ast.FunDef:
 		retVal = &Closure{node.Body, node.Args, i.Env.currEnv.Copy()}
 	case *ast.FunApp:

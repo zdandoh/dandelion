@@ -34,6 +34,18 @@ func (l *calcListener) ExitAddSub(c *parser.AddSubContext) {
 	l.nodeStack.Push(addNode)
 }
 
+func (l *calcListener) EnterModExp(c *parser.ModExpContext) {
+	fmt.Println("Enter mod exp")
+}
+
+func (l *calcListener) ExitModExp(c *parser.ModExpContext) {
+	modNode := &ast.Mod{}
+	modNode.Right = l.nodeStack.Pop()
+	modNode.Left = l.nodeStack.Pop()
+
+	l.nodeStack.Push(modNode)
+}
+
 func (l *calcListener) EnterMulDiv(c *parser.MulDivContext) {
 	// l.nodeStack.Push(&MulDiv{})
 	fmt.Println("Enter multdiv " + c.GetText())

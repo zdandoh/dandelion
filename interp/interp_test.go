@@ -183,6 +183,17 @@ func TestEmptyPipe(t *testing.T) {
 	}
 }
 
+func TestMod(t *testing.T) {
+	src := `
+val = 40 % 32;
+p(val);
+`
+
+	if !CompareOutput(src, "8") {
+		t.FailNow()
+	}
+}
+
 func TestReturn(t *testing.T) {
 	src := `
 value = f(){

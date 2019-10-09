@@ -19,6 +19,7 @@ MUL: '*';
 DIV: '/';
 ADD: '+';
 SUB: '-';
+MOD: '%';
 BITWISE_OR: '|';
 BITWISE_AND: '&';
 

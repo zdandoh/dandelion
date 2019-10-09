@@ -41,6 +41,15 @@ func (n *AddSub) String() string {
 	return fmt.Sprintf("%v %s %v", n.Left, n.Op, n.Right)
 }
 
+type Mod struct {
+	Left Node
+	Right Node
+}
+
+func (n *Mod) String() string {
+	return fmt.Sprintf("%v % %v", n.Left, n.Right)
+}
+
 type MulDiv struct {
 	Left  Node
 	Right Node

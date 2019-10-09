@@ -44,6 +44,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &CommandExp{node.Command, node.Args}
 	case *MulDiv:
 		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
+	case *Mod:
+		retVal = &Mod{WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *FunDef:
 		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
