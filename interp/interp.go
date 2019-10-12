@@ -169,6 +169,10 @@ func NewMemory(i *Interpreter) *Memory {
 			i.output += strVal
 		}
 		i.output += "\n"
+		if len(i.output) > 8192 {
+			// Prevent output from getting unnecessarily huge
+			i.output = ""
+		}
 		fmt.Println()
 		return &Null{}
 	}})
@@ -207,6 +211,8 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		}
 
 		retVal = val
+	case *ast.StructDef:
+		retVal = &Null{}
 	case *ast.PipeExp:
 		iter, ctrl := i.interpExp(node.Left)
 		if ctrl != nil {

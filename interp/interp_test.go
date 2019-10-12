@@ -235,3 +235,39 @@ p(clo3());
 		t.FailNow()
 	}
 }
+
+func TestStructDef(t *testing.T) {
+	src := `
+s = struct {
+	string line;
+	int number;
+};
+`
+
+	if !CompareOutput(src, "") {
+		t.FailNow()
+	}
+}
+
+func TestNamedStructDef(t *testing.T) {
+	src := `
+struct Line {
+	int number;
+	string data;
+};
+`
+
+	src2 := `
+Line = struct {
+	int number;
+	string data;
+};
+`
+
+	prog := parser.ParseProgram(src)
+	prog2 := parser.ParseProgram(src2)
+
+	if fmt.Sprintf("%s", prog) != fmt.Sprintf("%s", prog2) {
+		t.FailNow()
+	}
+}

@@ -13,6 +13,7 @@ RBRACKET: ']';
 FSTART: 'f';
 ASSIGN: '=';
 QUOTE: '"';
+ACCESS: '.';
 
 // Primive math ops
 MUL: '*';
@@ -36,6 +37,7 @@ YIELD: 'yield';
 // Keywords
 TRUE: 'true';
 FALSE: 'false';
+STRUCT: 'struct';
 
 // Conditional ops
 OR: '||';
@@ -48,7 +50,6 @@ EQ: '==';
 
 NUMBER: [0-9]+;
 IDENT: [a-zA-Z_0-9]+;
-STRUCT: 'struct';
 COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;
 STRING: STRING_UNTERM '"';

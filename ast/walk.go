@@ -55,6 +55,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}
 	case *While:
 		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
+	case *StructDef:
+		retVal = &StructDef{Members: node.Members}
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *ReturnExp:

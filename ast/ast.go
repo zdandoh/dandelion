@@ -47,7 +47,7 @@ type Mod struct {
 }
 
 func (n *Mod) String() string {
-	return fmt.Sprintf("%v % %v", n.Left, n.Right)
+	return fmt.Sprintf("%v %% %v", n.Left, n.Right)
 }
 
 type MulDiv struct {
@@ -113,6 +113,28 @@ func (n *FunDef) String() string {
 
 	lines += "}"
 	return lines
+}
+
+type StructMember struct {
+	Name *Ident
+	TypeName *Ident
+}
+
+func (n *StructMember) String() string {
+	return fmt.Sprintf("%s %s", n.TypeName, n.Name)
+}
+
+type StructDef struct {
+	Members []*StructMember
+}
+
+func (n *StructDef) String() string {
+	members := make([]string, 0)
+	for _, member := range n.Members {
+		members = append(members, "    " + member.String())
+	}
+
+	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))
 }
 
 type FunApp struct {
