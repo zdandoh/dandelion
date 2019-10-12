@@ -307,3 +307,20 @@ very nice bug
 		t.FailNow()
 	}
 }
+
+func TestStructAssign(t *testing.T) {
+	src := `
+struct Line {
+	int number;
+	string data;
+};
+
+line1 = Line(5, "some info");
+line1.number = 65;
+p(line1.number);
+`
+
+	if !CompareOutput(src, "65") {
+		t.FailNow()
+	}
+}

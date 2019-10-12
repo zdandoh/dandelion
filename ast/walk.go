@@ -31,7 +31,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 
 	switch node := astNode.(type) {
 	case *Assign:
-		retVal = &Assign{node.Ident, WalkAst(node.Expr, w)}
+		retVal = &Assign{WalkAst(node.Target, w), WalkAst(node.Expr, w)}
 	case *Num:
 		retVal = node
 	case *Ident:

@@ -54,9 +54,6 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.Ident:
 		newName := r.getName(node.Value)
 		retVal = &ast.Ident{newName}
-	case *ast.Assign:
-		newName := r.getName(node.Ident)
-		retVal = &ast.Assign{newName, ast.WalkAst(node.Expr, r)}
 	}
 
 	return retVal

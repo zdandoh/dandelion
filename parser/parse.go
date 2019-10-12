@@ -79,11 +79,11 @@ func (l *calcListener) ExitNumber(c *parser.NumberContext) {
 }
 
 func (l *calcListener) EnterIdent(c *parser.IdentContext) {
-	l.nodeStack.Push(&ast.Ident{c.GetText()})
 }
 
 func (l *calcListener) ExitIdent(c *parser.IdentContext) {
-	DebugPrintln("Exiting ident")
+	DebugPrintln("Exiting ident", c.GetText())
+	l.nodeStack.Push(&ast.Ident{c.GetText()})
 }
 
 func (l *calcListener) EnterStructDef(c *parser.StructDefContext) {
@@ -108,7 +108,7 @@ func (l *calcListener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
 	DebugPrintln("Exiting named struct def")
 
 	ident := fmt.Sprintf("%s", c.GetIdent().GetText())
-	l.nodeStack.Push(&ast.Assign{ident, l.PopStructDef()})
+	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident}, l.PopStructDef()})
 }
 
 func (l *calcListener) PopStructDef() *ast.StructDef {
@@ -281,8 +281,8 @@ func (l *calcListener) EnterAssign(c *parser.AssignContext) {
 func (l *calcListener) ExitAssign(c *parser.AssignContext) {
 	DebugPrintln("Exit assign")
 	assignNode := &ast.Assign{}
-	assignNode.Ident = c.GetIdent().GetText()
 	assignNode.Expr = l.nodeStack.Pop()
+	assignNode.Target = l.nodeStack.Pop()
 	l.nodeStack.Push(assignNode)
 }
 
@@ -370,7 +370,7 @@ func (l *calcListener) EnterStrExp(c *parser.StrExpContext) {
 }
 
 func (l *calcListener) ExitStrExp(c *parser.StrExpContext) {
-	DebugPrintln("Exiting string")
+	DebugPrintln("Exiting string", c.GetText())
 	text := c.GetText()[1 : len(c.GetText())-1]
 	l.nodeStack.Push(&ast.StrExp{text})
 }

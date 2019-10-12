@@ -36,7 +36,11 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 
 	switch node := astNode.(type) {
 	case *ast.Assign:
-		c.TEnv[node.Ident], retErr = c.TypeCheck(node.Expr)
+		switch target := node.Target.(type) {
+		case *ast.Ident:
+			c.TEnv[target.Value], retErr = c.TypeCheck(node.Expr)
+		}
+
 		retType = NullType{}
 	case *ast.Num:
 		retType = IntType{}

@@ -70,12 +70,12 @@ func (n *Num) String() string {
 }
 
 type Assign struct {
-	Ident string
-	Expr  Node
+	Target Node
+	Expr   Node
 }
 
 func (n *Assign) String() string {
-	return fmt.Sprintf("%s = %v", n.Ident, n.Expr)
+	return fmt.Sprintf("%v = %v", n.Target, n.Expr)
 }
 
 type Ident struct {

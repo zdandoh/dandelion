@@ -202,7 +202,17 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		if ctrl != nil {
 			return assignNode, ctrl
 		}
-		i.Env.Bind(node.Ident, assignNode)
+
+		switch target := node.Target.(type) {
+		case *ast.Ident:
+			i.Env.Bind(target.Value, assignNode)
+		case *ast.StructAccess:
+			targetStruct, ctrl := i.interpExp(target.Target)
+			if ctrl != nil {
+				return targetStruct, ctrl
+			}
+			targetStruct.(*Struct).Members[target.Field.(*ast.Ident).Value] = assignNode
+		}
 
 		retVal = &Null{}
 	case *ast.Num:

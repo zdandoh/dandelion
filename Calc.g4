@@ -32,7 +32,7 @@ expr
    ;
 
 statement
-   : ident=IDENT '=' expr                    # Assign
+   : expr '=' expr                           # Assign
    | IF expr '{' lines=line* '}'             # If
    | 'struct' ident=IDENT '{' structbody '}' # NamedStructDef
    | FOR expr ';' expr ';' expr '{' body '}' # For
