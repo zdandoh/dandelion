@@ -21,7 +21,7 @@ type calcListener struct {
 
 const Debug = true
 
-func DebugPrintln(more... interface{}) {
+func DebugPrintln(more ...interface{}) {
 	if Debug {
 		fmt.Println(more...)
 	}
@@ -134,11 +134,16 @@ func (l *calcListener) ExitTypeline(c *parser.TypelineContext) {
 }
 
 func (l *calcListener) EnterStructAccess(c *parser.StructAccessContext) {
-	DebugPrintln("Entering struct def")
+	DebugPrintln("Entering struct access")
 }
 
 func (l *calcListener) ExitStructAccess(c *parser.StructAccessContext) {
-	DebugPrintln("Exiting struct def")
+	DebugPrintln("Exiting struct access")
+
+	access := &ast.StructAccess{}
+	access.Field = &ast.Ident{c.IDENT().GetText()}
+	access.Target = l.nodeStack.Pop()
+	l.nodeStack.Push(access)
 }
 
 func (l *calcListener) EnterLine(c *parser.LineContext) {
@@ -385,6 +390,7 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 func NewProgram(mainFunc *ast.FunDef) *ast.Program {
 	newProg := &ast.Program{}
 	newProg.MainFunc = mainFunc
+	newProg.Structs = make(map[string]*ast.StructDef)
 
 	return newProg
 }

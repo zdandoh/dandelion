@@ -80,6 +80,18 @@ func (n *Closure) ValueString() string {
 	return "<closure>"
 }
 
+type Struct struct {
+	Members map[string]Value
+}
+
+func (s *Struct) ValueString() string {
+	memStrs := make([]string, 0)
+	for _, mem := range s.Members {
+		memStrs = append(memStrs, mem.ValueString())
+	}
+	return fmt.Sprintf("<struct>(%s)", strings.Join(memStrs, ", "))
+}
+
 type Iterator struct {
 	iter chan interface{}
 }
@@ -211,8 +223,31 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		}
 
 		retVal = val
+	case *ast.StructInstance:
+		newStruct := &Struct{make(map[string]Value)}
+		for key, val := range node.DefaultValues {
+			interpVal, ctrl := i.interpExp(val)
+			if ctrl != nil {
+				return interpVal, ctrl
+			}
+			newStruct.Members[key.Value] = interpVal
+		}
+
+		retVal = newStruct
 	case *ast.StructDef:
-		retVal = &Null{}
+		panic("Struct def shouldn't be interpreted")
+	case *ast.StructAccess:
+		structVal, ctrl := i.interpExp(node.Target)
+		if ctrl != nil {
+			return structVal, ctrl
+		}
+
+		val, ok := structVal.(*Struct).Members[node.Field.(*ast.Ident).Value]
+		if !ok {
+			panic(fmt.Sprintf("Struct has no member '%s'", node.Field))
+		}
+
+		retVal = val
 	case *ast.PipeExp:
 		iter, ctrl := i.interpExp(node.Left)
 		if ctrl != nil {
@@ -522,6 +557,7 @@ func (i *Interpreter) Interp(p *ast.Program) {
 func CompareOutput(progText string, output string) bool {
 	prog := parser.ParseProgram(progText)
 	transform.TransformAst(prog)
+	fmt.Printf("%+v\n", prog)
 
 	//_, err := TypeCheck(prog)
 	// if err != nil {

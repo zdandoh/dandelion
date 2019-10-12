@@ -3,7 +3,6 @@ package types
 import (
 	"ahead/ast"
 	"errors"
-	"fmt"
 	"reflect"
 )
 
@@ -54,7 +53,6 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 	case *ast.MulDiv:
 		left, lerr := c.TypeCheck(node.Left)
 		right, rerr := c.TypeCheck(node.Right)
-		fmt.Println(left, right)
 		if lerr != nil || rerr != nil || left != right {
 			retErr = errors.New("Types don't match")
 		} else {

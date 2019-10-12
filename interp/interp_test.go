@@ -271,3 +271,39 @@ Line = struct {
 		t.FailNow()
 	}
 }
+
+func TestStructConstruct(t *testing.T) {
+	src := `
+struct Line {
+	int number;
+	string data;
+};
+
+struct Bug {
+	bool cool;
+	size int;
+	string color;
+};
+
+ln = Line(5, "hello world");
+p(ln.number);
+p(ln.data);
+
+p(Line(32, "nah").number);
+p(Line(45, "uh").data);
+
+p(Bug(0, 45, "very nice bug").color);
+`
+
+	output := `
+5
+hello world
+32
+uh
+very nice bug
+`
+
+	if !CompareOutput(src, output) {
+		t.FailNow()
+	}
+}

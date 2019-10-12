@@ -7,6 +7,7 @@ import (
 
 type Program struct {
 	Funcs    map[string]*FunDef
+	Structs  map[string]*StructDef
 	MainFunc *FunDef
 	Output   string
 }
@@ -42,7 +43,7 @@ func (n *AddSub) String() string {
 }
 
 type Mod struct {
-	Left Node
+	Left  Node
 	Right Node
 }
 
@@ -116,7 +117,7 @@ func (n *FunDef) String() string {
 }
 
 type StructMember struct {
-	Name *Ident
+	Name     *Ident
 	TypeName *Ident
 }
 
@@ -131,10 +132,28 @@ type StructDef struct {
 func (n *StructDef) String() string {
 	members := make([]string, 0)
 	for _, member := range n.Members {
-		members = append(members, "    " + member.String())
+		members = append(members, "    "+member.String())
 	}
 
 	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))
+}
+
+type StructInstance struct {
+	Name          string
+	DefaultValues map[*Ident]Node
+}
+
+func (n *StructInstance) String() string {
+	return fmt.Sprintf("<struct instance '%s'>", n.Name)
+}
+
+type StructAccess struct {
+	Field  Node // Must be ident
+	Target Node
+}
+
+func (n *StructAccess) String() string {
+	return fmt.Sprintf("%s.%s", n.Target, n.Field)
 }
 
 type FunApp struct {
