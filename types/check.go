@@ -3,11 +3,20 @@ package types
 import (
 	"ahead/ast"
 	"errors"
+	"fmt"
 	"reflect"
 )
 
 type TypeChecker struct {
 	TEnv map[string]Type
+}
+
+type TypeVar struct {
+	TID int
+}
+
+func (t TypeVar) TypeString() string {
+	return fmt.Sprintf("<type %d>", t.TID)
 }
 
 func NewTypeChecker() *TypeChecker {

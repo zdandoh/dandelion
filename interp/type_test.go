@@ -2,6 +2,7 @@ package interp
 
 import (
 	"ahead/parser"
+	"ahead/transform"
 	"ahead/types"
 	"testing"
 )
@@ -42,9 +43,8 @@ d = 5;
 p(func(dep1(d), dep2(4), dep3(5)));
 `
 
-	output := "14"
+	prog := parser.ParseProgram(src)
+	transform.RemFuncs(prog)
 
-	if !CompareOutput(src, output) {
-		t.FailNow()
-	}
+	types.Infer(prog)
 }
