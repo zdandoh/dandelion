@@ -3,6 +3,7 @@ package parser
 import (
 	parser "ahead/aparser"
 	"ahead/ast"
+	"ahead/types"
 	"fmt"
 	"math"
 	"strings"
@@ -17,6 +18,7 @@ type calcListener struct {
 	nodeStack  NodeStack
 	blockStack BlockStack
 	mainFunc   *ast.FunDef
+	typeStack  *TypeStack
 }
 
 const Debug = true
@@ -133,6 +135,43 @@ func (l *calcListener) ExitTypeline(c *parser.TypelineContext) {
 	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName}, &ast.Ident{typeName}})
 }
 
+func (l *calcListener) EnterBaseType(c *parser.BaseTypeContext) {
+	fmt.Println("Entering base type")
+}
+
+func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
+	fmt.Println("Exiting base type")
+	var t types.Type
+	switch c.GetText() {
+	case "string":
+		t = types.StringType{}
+	case "int":
+		t = types.IntType{}
+	case "bool":
+		t = types.BoolType{}
+	default:
+		panic(fmt.Sprintf("Unknown type '%s'", c.GetText()))
+	}
+
+	l.typeStack.Push(t)
+}
+
+func (l *calcListener) EnterTypedFun(c *parser.TypedFunContext) {
+	fmt.Println("Entering typed fun")
+}
+
+func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
+	fmt.Println("Exiting typed fun")
+}
+
+func (l *calcListener) EnterTypedArr(c *parser.TypedArrContext) {
+	fmt.Println("Entering typed arr")
+}
+
+func (l *calcListener) ExitTypedArr(c *parser.TypedArrContext) {
+	DebugPrintln("Exiting typed arr")
+}
+
 func (l *calcListener) EnterStructAccess(c *parser.StructAccessContext) {
 	DebugPrintln("Entering struct access")
 }
@@ -201,12 +240,25 @@ func (l *calcListener) EnterFunDef(c *parser.FunDefContext) {
 func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 	DebugPrintln("Exiting fun def")
 
-	// This is definitely bad and should be changed
+	// TODO this is definitely bad and should be changed
 	isPipeFunc := strings.HasPrefix(c.GetText(), "f{")
 
 	var args []ast.Node
 	if isPipeFunc {
 		args = []ast.Node{&ast.Ident{"i"}, &ast.Ident{"e"}, &ast.Ident{"a"}}
+	} else if c.GetReturntype() != nil {
+		typedArgs := c.GetTypedargs().GetChildren()
+		funcType := types.FuncType{}
+		for i := 0; i < len(typedArgs); i += 3 {
+			funcType.ArgTypes = append(funcType.ArgTypes)
+			if (i+1)%1 == 0 {
+
+			}
+			//fmt.Println(reflect.TypeOf(argTok), argTok)
+			//switch argNode := argTok.(type) {
+			//
+			//}
+		}
 	} else if c.GetArgs() != nil {
 		parsedArgs := c.GetArgs()
 		argTokens := filterCommas(parsedArgs.GetChildren())
@@ -402,6 +454,7 @@ func ParseProgram(text string) *ast.Program {
 	p := parser.NewCalc(stream)
 
 	l := &calcListener{}
+	l.typeStack = &TypeStack{}
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 
 	prog := NewProgram(l.mainFunc)

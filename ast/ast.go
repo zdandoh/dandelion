@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"ahead/types"
 	"fmt"
 	"strings"
 )
@@ -89,6 +90,7 @@ func (n *Ident) String() string {
 type FunDef struct {
 	Body *Block
 	Args []Node
+	Type types.Type
 }
 
 func NewFunDef() *FunDef {

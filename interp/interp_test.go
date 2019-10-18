@@ -324,3 +324,14 @@ p(line1.number);
 		t.FailNow()
 	}
 }
+
+func TestTypedFunc(t *testing.T) {
+	src := `
+f(string name, int number) int {
+	name;
+};
+`
+
+	prog := parser.ParseProgram(src)
+	fmt.Println(prog)
+}

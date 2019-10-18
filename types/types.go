@@ -31,11 +31,11 @@ func (i BoolType) TypeString() string {
 }
 
 type ArrayType struct {
-	subtype Type
+	Subtype Type
 }
 
 func (a ArrayType) TypeString() string {
-	return fmt.Sprintf("array[%s]", a.subtype.TypeString())
+	return fmt.Sprintf("array[%s]", a.Subtype.TypeString())
 }
 
 type NullType struct {
@@ -46,17 +46,17 @@ func (a NullType) TypeString() string {
 }
 
 type FuncType struct {
-	argTypes []Type
-	retType  Type
+	ArgTypes []Type
+	RetType  Type
 }
 
 func (f FuncType) TypeString() string {
 	argStrings := make([]string, 0)
-	for _, arg := range f.argTypes {
+	for _, arg := range f.ArgTypes {
 		argStrings = append(argStrings, arg.TypeString())
 	}
 	argString := strings.Join(argStrings, ",")
-	return fmt.Sprintf("f(%s) %s", argString, f.retType.TypeString())
+	return fmt.Sprintf("f(%s) %s", argString, f.RetType.TypeString())
 }
 
 type AnyType struct {

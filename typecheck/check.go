@@ -1,47 +1,48 @@
-package types
+package typecheck
 
 import (
 	"ahead/ast"
+	"ahead/types"
 	"errors"
-	"fmt"
 	"reflect"
 )
 
 type TypeChecker struct {
-	TEnv map[string]Type
+	TEnv map[string]types.Type
+	Cons Constraints
 }
 
-type TypeVar struct {
-	TID int
-}
+type Constraints map[string][]*TypeConstraint
 
-func (t TypeVar) TypeString() string {
-	return fmt.Sprintf("<type %d>", t.TID)
+type TypeConstraint struct {
+	FunDef *ast.FunDef
+	Args   []ast.Node
 }
 
 func NewTypeChecker() *TypeChecker {
 	checker := &TypeChecker{}
 	checker.TEnv = NewTEnv()
+	checker.Cons = make(Constraints)
 
 	return checker
 }
 
-func NewTEnv() map[string]Type {
-	tenv := make(map[string]Type)
-	tenv["p"] = FuncType{[]Type{ArrayType{AnyType{}}}, AnyType{}}
+func NewTEnv() map[string]types.Type {
+	tenv := make(map[string]types.Type)
+	tenv["p"] = types.FuncType{[]types.Type{types.ArrayType{types.AnyType{}}}, types.AnyType{}}
 
 	return tenv
 }
 
-func TypeCheck(prog *ast.Program) (Type, error) {
+func TypeCheck(prog *ast.Program) (types.Type, error) {
 	checker := NewTypeChecker()
 	t, err := checker.TypeCheck(prog.MainFunc)
 	return t, err
 }
 
-func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
+func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 	var retErr error
-	var retType Type
+	var retType types.Type
 
 	switch node := astNode.(type) {
 	case *ast.Assign:
@@ -50,9 +51,9 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 			c.TEnv[target.Value], retErr = c.TypeCheck(node.Expr)
 		}
 
-		retType = NullType{}
+		retType = types.NullType{}
 	case *ast.Num:
-		retType = IntType{}
+		retType = types.IntType{}
 	case *ast.Ident:
 		retType = c.TEnv[node.Value]
 	case *ast.AddSub:
@@ -77,7 +78,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 			retErr = err
 		}
 		// This is where smart type inference needs to happen
-		retType = FuncType{make([]Type, 0), IntType{}}
+		retType = types.FuncType{make([]types.Type, 0), types.IntType{}}
 	case *ast.FunApp:
 		funType, err := c.TypeCheck(node.Fun)
 		if err != nil {
@@ -90,11 +91,11 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 			break
 		}
 
-		retType = (funType.(FuncType)).retType
+		retType = (funType.(types.FuncType)).RetType
 	case *ast.While:
-		retType = NullType{}
+		retType = types.NullType{}
 	case *ast.If:
-		retType = NullType{}
+		retType = types.NullType{}
 	case *ast.CompNode:
 		left, lerr := c.TypeCheck(node.Left)
 		right, rerr := c.TypeCheck(node.Right)
@@ -114,16 +115,16 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 			break
 		}
 		if len(exprTypes) == 0 {
-			retType = ArrayType{NullType{}}
+			retType = types.ArrayType{types.NullType{}}
 		}
-		retType = ArrayType{exprTypes[0]}
+		retType = types.ArrayType{exprTypes[0]}
 	case *ast.SliceNode:
 		indexType, err := c.TypeCheck(node.Index)
 		if err != nil {
 			retErr = err
 			break
 		}
-		_, isInt := indexType.(IntType)
+		_, isInt := indexType.(types.IntType)
 		if !isInt {
 			retErr = errors.New("Index must be int")
 			break
@@ -135,15 +136,15 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 			break
 		}
 
-		arr, isArr := arrType.(ArrayType)
+		arr, isArr := arrType.(types.ArrayType)
 		if !isArr {
 			retErr = errors.New("Must slice into array type")
 			break
 		}
 
-		retType = arr.subtype
+		retType = arr.Subtype
 	case *ast.StrExp:
-		retType = StringType{}
+		retType = types.StringType{}
 	default:
 		panic("Typecheck not defined for type: " + reflect.TypeOf(node).String())
 	}
@@ -151,8 +152,8 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (Type, error) {
 	return retType, retErr
 }
 
-func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]Type, error) {
-	newLines := make([]Type, 0)
+func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]types.Type, error) {
+	newLines := make([]types.Type, 0)
 	for _, line := range lines {
 		lineType, err := c.TypeCheck(line)
 		if err != nil {
@@ -175,7 +176,7 @@ func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]Type, error) {
 // 	return nil
 // }
 
-func (c *TypeChecker) SameType(types []Type) bool {
+func (c *TypeChecker) SameType(types []types.Type) bool {
 	if len(types) == 0 {
 		return true
 	}

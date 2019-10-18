@@ -1,39 +1,48 @@
-package types
+package typecheck
 
-import "ahead/ast"
+import (
+	"ahead/ast"
+)
 
-type TypeGraph map[ast.Node]*TypeInfNode
-
-type TypeInfNode struct {
-	deps     []ast.Node
-	node     ast.Node
-	nodeType Type
+type DepStack struct {
+	arr []NodeDeps
+	top NodeDeps
 }
+type NodeDeps []ast.Node
 
 type TypeInferer struct {
-	Graph TypeGraph
+	Deps   *DepStack
+	FunEnv map[string]*ast.FunDef
+}
+
+func (m *DepStack) PushDeps(deps NodeDeps) {
+	m.arr = append(m.arr, deps)
+	m.top = deps
+}
+
+func (m *DepStack) PopEnv() {
+	m.arr = m.arr[:len(m.arr)-1]
+	m.top = m.arr[len(m.arr)-1]
 }
 
 func NewTypeInferer() *TypeInferer {
 	newInf := &TypeInferer{}
-	newInf.Graph = make(TypeGraph)
+	newInf.Deps = &DepStack{}
 
 	return newInf
 }
 
-func Infer(prog *ast.Program) TypeGraph {
+func Infer(prog *ast.Program) {
 	infer := NewTypeInferer()
 	ast.WalkAst(prog.MainFunc, infer)
-
-	return infer.Graph
 }
 
 func (i *TypeInferer) WalkNode(astNode ast.Node) ast.Node {
 	switch node := astNode.(type) {
+	case *ast.Ident:
+		i.Deps.top = append(i.Deps.top, node)
 	case *ast.FunApp:
-		infNode := &TypeInfNode{}
-		infNode.deps = node.Args
-		i.Graph[node] = infNode
+
 	}
 
 	return nil

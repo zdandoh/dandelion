@@ -49,7 +49,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *FunDef:
 		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
-		retVal = &FunDef{newBlock, walkedArgs}
+		retVal = &FunDef{newBlock, walkedArgs, node.Type}
 	case *FunApp:
 		walkedArgs := WalkList(node.Args, w)
 		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}

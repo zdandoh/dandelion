@@ -1,6 +1,9 @@
 package parser
 
-import "ahead/ast"
+import (
+	"ahead/ast"
+	"ahead/types"
+)
 
 type NodeStack struct {
 	arr []ast.Node
@@ -51,4 +54,27 @@ func (s *BlockStack) Pop() *ast.Block {
 func (s *BlockStack) Clear() {
 	s.arr = make([]*ast.Block, 0)
 	s.Top = nil
+}
+
+type TypeStack struct {
+	arr []types.Type
+}
+
+func (s *TypeStack) Push(t types.Type) {
+	s.arr = append(s.arr, t)
+}
+
+func (s *TypeStack) Pop() types.Type {
+	last := s.arr[len(s.arr)-1]
+	s.arr = s.arr[:len(s.arr)-1]
+
+	return last
+}
+
+func (s *TypeStack) Peek() types.Type {
+	if len(s.arr) > 0 {
+		return s.arr[len(s.arr)-1]
+	}
+
+	return nil
 }

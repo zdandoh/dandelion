@@ -3,6 +3,7 @@ package interp
 import (
 	"ahead/parser"
 	"ahead/transform"
+	"ahead/typecheck"
 	"ahead/types"
 	"testing"
 )
@@ -15,7 +16,7 @@ f{
 };
 `
 	p := parser.ParseProgram(prog)
-	checker := types.NewTypeChecker()
+	checker := typecheck.NewTypeChecker()
 	checker.TypeCheck(p.MainFunc)
 	if (checker.TEnv["x"] != types.IntType{}) {
 		t.Fatal("x not int")
@@ -39,12 +40,14 @@ dep2 = f(b) {
 dep3 = f(c) {
 	c;
 };
+
 d = 5;
+res = dep2() + dep1(6);
 p(func(dep1(d), dep2(4), dep3(5)));
 `
 
 	prog := parser.ParseProgram(src)
 	transform.RemFuncs(prog)
 
-	types.Infer(prog)
+	typecheck.Infer(prog)
 }
