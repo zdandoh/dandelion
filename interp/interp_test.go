@@ -281,7 +281,7 @@ struct Line {
 
 struct Bug {
 	bool cool;
-	size int;
+	int size;
 	string color;
 };
 
@@ -323,15 +323,4 @@ p(line1.number);
 	if !CompareOutput(src, "65") {
 		t.FailNow()
 	}
-}
-
-func TestTypedFunc(t *testing.T) {
-	src := `
-f(string name, int number) int {
-	name;
-};
-`
-
-	prog := parser.ParseProgram(src)
-	fmt.Println(prog)
 }

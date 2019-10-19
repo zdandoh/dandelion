@@ -90,7 +90,7 @@ func (n *Ident) String() string {
 type FunDef struct {
 	Body *Block
 	Args []Node
-	Type types.Type
+	Type *types.FuncType
 }
 
 func NewFunDef() *FunDef {
@@ -104,13 +104,21 @@ func (n *FunDef) String() string {
 	lines := "f"
 
 	argStrings := make([]string, 0)
-	for _, arg := range n.Args {
-		argStrings = append(argStrings, arg.(*Ident).Value)
+	for i := 0; i < len(n.Args); i++ {
+		argString := n.Args[i].(*Ident).Value
+		if n.Type != nil {
+			argString = fmt.Sprintf("%s %s", n.Type.ArgTypes[i].TypeString(), argString)
+		}
+		argStrings = append(argStrings, argString)
 	}
 
 	if len(n.Args) > 0 {
 		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
+	if n.Type != nil {
+		lines += " " + n.Type.RetType.TypeString() + " "
+	}
+
 	lines += "{\n"
 	lines += n.Body.String()
 
@@ -120,11 +128,11 @@ func (n *FunDef) String() string {
 
 type StructMember struct {
 	Name     *Ident
-	TypeName *Ident
+	Type     types.Type
 }
 
 func (n *StructMember) String() string {
-	return fmt.Sprintf("%s %s", n.TypeName, n.Name)
+	return fmt.Sprintf("%s %s", n.Type.TypeString(), n.Name)
 }
 
 type StructDef struct {

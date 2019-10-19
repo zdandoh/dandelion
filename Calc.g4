@@ -5,7 +5,7 @@ options { tokenVocab=CalcLex; }
 start : line+ EOF;
 
 line: (expr|statement) ';';
-typeline: typename=IDENT ident=IDENT ';';
+typeline: typed ident=IDENT ';';
 arglist: IDENT (',' IDENT)* (',')?;
 typelist: typed (',' typed)* (',')?;
 typed

@@ -131,16 +131,15 @@ func (l *calcListener) ExitTypeline(c *parser.TypelineContext) {
 	DebugPrintln("Exiting type line")
 
 	memberName := fmt.Sprintf("%s", c.GetIdent().GetText())
-	typeName := fmt.Sprintf("%s", c.GetTypename().GetText())
-	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName}, &ast.Ident{typeName}})
+	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName}, l.typeStack.Pop()})
 }
 
 func (l *calcListener) EnterBaseType(c *parser.BaseTypeContext) {
-	fmt.Println("Entering base type")
+	DebugPrintln("Entering base type")
 }
 
 func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
-	fmt.Println("Exiting base type")
+	DebugPrintln("Exiting base type")
 	var t types.Type
 	switch c.GetText() {
 	case "string":
@@ -157,19 +156,29 @@ func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 }
 
 func (l *calcListener) EnterTypedFun(c *parser.TypedFunContext) {
-	fmt.Println("Entering typed fun")
+	DebugPrintln("Entering typed fun")
 }
 
 func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
-	fmt.Println("Exiting typed fun")
+	DebugPrintln("Exiting typed fun")
+	funType := types.FuncType{}
+
+	// TODO figure out how to do this properly
+	typeCount := int(math.Ceil(float64(c.GetFtypelist().GetChildCount()) / 2.0))
+	for i := 0; i < typeCount; i++{
+		funType.ArgTypes = append(funType.ArgTypes, l.typeStack.Pop())
+	}
+	funType.RetType = l.typeStack.Pop()
+	l.typeStack.Push(funType)
 }
 
 func (l *calcListener) EnterTypedArr(c *parser.TypedArrContext) {
-	fmt.Println("Entering typed arr")
+	DebugPrintln("Entering typed arr")
 }
 
 func (l *calcListener) ExitTypedArr(c *parser.TypedArrContext) {
 	DebugPrintln("Exiting typed arr")
+	l.typeStack.Push(types.ArrayType{l.typeStack.Pop()})
 }
 
 func (l *calcListener) EnterStructAccess(c *parser.StructAccessContext) {
@@ -218,7 +227,8 @@ func (l *calcListener) ExitFunApp(c *parser.FunAppContext) {
 	args := c.GetArgs()
 	var argCount int
 	if args != nil {
-		argCount = int(math.Ceil(float64(c.GetArgs().GetChildCount()) / 2.0)) // Basically the dumbest way possible to count args
+		// TODO figure out how to do this properly
+		argCount = int(math.Ceil(float64(c.GetArgs().GetChildCount()) / 2.0))
 	} else {
 		argCount = 0
 	}
@@ -240,24 +250,30 @@ func (l *calcListener) EnterFunDef(c *parser.FunDefContext) {
 func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 	DebugPrintln("Exiting fun def")
 
-	// TODO this is definitely bad and should be changed
+	funDef := ast.NewFunDef()
+
+	// TODO figure out how to do this properly
 	isPipeFunc := strings.HasPrefix(c.GetText(), "f{")
+
+	funType := &types.FuncType{}
+	isFunTyped := c.GetReturntype() != nil
+
+	if isFunTyped {
+		funType.RetType = l.typeStack.Pop()
+		funDef.Type = funType
+	}
 
 	var args []ast.Node
 	if isPipeFunc {
 		args = []ast.Node{&ast.Ident{"i"}, &ast.Ident{"e"}, &ast.Ident{"a"}}
-	} else if c.GetReturntype() != nil {
-		typedArgs := c.GetTypedargs().GetChildren()
-		funcType := types.FuncType{}
-		for i := 0; i < len(typedArgs); i += 3 {
-			funcType.ArgTypes = append(funcType.ArgTypes)
-			if (i+1)%1 == 0 {
-
+	} else if c.GetTypedargs() != nil {
+		argTypes := filterCommas(c.GetTypedargs().GetChildren())
+		for _, arg := range argTypes {
+			_, ok := arg.(*antlr.TerminalNodeImpl)
+			if ok {
+				args = append(args, &ast.Ident{fmt.Sprintf("%s", arg)})
+				funType.ArgTypes = append([]types.Type{l.typeStack.Pop()}, funType.ArgTypes...)
 			}
-			//fmt.Println(reflect.TypeOf(argTok), argTok)
-			//switch argNode := argTok.(type) {
-			//
-			//}
 		}
 	} else if c.GetArgs() != nil {
 		parsedArgs := c.GetArgs()
@@ -270,7 +286,6 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 		args = []ast.Node{}
 	}
 
-	funDef := ast.NewFunDef()
 	funDef.Args = args
 	funDef.Body = l.blockStack.Pop()
 	l.nodeStack.Push(funDef)

@@ -35,7 +35,7 @@ type ArrayType struct {
 }
 
 func (a ArrayType) TypeString() string {
-	return fmt.Sprintf("array[%s]", a.Subtype.TypeString())
+	return fmt.Sprintf("%s[]", a.Subtype.TypeString())
 }
 
 type NullType struct {

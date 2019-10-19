@@ -48,6 +48,13 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 	case *ast.Assign:
 		switch target := node.Target.(type) {
 		case *ast.Ident:
+			var exprType types.Type
+			exprType, retErr = c.TypeCheck(node.Expr)
+			existType, exists := c.TEnv[target.Value]
+			if exists && existType != exprType {
+				retErr = errors.New("Cannot reassign variable type")
+				break
+			}
 			c.TEnv[target.Value], retErr = c.TypeCheck(node.Expr)
 		}
 
@@ -164,17 +171,6 @@ func (c *TypeChecker) TypeCheckBlock(lines []ast.Node) ([]types.Type, error) {
 
 	return newLines, nil
 }
-
-// func (c *TypeCheck) InferTypes(ast AstNode) AstNode {
-// 	var retNode AstNode
-
-// 	switch node := ast.(type) {
-// 	case *FunApp:
-// 		depNode := TypeInfNode{}
-// 	}
-
-// 	return nil
-// }
 
 func (c *TypeChecker) SameType(types []types.Type) bool {
 	if len(types) == 0 {
