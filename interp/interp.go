@@ -567,13 +567,7 @@ func (i *Interpreter) Interp(p *ast.Program) {
 func CompareOutput(progText string, output string) bool {
 	prog := parser.ParseProgram(progText)
 	transform.TransformAst(prog)
-	fmt.Printf("%+v\n", prog)
 
-	//_, err := TypeCheck(prog)
-	// if err != nil {
-	// 	log.Fatal("Program doesn't type check: " + err.Error())
-	// 	return false
-	// }
 	i := NewInterpreter()
 	i.Interp(prog)
 

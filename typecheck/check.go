@@ -80,25 +80,41 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 			retType = left
 		}
 	case *ast.FunDef:
+		for i := 0; i < len(node.Args); i++ {
+			c.TEnv[node.Args[i].(*ast.Ident).Value] = node.Type.ArgTypes[i]
+		}
 		_, err := c.TypeCheckBlock(node.Body.Lines)
 		if err != nil {
 			retErr = err
 		}
-		// This is where smart type inference needs to happen
-		retType = types.FuncType{make([]types.Type, 0), types.IntType{}}
+
+		retType = node.Type
 	case *ast.FunApp:
-		funType, err := c.TypeCheck(node.Fun)
+		targetType, err := c.TypeCheck(node.Fun)
 		if err != nil {
 			retErr = err
 			break
 		}
-		_, err = c.TypeCheckBlock(node.Args)
-		if err != nil {
-			retErr = err
+		funType, ok := targetType.(types.FuncType)
+		if !ok {
+			retErr = errors.New("Tried to call non-function")
 			break
 		}
 
-		retType = (funType.(types.FuncType)).RetType
+		for i := 0; i < len(funType.ArgTypes); i++ {
+			argType, err := c.TypeCheck(node.Args[i])
+			if err != nil {
+				retErr = err
+				break
+			}
+
+			if argType != funType.ArgTypes[i] {
+				retErr = errors.New("Incorrect type for argument to function")
+				break
+			}
+		}
+
+		retType = funType.RetType
 	case *ast.While:
 		retType = types.NullType{}
 	case *ast.If:
@@ -153,7 +169,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 	case *ast.StrExp:
 		retType = types.StringType{}
 	default:
-		panic("Typecheck not defined for type: " + reflect.TypeOf(node).String())
+		panic("Typecheck not defined for node: " + reflect.TypeOf(node).String())
 	}
 
 	return retType, retErr
