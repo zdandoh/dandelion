@@ -20,15 +20,25 @@ import (
 
 type Compiler struct {
 	currBlock *ir.Block
-	currFun *ir.Func
-	mod *ir.Module
-	PEnv map[string]value.Value
-	TEnv map[string]types.Type
+	currFun   *ir.Func
+	mod       *ir.Module
+	PEnv      map[string]value.Value
+	TEnv      map[string]types.Type
+	FEnv      map[string]*ir.Func
 }
 
 var StrType = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
 var IntType = lltypes.I64
 var BoolType = lltypes.I8
+
+func pointerType(t types.Type) bool {
+	switch t.(type) {
+	case *types.FuncType:
+		return true
+	}
+
+	return false
+}
 
 func typeToLLType(myType types.Type) lltypes.Type {
 	switch t := myType.(type) {
@@ -49,7 +59,7 @@ func typeToLLType(myType types.Type) lltypes.Type {
 		for _, arg := range t.ArgTypes {
 			argTypes = append(argTypes, typeToLLType(arg))
 		}
-		return lltypes.NewFunc(retType, argTypes...)
+		return lltypes.NewPointer(lltypes.NewFunc(retType, argTypes...))
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
@@ -58,6 +68,7 @@ func typeToLLType(myType types.Type) lltypes.Type {
 func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 	c := Compiler{}
 	c.PEnv = make(map[string]value.Value)
+	c.FEnv = make(map[string]*ir.Func)
 	c.TEnv = TEnv
 
 	c.mod = ir.NewModule()
@@ -74,10 +85,14 @@ func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 			params = append(params, newParam)
 		}
 
-		c.mod.NewFunc(name, llRetType, params...)
+		funPtr := c.mod.NewFunc(name, llRetType, params...)
+		b := funPtr.NewBlock("")
+		b.NewRet(constant.NewInt(lltypes.I64, 500))
+		c.FEnv[name] = funPtr
 	}
 
-	for _, line := range prog.MainFunc.Body.Lines {
+	for lineNo, line := range prog.MainFunc.Body.Lines {
+		fmt.Printf("Compiling line %d\n", lineNo+1)
 		c.CompileNode(line)
 	}
 	c.currBlock.NewRet(constant.NewInt(lltypes.I32, 0))
@@ -92,7 +107,19 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.Num:
 		retVal = constant.NewInt(IntType, node.Value)
 	case *ast.AddSub:
-		retVal = c.currBlock.NewAdd(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		switch node.Op {
+		case "+":
+			retVal = c.currBlock.NewAdd(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		case "-":
+			retVal = c.currBlock.NewSub(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		}
+	case *ast.MulDiv:
+		switch node.Op {
+		case "*":
+			retVal = c.currBlock.NewMul(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		case "/":
+			retVal = c.currBlock.NewSDiv(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		}
 	case *ast.Assign:
 		targetName := node.Target.(*ast.Ident).Value
 		targetAddr, ok := c.PEnv[targetName]
@@ -107,13 +134,30 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			c.PEnv[targetName] = targetAddr
 		}
 		c.currBlock.NewStore(c.CompileNode(node.Expr), targetAddr)
-	case *ast.Ident:
-		ptr, ok := c.PEnv[node.Value]
-		if !ok {
-			panic("Unbound identifier: " + node.Value)
+	case *ast.FunApp:
+		callee := c.CompileNode(node.Fun)
+
+		argVals := make([]value.Value, 0)
+		for _, arg := range node.Args {
+			argVals = append(argVals, c.CompileNode(arg))
 		}
 
-		retVal = c.currBlock.NewLoad(ptr)
+		retVal = c.currBlock.NewCall(callee, argVals...)
+	case *ast.Ident:
+		inFEnv := false
+		ptr, ok := c.PEnv[node.Value]
+		if !ok {
+			ptr, inFEnv = c.FEnv[node.Value]
+			if !inFEnv {
+				panic("Unbound identifier: " + node.Value)
+			}
+		}
+
+		if inFEnv {
+			retVal = ptr
+		} else {
+			retVal = c.currBlock.NewLoad(ptr)
+		}
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}

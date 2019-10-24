@@ -19,7 +19,7 @@ my_func = f(int a, int b) int {
 	a + b;
 };
 
-c = my_func(32, 21);
+d = my_func(21, 32);
 `
 
 	CompileOutput(src, "")
