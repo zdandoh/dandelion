@@ -6,6 +6,7 @@ import (
 	"ahead/types"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
@@ -72,8 +73,14 @@ func (l *calcListener) ExitMulDiv(c *parser.MulDivContext) {
 }
 
 func (l *calcListener) EnterNumber(c *parser.NumberContext) {
-	l.nodeStack.Push(&ast.Num{c.GetText()})
 	DebugPrintln("enter numb " + c.GetText())
+
+	value, err := strconv.ParseInt(c.GetText(), 10, 64)
+	if err != nil {
+		panic("Invalid value for int")
+	}
+
+	l.nodeStack.Push(&ast.Num{value})
 }
 
 func (l *calcListener) ExitNumber(c *parser.NumberContext) {

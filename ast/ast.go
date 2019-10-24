@@ -63,11 +63,11 @@ func (n *MulDiv) String() string {
 }
 
 type Num struct {
-	Value string
+	Value int64
 }
 
 func (n *Num) String() string {
-	return fmt.Sprintf("%s", n.Value)
+	return fmt.Sprintf("%d", n.Value)
 }
 
 type Assign struct {

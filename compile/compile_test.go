@@ -6,11 +6,21 @@ import (
 
 func TestCompileBasic(t *testing.T) {
 	src := `
-	a = 6;
-	b = 7;
-	d = a + b;
-	c = "str";
-	c + c;
+a = 6;
+b = 7;
+d = a + b + 78;
 `
+	CompileOutput(src, "")
+}
+
+func TestCompileFunc(t *testing.T) {
+	src := `
+my_func = f(int a, int b) int {
+	a + b;
+};
+
+c = my_func(32, 21);
+`
+
 	CompileOutput(src, "")
 }

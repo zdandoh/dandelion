@@ -34,10 +34,15 @@ func NewTEnv() map[string]types.Type {
 	return tenv
 }
 
-func TypeCheck(prog *ast.Program) (types.Type, error) {
+func TypeCheck(prog *ast.Program) (map[string]types.Type, error) {
 	checker := NewTypeChecker()
-	t, err := checker.TypeCheck(prog.MainFunc)
-	return t, err
+
+	for name, fun := range prog.Funcs {
+		checker.TEnv[name] = fun.Type
+	}
+
+	_, err := checker.TypeCheck(prog.MainFunc)
+	return checker.TEnv, err
 }
 
 func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
@@ -95,9 +100,9 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 			retErr = err
 			break
 		}
-		funType, ok := targetType.(types.FuncType)
+		funType, ok := targetType.(*types.FuncType)
 		if !ok {
-			retErr = errors.New("Tried to call non-function")
+			retErr = errors.New("Tried to call non-function: " + reflect.TypeOf(targetType).String())
 			break
 		}
 
