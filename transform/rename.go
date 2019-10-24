@@ -44,7 +44,7 @@ func RenameIdents(prog *ast.Program) {
 	// Setup builtins
 	renamer.LocalNames["p"] = "p"
 
-	prog.MainFunc.Body = ast.WalkBlock(prog.MainFunc.Body, renamer)
+	prog.Funcs["main"].Body = ast.WalkBlock(prog.Funcs["main"].Body, renamer)
 }
 
 func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {

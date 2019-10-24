@@ -9,7 +9,6 @@ import (
 type Program struct {
 	Funcs    map[string]*FunDef
 	Structs  map[string]*StructDef
-	MainFunc *FunDef
 	Output   string
 }
 

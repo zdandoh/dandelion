@@ -16,8 +16,11 @@ func RemFuncs(prog *ast.Program) {
 	remover := &FuncRemover{}
 	remover.funcs = make(map[string]*ast.FunDef)
 
-	prog.MainFunc.Body = ast.WalkBlock(prog.MainFunc.Body, remover)
-	prog.Funcs = remover.funcs
+	prog.Funcs["main"].Body = ast.WalkBlock(prog.Funcs["main"].Body, remover)
+
+	for name, removedFun := range remover.funcs {
+		prog.Funcs[name] = removedFun
+	}
 }
 
 func (r *FuncRemover) newFunName() string {

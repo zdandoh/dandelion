@@ -65,17 +65,7 @@ func typeToLLType(myType types.Type) lltypes.Type {
 	}
 }
 
-func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
-	c := Compiler{}
-	c.PEnv = make(map[string]value.Value)
-	c.FEnv = make(map[string]*ir.Func)
-	c.TEnv = TEnv
-
-	c.mod = ir.NewModule()
-
-	c.currFun = c.mod.NewFunc("main", lltypes.I32)
-	c.currBlock = c.currFun.NewBlock("")
-
+func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	for name, fun := range prog.Funcs {
 		llRetType := typeToLLType(fun.Type.RetType)
 		params := make([]*ir.Param, 0)
@@ -86,17 +76,59 @@ func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 		}
 
 		funPtr := c.mod.NewFunc(name, llRetType, params...)
-		b := funPtr.NewBlock("")
-		b.NewRet(constant.NewInt(lltypes.I64, 500))
 		c.FEnv[name] = funPtr
 	}
+}
 
-	for lineNo, line := range prog.MainFunc.Body.Lines {
-		fmt.Printf("Compiling line %d\n", lineNo+1)
-		c.CompileNode(line)
+func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
+	var ok bool
+	c.currFun, ok = c.FEnv[name]
+	if !ok {
+		panic("Function " + name + " not defined")
 	}
-	c.currBlock.NewRet(constant.NewInt(lltypes.I32, 0))
+	c.currBlock = c.currFun.NewBlock("")
 
+	_, isVoid := fun.Type.RetType.(types.NullType)
+
+	// Bind function args
+	for i, arg := range fun.Args {
+		argName := arg.(*ast.Ident).Value
+		fmt.Println(argName, c.TEnv)
+		argType := typeToLLType(c.TEnv[argName])
+		argPtr := c.currBlock.NewAlloca(argType)
+		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
+		c.PEnv[argName] = argPtr
+	}
+
+	for lineNo, line := range fun.Body.Lines {
+		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
+		lastVal := c.CompileNode(line)
+		if lineNo == len(fun.Body.Lines) -1 && !isVoid {
+			if name == "main" {
+				// Special case to return 0 from main
+				c.currBlock.NewRet(constant.NewInt(lltypes.I64, 0))
+			} else {
+				c.currBlock.NewRet(lastVal)
+			}
+		}
+	}
+}
+
+func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
+	c := Compiler{}
+	c.PEnv = make(map[string]value.Value)
+	c.FEnv = make(map[string]*ir.Func)
+	c.TEnv = TEnv
+
+	c.mod = ir.NewModule()
+
+	// Initialize all function pointers ahead of time
+	c.SetupFuncs(prog)
+
+	// Compile function bodies
+	for name, fun := range prog.Funcs {
+		c.CompileFunc(name, fun)
+	}
 	return c.mod.String()
 }
 

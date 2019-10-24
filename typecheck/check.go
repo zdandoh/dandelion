@@ -40,9 +40,16 @@ func TypeCheck(prog *ast.Program) (map[string]types.Type, error) {
 	for name, fun := range prog.Funcs {
 		checker.TEnv[name] = fun.Type
 	}
+	checker.TEnv["main"] = &types.FuncType{[]types.Type{}, types.IntType{}}
 
-	_, err := checker.TypeCheck(prog.MainFunc)
-	return checker.TEnv, err
+	for _, funDef := range prog.Funcs {
+		_, err := checker.TypeCheck(funDef)
+		if err != nil {
+			return checker.TEnv, err
+		}
+	}
+
+	return checker.TEnv, nil
 }
 
 func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {

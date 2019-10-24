@@ -14,7 +14,7 @@ func RemoveStructs(prog *ast.Program) {
 	remover := &StructRemover{}
 	remover.prog = prog
 
-	prog.MainFunc.Body = ast.WalkBlock(prog.MainFunc.Body, remover)
+	prog.Funcs["main"].Body = ast.WalkBlock(prog.Funcs["main"].Body, remover)
 }
 
 func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {

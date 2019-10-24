@@ -212,17 +212,15 @@ func (l *calcListener) ExitLine(c *parser.LineContext) {
 
 func (l *calcListener) EnterStart(c *parser.StartContext) {
 	// Setup, basically
-	mainFunc := ast.NewFunDef()
-	l.mainFunc = mainFunc
-
 	mainBlock := &ast.Block{}
 	l.blockStack.Push(mainBlock)
 }
 
 func (l *calcListener) ExitStart(c *parser.StartContext) {
 	mainFunc := ast.NewFunDef()
+	mainFunc.Args = []ast.Node{}
+	mainFunc.Type = &types.FuncType{[]types.Type{}, types.IntType{}}
 	mainFunc.Body = l.blockStack.Pop()
-
 	l.mainFunc = mainFunc
 }
 
@@ -463,9 +461,10 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 
 func NewProgram(mainFunc *ast.FunDef) *ast.Program {
 	newProg := &ast.Program{}
-	newProg.MainFunc = mainFunc
+	newProg.Funcs = make(map[string]*ast.FunDef)
 	newProg.Structs = make(map[string]*ast.StructDef)
 
+	newProg.Funcs["main"] = mainFunc
 	return newProg
 }
 

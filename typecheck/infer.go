@@ -34,7 +34,7 @@ func NewTypeInferer() *TypeInferer {
 
 func Infer(prog *ast.Program) {
 	infer := NewTypeInferer()
-	ast.WalkAst(prog.MainFunc, infer)
+	ast.WalkAst(prog.Funcs["main"], infer)
 }
 
 func (i *TypeInferer) WalkNode(astNode ast.Node) ast.Node {
