@@ -21,7 +21,7 @@ my_func = f(int a, int b) int {
 
 other = f(int a, int b) int {
 	my_func(a, b);
-}
+};
 
 d = other(21, 32);
 `
