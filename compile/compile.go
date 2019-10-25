@@ -29,7 +29,7 @@ type Compiler struct {
 
 var StrType = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
 var IntType = lltypes.I64
-var BoolType = lltypes.I8
+var BoolType = lltypes.I1
 
 func pointerType(t types.Type) bool {
 	switch t.(type) {
@@ -103,7 +103,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	for lineNo, line := range fun.Body.Lines {
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
-		if lineNo == len(fun.Body.Lines) -1 && !isVoid {
+		if lineNo == len(fun.Body.Lines)-1 && !isVoid {
 			if name == "main" {
 				// Special case to return 0 from main
 				c.currBlock.NewRet(constant.NewInt(lltypes.I64, 0))
@@ -190,11 +190,32 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		} else {
 			retVal = c.currBlock.NewLoad(ptr)
 		}
+	case *ast.CompNode:
+		retVal = c.currBlock.NewICmp(node.LLPred(), c.CompileNode(node.Left), c.CompileNode(node.Right))
+	case *ast.If:
+		cond := c.CompileNode(node.Cond)
+
+		ifBlock := c.currFun.NewBlock("")
+		newBlock := c.currFun.NewBlock("")
+
+		c.currBlock.NewCondBr(cond, ifBlock, newBlock)
+
+		c.currBlock = ifBlock
+		c.CompileBlock(node.Body)
+
+		c.currBlock = newBlock
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
 
 	return retVal
+}
+
+func (c *Compiler) CompileBlock(block *ast.Block) {
+	for lineNo, line := range block.Lines {
+		fmt.Printf("Compiling line %d of block\n", lineNo)
+		c.CompileNode(line)
+	}
 }
 
 func CompileOutput(progText string, output string) bool {

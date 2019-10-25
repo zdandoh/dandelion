@@ -3,13 +3,14 @@ package ast
 import (
 	"ahead/types"
 	"fmt"
+	"github.com/llir/llvm/ir/enum"
 	"strings"
 )
 
 type Program struct {
-	Funcs    map[string]*FunDef
-	Structs  map[string]*StructDef
-	Output   string
+	Funcs   map[string]*FunDef
+	Structs map[string]*StructDef
+	Output  string
 }
 
 type Block struct {
@@ -126,8 +127,8 @@ func (n *FunDef) String() string {
 }
 
 type StructMember struct {
-	Name     *Ident
-	Type     types.Type
+	Name *Ident
+	Type types.Type
 }
 
 func (n *StructMember) String() string {
@@ -212,6 +213,25 @@ type CompNode struct {
 
 func (n *CompNode) String() string {
 	return fmt.Sprintf("%v %s %v", n.Left, n.Op, n.Right)
+}
+
+func (n *CompNode) LLPred() enum.IPred {
+	switch n.Op {
+	case "<":
+		return enum.IPredSLT
+	case ">":
+		return enum.IPredSGT
+	case ">=":
+		return enum.IPredSGE
+	case "<=":
+		return enum.IPredSLE
+	case "==":
+		return enum.IPredEQ
+	case "!=":
+		return enum.IPredNE
+	default:
+		panic("Unsupported CompNode operator")
+	}
 }
 
 type ArrayLiteral struct {
