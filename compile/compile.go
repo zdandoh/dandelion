@@ -24,11 +24,17 @@ type Compiler struct {
 	mod       *ir.Module
 	PEnv      map[string]value.Value
 	TEnv      map[string]types.Type
-	FEnv      map[string]*ir.Func
+	FEnv      map[string]*CFunc
+}
+
+type CFunc struct {
+	Func     *ir.Func
+	RetPtr   value.Value
+	RetBlock *ir.Block
 }
 
 var StrType = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
-var IntType = lltypes.I64
+var IntType = lltypes.I32
 var BoolType = lltypes.I1
 
 func pointerType(t types.Type) bool {
@@ -66,6 +72,9 @@ func typeToLLType(myType types.Type) lltypes.Type {
 }
 
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
+	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
+	c.FEnv["abs"] = &CFunc{abs, nil, nil}
+
 	for name, fun := range prog.Funcs {
 		llRetType := typeToLLType(fun.Type.RetType)
 		params := make([]*ir.Param, 0)
@@ -76,16 +85,16 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		}
 
 		funPtr := c.mod.NewFunc(name, llRetType, params...)
-		c.FEnv[name] = funPtr
+		c.FEnv[name] = &CFunc{funPtr, nil, nil}
 	}
 }
 
 func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
-	var ok bool
-	c.currFun, ok = c.FEnv[name]
+	cFun, ok := c.FEnv[name]
 	if !ok {
 		panic("Function " + name + " not defined")
 	}
+	c.currFun = cFun.Func
 	c.currBlock = c.currFun.NewBlock("")
 
 	_, isVoid := fun.Type.RetType.(types.NullType)
@@ -93,23 +102,32 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	// Bind function args
 	for i, arg := range fun.Args {
 		argName := arg.(*ast.Ident).Value
-		fmt.Println(argName, c.TEnv)
 		argType := typeToLLType(c.TEnv[argName])
 		argPtr := c.currBlock.NewAlloca(argType)
 		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
 		c.PEnv[argName] = argPtr
 	}
+	// Allocate space for return value & setup return block
+	retPtr := c.currBlock.NewAlloca(typeToLLType(fun.Type.RetType))
+	cFun.RetPtr = retPtr
+	cFun.RetBlock = cFun.Func.NewBlock("")
+	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
 
 	for lineNo, line := range fun.Body.Lines {
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
+		// TODO support multiple returns & returns that aren't at the end of the block
 		if lineNo == len(fun.Body.Lines)-1 && !isVoid {
-			if name == "main" {
-				// Special case to return 0 from main
-				c.currBlock.NewRet(constant.NewInt(lltypes.I64, 0))
+			if name == "main" && c.currBlock.Term == nil {
+				// Special case to return 0 from main if we didn't return anything
+				c.currBlock.NewStore(constant.NewInt(IntType, 0), retPtr)
 			} else {
-				c.currBlock.NewRet(lastVal)
+				if lastVal != nil {
+					// Only auto-return when it's an expression
+					c.currBlock.NewStore(lastVal, retPtr)
+				}
 			}
+			c.currBlock.NewBr(cFun.RetBlock)
 		}
 	}
 }
@@ -117,7 +135,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 	c := Compiler{}
 	c.PEnv = make(map[string]value.Value)
-	c.FEnv = make(map[string]*ir.Func)
+	c.FEnv = make(map[string]*CFunc)
 	c.TEnv = TEnv
 
 	c.mod = ir.NewModule()
@@ -179,10 +197,12 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		inFEnv := false
 		ptr, ok := c.PEnv[node.Value]
 		if !ok {
-			ptr, inFEnv = c.FEnv[node.Value]
+			var cFun *CFunc
+			cFun, inFEnv = c.FEnv[node.Value]
 			if !inFEnv {
 				panic("Unbound identifier: " + node.Value)
 			}
+			ptr = cFun.Func
 		}
 
 		if inFEnv {
@@ -192,6 +212,10 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 	case *ast.CompNode:
 		retVal = c.currBlock.NewICmp(node.LLPred(), c.CompileNode(node.Left), c.CompileNode(node.Right))
+	case *ast.ReturnExp:
+		cFun := c.FEnv[c.currFun.Name()]
+		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
+		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.If:
 		cond := c.CompileNode(node.Cond)
 
@@ -202,6 +226,10 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		c.currBlock = ifBlock
 		c.CompileBlock(node.Body)
+
+		if c.currBlock.Term == nil {
+			c.currBlock.NewBr(newBlock)
+		}
 
 		c.currBlock = newBlock
 	default:

@@ -8,8 +8,9 @@ import (
 )
 
 type TypeChecker struct {
-	TEnv map[string]types.Type
-	Cons Constraints
+	TEnv     map[string]types.Type
+	Cons     Constraints
+	CurrFunc *ast.FunDef
 }
 
 type Constraints map[string][]*TypeConstraint
@@ -29,7 +30,8 @@ func NewTypeChecker() *TypeChecker {
 
 func NewTEnv() map[string]types.Type {
 	tenv := make(map[string]types.Type)
-	tenv["p"] = types.FuncType{[]types.Type{types.ArrayType{types.AnyType{}}}, types.AnyType{}}
+	tenv["p"] = &types.FuncType{[]types.Type{types.ArrayType{types.AnyType{}}}, types.AnyType{}}
+	tenv["abs"] = &types.FuncType{[]types.Type{types.IntType{}}, types.IntType{}}
 
 	return tenv
 }
@@ -43,6 +45,7 @@ func TypeCheck(prog *ast.Program) (map[string]types.Type, error) {
 	checker.TEnv["main"] = &types.FuncType{[]types.Type{}, types.IntType{}}
 
 	for _, funDef := range prog.Funcs {
+		checker.CurrFunc = funDef
 		_, err := checker.TypeCheck(funDef)
 		if err != nil {
 			return checker.TEnv, err
@@ -91,6 +94,17 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		} else {
 			retType = left
 		}
+	case *ast.ReturnExp:
+		expType, err := c.TypeCheck(node.Target)
+		if err != nil {
+			retErr = err
+			break
+		}
+
+		if expType != c.CurrFunc.Type.RetType {
+			retErr = errors.New("Return type doesn't match function type")
+		}
+		retType = types.NullType{}
 	case *ast.FunDef:
 		for i := 0; i < len(node.Args); i++ {
 			c.TEnv[node.Args[i].(*ast.Ident).Value] = node.Type.ArgTypes[i]
@@ -137,7 +151,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		if lerr != nil || rerr != nil || left != right {
 			retErr = errors.New("Types don't match")
 		} else {
-			retType = left
+			retType = types.BoolType{}
 		}
 	case *ast.ArrayLiteral:
 		exprTypes, err := c.TypeCheckBlock(node.Exprs)

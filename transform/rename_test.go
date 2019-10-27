@@ -37,7 +37,7 @@ f(){
 	RenameIdents(prog)
 
 	destProg := parser.ParseProgram(destSrc)
-	if destProg.MainFunc.String() != prog.MainFunc.String() {
+	if destProg.Funcs["main"].String() != prog.Funcs["main"].String() {
 		t.Fatal("Source program not equal to dest program")
 	}
 }

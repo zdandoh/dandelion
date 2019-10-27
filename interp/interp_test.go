@@ -105,9 +105,9 @@ f{
 	walker.WalkB = func(b *ast.Block) *ast.Block {
 		return nil
 	}
-	newAst := ast.WalkAst(parsed.MainFunc, walker)
+	newAst := ast.WalkAst(parsed.Funcs["main"], walker)
 
-	if parsed.MainFunc.String() == fmt.Sprintf("%s", newAst) {
+	if parsed.Funcs["main"].String() == fmt.Sprintf("%s", newAst) {
 		t.Fatal("Transformed AST equals un-transformed AST")
 	}
 }

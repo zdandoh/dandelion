@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os/exec"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -216,8 +215,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 
 		retVal = &Null{}
 	case *ast.Num:
-		res, _ := strconv.Atoi(node.Value)
-		retVal = Int(res)
+		retVal = Int(node.Value)
 	case *ast.Ident:
 		val, ok := i.Env.Get(node.Value)
 		if !ok {
@@ -558,7 +556,7 @@ func (i *Interpreter) interpFunApp(funApp *ast.FunApp) (Value, error) {
 
 func (i *Interpreter) Interp(p *ast.Program) {
 	mainApp := &ast.FunApp{}
-	mainApp.Fun = p.MainFunc
+	mainApp.Fun = p.Funcs["main"]
 	mainApp.Args = make([]ast.Node, 0)
 	i.CurrProgram = p
 	i.interpFunApp(mainApp)

@@ -48,7 +48,7 @@ GT: '>';
 GTE: '>=';
 EQ: '==';
 
-NUMBER: [0-9]+;
+NUMBER: '-'?[0-9]+;
 IDENT: [a-zA-Z_0-9]+;
 COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;

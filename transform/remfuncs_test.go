@@ -39,7 +39,7 @@ f{
 		return nil
 	}
 
-	ast.WalkBlock(prog.MainFunc.Body, ts)
+	ast.WalkBlock(prog.Funcs["main"].Body, ts)
 }
 
 type testfuncinside struct {

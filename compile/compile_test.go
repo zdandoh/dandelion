@@ -28,3 +28,16 @@ d = other(21, 32);
 
 	CompileOutput(src, "")
 }
+
+func TestCompileConditional(t *testing.T) {
+	src := `
+x = 7;
+my_func = f() int {
+	x + 7;
+};
+
+return my_func();
+`
+
+	CompileOutput(src, "")
+}

@@ -17,7 +17,7 @@ f{
 `
 	p := parser.ParseProgram(prog)
 	checker := typecheck.NewTypeChecker()
-	checker.TypeCheck(p.MainFunc)
+	checker.TypeCheck(p.Funcs["main"])
 	if (checker.TEnv["x"] != types.IntType{}) {
 		t.Fatal("x not int")
 	}
