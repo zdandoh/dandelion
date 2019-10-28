@@ -166,7 +166,8 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		if len(exprTypes) == 0 {
 			retType = types.ArrayType{types.NullType{}}
 		}
-		retType = types.ArrayType{exprTypes[0]}
+		node.Type = types.ArrayType{exprTypes[0]}
+		retType = node.Type
 	case *ast.SliceNode:
 		indexType, err := c.TypeCheck(node.Index)
 		if err != nil {

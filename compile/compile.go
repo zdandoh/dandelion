@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"syscall"
 )
 
 type Compiler struct {
@@ -54,9 +55,6 @@ func typeToLLType(myType types.Type) lltypes.Type {
 		return IntType
 	case types.StringType:
 		return StrType
-	case types.ArrayType:
-		subtype := typeToLLType(t.Subtype)
-		return lltypes.NewStruct(lltypes.I64, lltypes.I64, lltypes.NewVector(0, subtype))
 	case types.NullType:
 		return lltypes.Void
 	case *types.FuncType:
@@ -66,6 +64,9 @@ func typeToLLType(myType types.Type) lltypes.Type {
 			argTypes = append(argTypes, typeToLLType(arg))
 		}
 		return lltypes.NewPointer(lltypes.NewFunc(retType, argTypes...))
+	case types.ArrayType:
+		subtype := typeToLLType(t.Subtype)
+		return lltypes.NewPointer(lltypes.NewVector(0, subtype))
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
@@ -170,6 +171,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		case "/":
 			retVal = c.currBlock.NewSDiv(c.CompileNode(node.Left), c.CompileNode(node.Right))
 		}
+	case *ast.Mod:
+		retVal = c.currBlock
 	case *ast.Assign:
 		targetName := node.Target.(*ast.Ident).Value
 		targetAddr, ok := c.PEnv[targetName]
@@ -232,6 +235,27 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 
 		c.currBlock = newBlock
+	case *ast.While:
+		whileCondBlock := c.currFun.NewBlock("")
+		c.currBlock.NewBr(whileCondBlock)
+
+		c.currBlock = whileCondBlock
+		cond := c.CompileNode(node.Cond)
+
+		whileBlock := c.currFun.NewBlock("")
+		newBlock := c.currFun.NewBlock("")
+
+		c.currBlock.NewCondBr(cond, whileBlock, newBlock)
+
+		whileBlock.NewBr(whileCondBlock)
+		c.currBlock = whileBlock
+		c.CompileBlock(node.Body)
+
+		c.currBlock = newBlock
+	case *ast.ArrayLiteral:
+		vecType := typeToLLType(node.Type)
+		vecType.(*lltypes.VectorType).Len = uint64(node.Length)
+		retVal = c.currBlock.NewAlloca(vecType)
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
@@ -246,7 +270,7 @@ func (c *Compiler) CompileBlock(block *ast.Block) {
 	}
 }
 
-func CompileOutput(progText string, output string) bool {
+func CompileCheckExit(progText string, code int) bool {
 	prog := parser.ParseProgram(progText)
 	transform.TransformAst(prog)
 
@@ -262,12 +286,28 @@ func CompileOutput(progText string, output string) bool {
 		fmt.Println(err)
 	}
 
-	cmd := exec.Command("bash", "-c", `cat llvm_ir.ll | lli`)
-	out, err := cmd.Output()
+	cmd := exec.Command("lli", "llvm_ir.ll")
+	err = cmd.Start()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf(err.Error())
 	}
-	fmt.Println(string(out))
 
-	return false
+	exitStatus := 0
+	err = cmd.Wait()
+	if err != nil {
+		exitCode, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitCode.Sys().(syscall.WaitStatus)
+			if ok {
+				exitStatus = status.ExitStatus()
+			}
+		}
+	}
+
+	fmt.Println("Exit code:", exitStatus)
+	if exitStatus != code {
+		return false
+	}
+
+	return true
 }

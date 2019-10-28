@@ -9,8 +9,9 @@ func TestCompileBasic(t *testing.T) {
 a = 6;
 b = 7;
 d = a + b + 78;
+return d;
 `
-	CompileOutput(src, "")
+	CompileCheckExit(src, 91)
 }
 
 func TestCompileFunc(t *testing.T) {
@@ -26,18 +27,25 @@ other = f(int a, int b) int {
 d = other(21, 32);
 `
 
-	CompileOutput(src, "")
+	CompileCheckExit(src, 53)
 }
 
 func TestCompileConditional(t *testing.T) {
 	src := `
-x = 7;
-my_func = f() int {
-	x + 7;
+x = 100;
+while x > 36 {
+	x = x - 1;
 };
-
-return my_func();
+return x;
 `
 
-	CompileOutput(src, "")
+	CompileCheckExit(src, 36)
+}
+
+func TestArrayCompile(t *testing.T) {
+	src := `
+[1, 2, 3];
+`
+
+	CompileCheckExit(src, 0)
 }
