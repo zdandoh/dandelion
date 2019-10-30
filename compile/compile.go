@@ -66,7 +66,8 @@ func typeToLLType(myType types.Type) lltypes.Type {
 		return lltypes.NewPointer(lltypes.NewFunc(retType, argTypes...))
 	case types.ArrayType:
 		subtype := typeToLLType(t.Subtype)
-		return lltypes.NewPointer(lltypes.NewVector(0, subtype))
+		arrPtr := lltypes.NewPointer(subtype)
+		return lltypes.NewPointer(lltypes.NewStruct(IntType, arrPtr))
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
@@ -115,18 +116,18 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
 
 	for lineNo, line := range fun.Body.Lines {
+		if lineNo == 0 && name == "main" {
+			// Store 0 in the main return by default
+			c.currBlock.NewStore(constant.NewInt(IntType, 0), retPtr)
+		}
+
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
 		// TODO support multiple returns & returns that aren't at the end of the block
 		if lineNo == len(fun.Body.Lines)-1 && !isVoid {
-			if name == "main" && c.currBlock.Term == nil {
-				// Special case to return 0 from main if we didn't return anything
-				c.currBlock.NewStore(constant.NewInt(IntType, 0), retPtr)
-			} else {
-				if lastVal != nil {
-					// Only auto-return when it's an expression
-					c.currBlock.NewStore(lastVal, retPtr)
-				}
+			if lastVal != nil && name != "main" {
+				// Only auto-return when it's an expression
+				c.currBlock.NewStore(lastVal, retPtr)
 			}
 			c.currBlock.NewBr(cFun.RetBlock)
 		}
@@ -250,12 +251,48 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		whileBlock.NewBr(whileCondBlock)
 		c.currBlock = whileBlock
 		c.CompileBlock(node.Body)
+		if c.currBlock.Term == nil {
+			c.currBlock.NewBr(whileCondBlock)
+		}
 
+		newBlock.NewBr(c.currBlock)
 		c.currBlock = newBlock
 	case *ast.ArrayLiteral:
-		vecType := typeToLLType(node.Type)
-		vecType.(*lltypes.VectorType).Len = uint64(node.Length)
-		retVal = c.currBlock.NewAlloca(vecType)
+		listType := typeToLLType(node.Type).(*lltypes.PointerType).ElemType
+		subType := typeToLLType(node.Type.Subtype)
+		list := c.currBlock.NewAlloca(listType)
+
+		// Set list length
+		lenPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		c.currBlock.NewStore(constant.NewInt(IntType, int64(node.Length)), lenPtr)
+
+		// Get array start ptr
+		arr := c.currBlock.NewAlloca(lltypes.NewArray(uint64(node.Length), subType))
+		arrStart := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+
+		// Set arr start pointer in list
+		arrPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
+		c.currBlock.NewStore(arrStart, arrPtr)
+
+		// Set all arr elements
+		for i, val := range node.Exprs {
+			compVal := c.CompileNode(val)
+			elemPtr := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, int64(0)), constant.NewInt(IntType, int64(i)))
+			c.currBlock.NewStore(compVal, elemPtr)
+		}
+
+		retVal = list
+	case *ast.SliceNode:
+		arr := c.CompileNode(node.Arr)
+		index := c.CompileNode(node.Index)
+
+		// Load the pointer to the array from the struct
+		arrPtr := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
+		// Load the pointer itself
+		arrStart := c.currBlock.NewLoad(arrPtr)
+		// Get the pointer for the specific element
+		elemPtr := c.currBlock.NewGetElementPtr(arrStart, index)
+		retVal = c.currBlock.NewLoad(elemPtr)
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
@@ -281,6 +318,7 @@ func CompileCheckExit(progText string, code int) bool {
 	}
 
 	llvm_ir := Compile(prog, tEnv)
+	fmt.Println(llvm_ir)
 	err = ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
 	if err != nil {
 		fmt.Println(err)

@@ -11,7 +11,9 @@ b = 7;
 d = a + b + 78;
 return d;
 `
-	CompileCheckExit(src, 91)
+	if !CompileCheckExit(src, 91) {
+		t.FailNow()
+	}
 }
 
 func TestCompileFunc(t *testing.T) {
@@ -20,14 +22,13 @@ my_func = f(int a, int b) int {
 	a + b;
 };
 
-other = f(int a, int b) int {
-	my_func(a, b);
-};
-
-d = other(21, 32);
+d = my_func(21, 32);
+return d;
 `
 
-	CompileCheckExit(src, 53)
+	if !CompileCheckExit(src, 53) {
+		t.FailNow()
+	}
 }
 
 func TestCompileConditional(t *testing.T) {
@@ -39,13 +40,58 @@ while x > 36 {
 return x;
 `
 
-	CompileCheckExit(src, 36)
+	if !CompileCheckExit(src, 36) {
+		t.FailNow()
+	}
 }
 
 func TestArrayCompile(t *testing.T) {
 	src := `
-[1, 2, 3];
+arr = [5, 6, 7];
+return arr[1];
 `
 
-	CompileCheckExit(src, 0)
+	if !CompileCheckExit(src, 6) {
+		t.FailNow()
+	}
+}
+
+func TestNestedIf(t *testing.T) {
+	src := `
+x = 7;
+if x > 5 {
+	if x > 6 {
+		x = 20;
+	};
+};
+
+return x;
+`
+
+	if !CompileCheckExit(src, 20) {
+		t.FailNow()
+	}
+}
+
+func TestControlFlowArray(t *testing.T) {
+	src := `
+arr = [5, 6, 7, 8, 9];
+x = 0;
+index = 0;
+sum = 0;
+while x < 100 {
+	sum = sum + arr[index];
+	index = index + 1;
+	if index > 4 {
+		index = 0;
+	};
+	x = x + 1;
+};
+
+return sum;
+`
+
+	if !CompileCheckExit(src, 700) {
+		t.FailNow()
+	}
 }
