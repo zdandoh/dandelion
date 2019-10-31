@@ -58,19 +58,44 @@ return arr[1];
 
 func TestNestedIf(t *testing.T) {
 	src := `
-x = 7;
-if x > 5 {
-	if x > 6 {
-		x = 20;
-	};
-};
 
-return x;
+condfun = f(int x) int {
+	if x < 6 {
+		x = 7;
+		if x < 5 {
+			x = 5;
+			if x < 3 {
+				x = 3;
+			};
+		};
+	};
+
+	return x;
+};
+return condfun(5) + condfun(2) + condfun(6);
 `
 
 	if !CompileCheckExit(src, 20) {
 		t.FailNow()
 	}
+}
+
+func TestNestedWhile(t *testing.T) {
+	src := `
+x = 0;
+y = 0;
+while x < 100 {
+	y = 0;
+	while y < 100 {
+		y = y + 1;
+	};
+	x = x + 1;
+};
+
+return x + y;
+`
+
+	CompileCheckExit(src, 200)
 }
 
 func TestControlFlowArray(t *testing.T) {

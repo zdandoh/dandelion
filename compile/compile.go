@@ -26,6 +26,7 @@ type Compiler struct {
 	PEnv      map[string]value.Value
 	TEnv      map[string]types.Type
 	FEnv      map[string]*CFunc
+	LabelNo   int
 }
 
 type CFunc struct {
@@ -45,6 +46,11 @@ func pointerType(t types.Type) bool {
 	}
 
 	return false
+}
+
+func (c *Compiler) getLabel(label string) string {
+	c.LabelNo++
+	return fmt.Sprintf("%s_%d", label, c.LabelNo)
 }
 
 func typeToLLType(myType types.Type) lltypes.Type {
@@ -97,7 +103,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		panic("Function " + name + " not defined")
 	}
 	c.currFun = cFun.Func
-	c.currBlock = c.currFun.NewBlock("")
+	c.currBlock = c.currFun.NewBlock(c.getLabel(name + "entry"))
 
 	_, isVoid := fun.Type.RetType.(types.NullType)
 
@@ -112,7 +118,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	// Allocate space for return value & setup return block
 	retPtr := c.currBlock.NewAlloca(typeToLLType(fun.Type.RetType))
 	cFun.RetPtr = retPtr
-	cFun.RetBlock = cFun.Func.NewBlock("")
+	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "ret"))
 	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
 
 	for lineNo, line := range fun.Body.Lines {
@@ -221,42 +227,41 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.If:
+		prevContinuation := c.currBlock.Term
+
 		cond := c.CompileNode(node.Cond)
 
-		ifBlock := c.currFun.NewBlock("")
-		newBlock := c.currFun.NewBlock("")
+		ifBody := c.currFun.NewBlock(c.getLabel("ifbody"))
+		postIf := c.currFun.NewBlock(c.getLabel("postif"))
+		ifBody.NewBr(postIf)
+		postIf.Term = prevContinuation
 
-		c.currBlock.NewCondBr(cond, ifBlock, newBlock)
+		c.currBlock.NewCondBr(cond, ifBody, postIf)
 
-		c.currBlock = ifBlock
+		c.currBlock = ifBody
 		c.CompileBlock(node.Body)
 
-		if c.currBlock.Term == nil {
-			c.currBlock.NewBr(newBlock)
-		}
-
-		c.currBlock = newBlock
+		c.currBlock = postIf
 	case *ast.While:
-		whileCondBlock := c.currFun.NewBlock("")
+		prevContinuation := c.currBlock.Term
+
+		whileCondBlock := c.currFun.NewBlock(c.getLabel("whilecond"))
 		c.currBlock.NewBr(whileCondBlock)
 
 		c.currBlock = whileCondBlock
 		cond := c.CompileNode(node.Cond)
 
-		whileBlock := c.currFun.NewBlock("")
-		newBlock := c.currFun.NewBlock("")
+		whileBody := c.currFun.NewBlock(c.getLabel("whilebody"))
+		whileBody.NewBr(whileCondBlock)
+		postWhile := c.currFun.NewBlock(c.getLabel("postwhile"))
+		postWhile.Term = prevContinuation
 
-		c.currBlock.NewCondBr(cond, whileBlock, newBlock)
+		whileCondBlock.NewCondBr(cond, whileBody, postWhile)
 
-		whileBlock.NewBr(whileCondBlock)
-		c.currBlock = whileBlock
+		c.currBlock = whileBody
 		c.CompileBlock(node.Body)
-		if c.currBlock.Term == nil {
-			c.currBlock.NewBr(whileCondBlock)
-		}
 
-		newBlock.NewBr(c.currBlock)
-		c.currBlock = newBlock
+		c.currBlock = postWhile
 	case *ast.ArrayLiteral:
 		listType := typeToLLType(node.Type).(*lltypes.PointerType).ElemType
 		subType := typeToLLType(node.Type.Subtype)
