@@ -95,7 +95,21 @@ while x < 100 {
 return x + y;
 `
 
-	CompileCheckExit(src, 200)
+	if !CompileCheckExit(src, 200) {
+		t.FailNow()
+	}
+}
+
+func TestArrayBasics(t *testing.T) {
+	src := `
+arr = [3, 4, 5, 6, 7];
+arr[2] = 21;
+return arr[2];
+`
+
+	if !CompileCheckExit(src, 21) {
+		t.FailNow()
+	}
 }
 
 func TestControlFlowArray(t *testing.T) {

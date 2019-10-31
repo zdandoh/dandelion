@@ -181,19 +181,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.Mod:
 		retVal = c.currBlock
 	case *ast.Assign:
-		targetName := node.Target.(*ast.Ident).Value
-		targetAddr, ok := c.PEnv[targetName]
-		if !ok {
-			targetType, ok := c.TEnv[targetName]
-			if !ok {
-				panic("Identifier not in type environment: " + targetName)
-			}
-			targetLLType := typeToLLType(targetType)
-
-			targetAddr = c.currBlock.NewAlloca(targetLLType)
-			c.PEnv[targetName] = targetAddr
-		}
-		c.currBlock.NewStore(c.CompileNode(node.Expr), targetAddr)
+		retVal = c.compileAssign(node)
 	case *ast.FunApp:
 		callee := c.CompileNode(node.Fun)
 
@@ -288,21 +276,56 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		retVal = list
 	case *ast.SliceNode:
-		arr := c.CompileNode(node.Arr)
+		list := c.CompileNode(node.Arr)
 		index := c.CompileNode(node.Index)
 
-		// Load the pointer to the array from the struct
-		arrPtr := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
-		// Load the pointer itself
-		arrStart := c.currBlock.NewLoad(arrPtr)
-		// Get the pointer for the specific element
-		elemPtr := c.currBlock.NewGetElementPtr(arrStart, index)
+		elemPtr := c.getListElemPtr(list, index)
 		retVal = c.currBlock.NewLoad(elemPtr)
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
 
 	return retVal
+}
+
+func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
+	var retVal value.Value
+
+	switch target := node.Target.(type) {
+	case *ast.Ident:
+		targetName := target.Value
+		targetAddr, ok := c.PEnv[targetName]
+		if !ok {
+			targetType, ok := c.TEnv[targetName]
+			if !ok {
+				panic("Identifier not in type environment: " + targetName)
+			}
+			targetLLType := typeToLLType(targetType)
+
+			targetAddr = c.currBlock.NewAlloca(targetLLType)
+			c.PEnv[targetName] = targetAddr
+		}
+		c.currBlock.NewStore(c.CompileNode(node.Expr), targetAddr)
+	case *ast.SliceNode:
+		index := c.CompileNode(target.Index)
+		list := c.CompileNode(target.Arr)
+
+		elemPtr := c.getListElemPtr(list, index)
+		c.currBlock.NewStore(c.CompileNode(node.Expr), elemPtr)
+	}
+
+	return retVal
+}
+
+func (c *Compiler) getListElemPtr(list value.Value, index value.Value) value.Value {
+	// Load the pointer to the array from the struct
+	arrPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
+	// Load the pointer itself
+	arrStart := c.currBlock.NewLoad(arrPtr)
+	// Get the pointer for the specific element
+	elemPtr := c.currBlock.NewGetElementPtr(arrStart, index)
+
+	return elemPtr
 }
 
 func (c *Compiler) CompileBlock(block *ast.Block) {
