@@ -118,7 +118,7 @@ arr = [5, 6, 7, 8, 9];
 x = 0;
 index = 0;
 sum = 0;
-while x < 100 {
+while x < 20 {
 	sum = sum + arr[index];
 	index = index + 1;
 	if index > 4 {
@@ -130,7 +130,24 @@ while x < 100 {
 return sum;
 `
 
-	if !CompileCheckExit(src, 700) {
+	if !CompileCheckExit(src, 140) {
 		t.FailNow()
 	}
+}
+
+func TestString(t *testing.T) {
+	src := `
+string = "Look ma, a string!";
+`
+
+	CompileCheckExit(src,0 )
+}
+
+func TestNestedArray(t *testing.T) {
+	src := `
+arr = [[1, 2, 3], [4, 5, 6]];
+return arr[1][1];
+`
+
+	CompileCheckExit(src, 5)
 }

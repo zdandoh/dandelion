@@ -35,9 +35,10 @@ type CFunc struct {
 	RetBlock *ir.Block
 }
 
-var StrType = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
+var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
 var IntType = lltypes.I32
 var BoolType = lltypes.I1
+var Zero = constant.NewInt(IntType, 0)
 
 func pointerType(t types.Type) bool {
 	switch t.(type) {
@@ -60,7 +61,7 @@ func typeToLLType(myType types.Type) lltypes.Type {
 	case types.IntType:
 		return IntType
 	case types.StringType:
-		return StrType
+		return lltypes.NewPointer(StrType)
 	case types.NullType:
 		return lltypes.Void
 	case *types.FuncType:
@@ -77,6 +78,10 @@ func typeToLLType(myType types.Type) lltypes.Type {
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
+}
+
+func (c *Compiler) SetupTypes(prog *ast.Program) {
+	StrType = c.mod.NewTypeDef("str", StrType)
 }
 
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
@@ -147,6 +152,9 @@ func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 	c.TEnv = TEnv
 
 	c.mod = ir.NewModule()
+
+	// Create type defs
+	c.SetupTypes(prog)
 
 	// Initialize all function pointers ahead of time
 	c.SetupFuncs(prog)
@@ -250,6 +258,20 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.CompileBlock(node.Body)
 
 		c.currBlock = postWhile
+	case *ast.StrExp:
+		strPtr := c.currBlock.NewAlloca(StrType)
+
+		constArr := c.mod.NewGlobalDef(c.getLabel("strconst"), constant.NewCharArrayFromString(node.Value))
+
+		// Store string length
+		lenPtr := c.currBlock.NewGetElementPtr(strPtr, Zero, Zero)
+		c.currBlock.NewStore(constant.NewInt(lltypes.I64, int64(len(node.Value))), lenPtr)
+
+		// Store actual string pointer
+		charPtr := c.currBlock.NewGetElementPtr(constArr, Zero, Zero)
+		charPtrDest := c.currBlock.NewGetElementPtr(strPtr, Zero, constant.NewInt(IntType, 1))
+		c.currBlock.NewStore(charPtr, charPtrDest)
+		retVal = strPtr
 	case *ast.ArrayLiteral:
 		listType := typeToLLType(node.Type).(*lltypes.PointerType).ElemType
 		subType := typeToLLType(node.Type.Subtype)
