@@ -114,7 +114,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		panic("Function " + name + " not defined")
 	}
 	c.currFun = cFun.Func
-	c.currBlock = c.currFun.NewBlock(c.getLabel(name + "entry"))
+	c.currBlock = c.currFun.NewBlock(c.getLabel(name + "_entry"))
 
 	_, isVoid := fun.Type.RetType.(types.NullType)
 
@@ -129,7 +129,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	// Allocate space for return value & setup return block
 	retPtr := c.currBlock.NewAlloca(typeToLLType(fun.Type.RetType))
 	cFun.RetPtr = retPtr
-	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "ret"))
+	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
 	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
 
 	for lineNo, line := range fun.Body.Lines {
@@ -323,14 +323,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(node.Target)
 
-		structOffset := -1
-		for i, memberName := range node.TargetType.MemberNames {
-			if memberName == node.Field.(*ast.Ident).Value {
-				structOffset = i
-				break
-			}
-		}
-
+		structOffset := node.TargetType.Offset(node.Field.(*ast.Ident).Value)
 		memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
 		retVal = c.currBlock.NewLoad(memberPtr)
 	default:
@@ -364,6 +357,13 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 
 		elemPtr := c.getListElemPtr(list, index)
 		c.currBlock.NewStore(c.CompileNode(node.Expr), elemPtr)
+	case *ast.StructAccess:
+		structPtr := c.CompileNode(target.Target)
+		expPtr := c.CompileNode(node.Expr)
+
+		offset := target.TargetType.Offset(target.Field.(*ast.Ident).Value)
+		destPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(offset)))
+		c.currBlock.NewStore(expPtr, destPtr)
 	}
 
 	return retVal

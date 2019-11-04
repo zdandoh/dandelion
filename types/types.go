@@ -74,6 +74,18 @@ func (f StructType) MemberType(memberName string) Type {
 	panic("Unknown member name:" + memberName)
 }
 
+func (f StructType) Offset(offsetName string) int {
+	structOffset := -1
+	for i, memberName := range f.MemberNames {
+		if memberName == offsetName {
+			structOffset = i
+			break
+		}
+	}
+
+	return structOffset
+}
+
 func (f StructType) TypeString() string {
 	memberTypes := make([]string, 0)
 	for _, member := range f.MemberTypes {

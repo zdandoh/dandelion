@@ -140,7 +140,9 @@ func TestString(t *testing.T) {
 string = "Look ma, a string!";
 `
 
-	CompileCheckExit(src, 0)
+	if !CompileCheckExit(src, 0) {
+		t.FailNow()
+	}
 }
 
 func TestNestedArray(t *testing.T) {
@@ -149,7 +151,9 @@ arr = [[1, 2, 3], [4, 5, 6]];
 return arr[1][1];
 `
 
-	CompileCheckExit(src, 5)
+	if !CompileCheckExit(src, 5) {
+		t.FailNow()
+	}
 }
 
 func TestCompileStruct(t *testing.T) {
@@ -164,6 +168,25 @@ return l1.num;
 `
 
 	if !CompileCheckExit(src, 3) {
+		t.FailNow()
+	}
+}
+
+func TestStructAssign(t *testing.T) {
+	src := `
+struct Line {
+	string value;
+	int num;
+};
+
+l1 = Line("hi mr. line", 5);
+l1.num = 71;
+l1.value = "a new string, intense.";
+
+return l1.num;
+`
+
+	if !CompileCheckExit(src, 71) {
 		t.FailNow()
 	}
 }

@@ -61,6 +61,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 
 	switch node := astNode.(type) {
 	case *ast.Assign:
+		// TODO expand this to actually check other assignment types
 		switch target := node.Target.(type) {
 		case *ast.Ident:
 			var exprType types.Type
@@ -71,6 +72,8 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 				break
 			}
 			c.TEnv[target.Value], retErr = c.TypeCheck(node.Expr)
+		case *ast.StructAccess:
+			_, retErr = c.TypeCheck(node.Target)
 		}
 
 		retType = types.NullType{}
