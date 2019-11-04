@@ -56,16 +56,16 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *While:
 		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *StructInstance:
-		newDefaults := make(map[*Ident]Node)
-		for key, value := range node.DefaultValues {
-			newDefaults[WalkAst(key, w).(*Ident)] = WalkAst(value, w)
+		newDefaults := make([]Node, len(node.Values))
+		for i, value := range node.Values {
+			newDefaults[i] = WalkAst(value, w)
 		}
 
-		retVal = &StructInstance{node.Name, newDefaults}
+		retVal = &StructInstance{newDefaults, node.DefRef}
 	case *StructDef:
 		retVal = &StructDef{Members: node.Members}
 	case *StructAccess:
-		retVal = &StructAccess{WalkAst(node.Field, w), WalkAst(node.Target, w)}
+		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w), node.TargetType}
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *ReturnExp:

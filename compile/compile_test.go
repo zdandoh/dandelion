@@ -140,7 +140,7 @@ func TestString(t *testing.T) {
 string = "Look ma, a string!";
 `
 
-	CompileCheckExit(src,0 )
+	CompileCheckExit(src, 0)
 }
 
 func TestNestedArray(t *testing.T) {
@@ -150,4 +150,20 @@ return arr[1][1];
 `
 
 	CompileCheckExit(src, 5)
+}
+
+func TestCompileStruct(t *testing.T) {
+	src := `
+struct Line {
+	string value;
+	int num;
+};
+
+l1 = Line("this is the contents of my line", 3);
+return l1.num;
+`
+
+	if !CompileCheckExit(src, 3) {
+		t.FailNow()
+	}
 }

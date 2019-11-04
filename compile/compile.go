@@ -75,6 +75,12 @@ func typeToLLType(myType types.Type) lltypes.Type {
 		subtype := typeToLLType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
 		return lltypes.NewPointer(lltypes.NewStruct(IntType, arrPtr))
+	case types.StructType:
+		memberTypes := make([]lltypes.Type, len(t.MemberTypes))
+		for i, member := range t.MemberTypes {
+			memberTypes[i] = typeToLLType(member)
+		}
+		return lltypes.NewPointer(lltypes.NewStruct(memberTypes...))
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
@@ -303,6 +309,30 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		elemPtr := c.getListElemPtr(list, index)
 		retVal = c.currBlock.NewLoad(elemPtr)
+	case *ast.StructInstance:
+		structType := typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
+		structPtr := c.currBlock.NewAlloca(structType)
+
+		for i, member := range node.Values {
+			valuePtr := c.CompileNode(member)
+			memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
+			c.currBlock.NewStore(valuePtr, memberPtr)
+		}
+
+		retVal = structPtr
+	case *ast.StructAccess:
+		structPtr := c.CompileNode(node.Target)
+
+		structOffset := -1
+		for i, memberName := range node.TargetType.MemberNames {
+			if memberName == node.Field.(*ast.Ident).Value {
+				structOffset = i
+				break
+			}
+		}
+
+		memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
+		retVal = c.currBlock.NewLoad(memberPtr)
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}

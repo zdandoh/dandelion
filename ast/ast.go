@@ -137,6 +137,7 @@ func (n *StructMember) String() string {
 
 type StructDef struct {
 	Members []*StructMember
+	Type    types.StructType
 }
 
 func (n *StructDef) String() string {
@@ -149,17 +150,23 @@ func (n *StructDef) String() string {
 }
 
 type StructInstance struct {
-	Name          string
-	DefaultValues map[*Ident]Node
+	Values []Node
+	DefRef *StructDef
 }
 
 func (n *StructInstance) String() string {
-	return fmt.Sprintf("<struct instance '%s'>", n.Name)
+	memberVals := make([]string, 0)
+	for _, member := range n.Values {
+		memberVals = append(memberVals, fmt.Sprintf("    %s", member))
+	}
+
+	return fmt.Sprintf("struct instance {\n%s\n}", strings.Join(memberVals, "\n"))
 }
 
 type StructAccess struct {
-	Field  Node // Must be ident
-	Target Node
+	Field      Node // Must be ident
+	Target     Node
+	TargetType types.StructType
 }
 
 func (n *StructAccess) String() string {

@@ -195,6 +195,27 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		retType = arr.Subtype
 	case *ast.StrExp:
 		retType = types.StringType{}
+	case *ast.StructInstance:
+		memberTypes := make([]types.Type, len(node.Values))
+		memberNames := make([]string, len(node.Values))
+		for i, member := range node.DefRef.Members {
+			memberTypes[i] = member.Type
+			memberNames[i] = member.Name.Value
+		}
+
+		structType := types.StructType{memberTypes, memberNames}
+		node.DefRef.Type = structType
+		retType = structType
+	case *ast.StructAccess:
+		targetType, err := c.TypeCheck(node.Target)
+		if err != nil {
+			retErr = err
+			break
+		}
+
+		structType := targetType.(types.StructType)
+		node.TargetType = structType
+		retType = structType.MemberType(node.Field.(*ast.Ident).Value)
 	default:
 		panic("Typecheck not defined for node: " + reflect.TypeOf(node).String())
 	}

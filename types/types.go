@@ -59,6 +59,29 @@ func (f FuncType) TypeString() string {
 	return fmt.Sprintf("f(%s) %s", argString, f.RetType.TypeString())
 }
 
+type StructType struct {
+	MemberTypes []Type
+	MemberNames []string
+}
+
+func (f StructType) MemberType(memberName string) Type {
+	for i, member := range f.MemberTypes {
+		if f.MemberNames[i] == memberName {
+			return member
+		}
+	}
+
+	panic("Unknown member name:" + memberName)
+}
+
+func (f StructType) TypeString() string {
+	memberTypes := make([]string, 0)
+	for _, member := range f.MemberTypes {
+		memberTypes = append(memberTypes, member.TypeString())
+	}
+	return "struct{" + strings.Join(memberTypes, ", ") + "}"
+}
+
 type AnyType struct {
 }
 

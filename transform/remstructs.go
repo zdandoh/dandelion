@@ -2,6 +2,7 @@ package transform
 
 import (
 	"ahead/ast"
+	"ahead/types"
 	"fmt"
 )
 
@@ -26,21 +27,26 @@ func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {
 		newName := fmt.Sprintf("s_%d", r.structNo)
 		r.prog.Structs[newName] = node
 
-		args := make([]ast.Node, 0)
-		defaultValues := make(map[*ast.Ident]ast.Node)
-		for _, member := range node.Members {
-			args = append(args, &ast.Ident{member.Name.Value})
-			defaultValues[member.Name] = &ast.Ident{member.Name.Value}
+		args := make([]ast.Node, len(node.Members))
+		argTypes := make([]types.Type, len(node.Members))
+		memberNames := make([]string, len(node.Members))
+		instanceValues := make([]ast.Node, len(node.Members))
+		for i, member := range node.Members {
+			args[i] = &ast.Ident{member.Name.Value}
+			argTypes[i] = member.Type
+			instanceValues[i] = &ast.Ident{member.Name.Value}
+			memberNames[i] = member.Name.Value
 		}
 
 		constructor := &ast.FunDef{
 			Body: &ast.Block{
 				[]ast.Node{&ast.StructInstance{
-					newName,
-					defaultValues,
+					instanceValues,
+					node,
 				}},
 			},
 			Args: args,
+			Type: &types.FuncType{argTypes, types.StructType{argTypes, memberNames}},
 		}
 		retVal = constructor
 	}

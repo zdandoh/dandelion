@@ -233,7 +233,7 @@ func (i *Interpreter) interpExp(astNode ast.Node) (Value, error) {
 		retVal = val
 	case *ast.StructInstance:
 		newStruct := &Struct{make(map[string]Value)}
-		for key, val := range node.DefaultValues {
+		for key, val := range node.Values {
 			interpVal, ctrl := i.interpExp(val)
 			if ctrl != nil {
 				return interpVal, ctrl
