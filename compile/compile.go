@@ -26,6 +26,7 @@ type Compiler struct {
 	PEnv      map[string]value.Value
 	TEnv      map[string]types.Type
 	FEnv      map[string]*CFunc
+	TypeDefs  map[string]lltypes.Type
 	LabelNo   int
 }
 
@@ -54,7 +55,7 @@ func (c *Compiler) getLabel(label string) string {
 	return fmt.Sprintf("%s_%d", label, c.LabelNo)
 }
 
-func typeToLLType(myType types.Type) lltypes.Type {
+func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 	switch t := myType.(type) {
 	case types.BoolType:
 		return BoolType
@@ -65,20 +66,26 @@ func typeToLLType(myType types.Type) lltypes.Type {
 	case types.NullType:
 		return lltypes.Void
 	case *types.FuncType:
-		retType := typeToLLType(t.RetType)
+		retType := c.typeToLLType(t.RetType)
 		argTypes := make([]lltypes.Type, 0)
 		for _, arg := range t.ArgTypes {
-			argTypes = append(argTypes, typeToLLType(arg))
+			argTypes = append(argTypes, c.typeToLLType(arg))
 		}
 		return lltypes.NewPointer(lltypes.NewFunc(retType, argTypes...))
 	case types.ArrayType:
-		subtype := typeToLLType(t.Subtype)
+		subtype := c.typeToLLType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
 		return lltypes.NewPointer(lltypes.NewStruct(IntType, arrPtr))
 	case types.StructType:
+		typeDef, ok := c.TypeDefs[t.Name]
+		if ok {
+			return typeDef
+		}
+
+		fmt.Println("Creating struct value:", t.Name)
 		memberTypes := make([]lltypes.Type, len(t.MemberTypes))
 		for i, member := range t.MemberTypes {
-			memberTypes[i] = typeToLLType(member)
+			memberTypes[i] = c.typeToLLType(member)
 		}
 		return lltypes.NewPointer(lltypes.NewStruct(memberTypes...))
 	default:
@@ -88,6 +95,12 @@ func typeToLLType(myType types.Type) lltypes.Type {
 
 func (c *Compiler) SetupTypes(prog *ast.Program) {
 	StrType = c.mod.NewTypeDef("str", StrType)
+
+	for _, structDef := range prog.Structs {
+		newDefPtr := c.typeToLLType(structDef.Type)
+		newDef := newDefPtr.(*lltypes.PointerType).ElemType
+		c.TypeDefs[structDef.Type.Name] = lltypes.NewPointer(c.mod.NewTypeDef(structDef.Type.Name, newDef))
+	}
 }
 
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
@@ -95,11 +108,11 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
 
 	for name, fun := range prog.Funcs {
-		llRetType := typeToLLType(fun.Type.RetType)
+		llRetType := c.typeToLLType(fun.Type.RetType)
 		params := make([]*ir.Param, 0)
 		for i := 0; i < len(fun.Args); i++ {
 			argName := fun.Args[i].(*ast.Ident).Value
-			newParam := ir.NewParam(argName, typeToLLType(fun.Type.ArgTypes[i]))
+			newParam := ir.NewParam(argName, c.typeToLLType(fun.Type.ArgTypes[i]))
 			params = append(params, newParam)
 		}
 
@@ -121,13 +134,13 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	// Bind function args
 	for i, arg := range fun.Args {
 		argName := arg.(*ast.Ident).Value
-		argType := typeToLLType(c.TEnv[argName])
+		argType := c.typeToLLType(c.TEnv[argName])
 		argPtr := c.currBlock.NewAlloca(argType)
 		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
 		c.PEnv[argName] = argPtr
 	}
 	// Allocate space for return value & setup return block
-	retPtr := c.currBlock.NewAlloca(typeToLLType(fun.Type.RetType))
+	retPtr := c.currBlock.NewAlloca(c.typeToLLType(fun.Type.RetType))
 	cFun.RetPtr = retPtr
 	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
 	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
@@ -155,6 +168,7 @@ func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
 	c := Compiler{}
 	c.PEnv = make(map[string]value.Value)
 	c.FEnv = make(map[string]*CFunc)
+	c.TypeDefs = make(map[string]lltypes.Type)
 	c.TEnv = TEnv
 
 	c.mod = ir.NewModule()
@@ -193,7 +207,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			retVal = c.currBlock.NewSDiv(c.CompileNode(node.Left), c.CompileNode(node.Right))
 		}
 	case *ast.Mod:
-		retVal = c.currBlock
+		retVal = c.currBlock.NewSRem(c.CompileNode(node.Left), c.CompileNode(node.Right))
 	case *ast.Assign:
 		retVal = c.compileAssign(node)
 	case *ast.FunApp:
@@ -279,8 +293,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(charPtr, charPtrDest)
 		retVal = strPtr
 	case *ast.ArrayLiteral:
-		listType := typeToLLType(node.Type).(*lltypes.PointerType).ElemType
-		subType := typeToLLType(node.Type.Subtype)
+		listType := c.typeToLLType(node.Type).(*lltypes.PointerType).ElemType
+		subType := c.typeToLLType(node.Type.Subtype)
 		list := c.currBlock.NewAlloca(listType)
 
 		// Set list length
@@ -310,7 +324,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		elemPtr := c.getListElemPtr(list, index)
 		retVal = c.currBlock.NewLoad(elemPtr)
 	case *ast.StructInstance:
-		structType := typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
+		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := c.currBlock.NewAlloca(structType)
 
 		for i, member := range node.Values {
@@ -345,7 +359,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			if !ok {
 				panic("Identifier not in type environment: " + targetName)
 			}
-			targetLLType := typeToLLType(targetType)
+			targetLLType := c.typeToLLType(targetType)
 
 			targetAddr = c.currBlock.NewAlloca(targetLLType)
 			c.PEnv[targetName] = targetAddr

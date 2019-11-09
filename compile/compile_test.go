@@ -172,6 +172,20 @@ return l1.num;
 	}
 }
 
+func TestAnonStruct(t *testing.T) {
+	src := `
+l1 = struct {
+	string value;
+	int num;
+}("very anonymous, very cool", 54);
+return l1.num;
+`
+
+	if !CompileCheckExit(src, 54) {
+		t.FailNow()
+	}
+}
+
 func TestStructAssign(t *testing.T) {
 	src := `
 struct Line {

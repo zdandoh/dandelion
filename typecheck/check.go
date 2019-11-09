@@ -206,7 +206,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 			memberNames[i] = member.Name.Value
 		}
 
-		structType := types.StructType{memberTypes, memberNames}
+		structType := types.StructType{node.DefRef.Type.Name, memberTypes, memberNames}
 		node.DefRef.Type = structType
 		retType = structType
 	case *ast.StructAccess:

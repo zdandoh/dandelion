@@ -20,6 +20,7 @@ type calcListener struct {
 	blockStack BlockStack
 	mainFunc   *ast.FunDef
 	typeStack  *TypeStack
+	structNo   int
 }
 
 const Debug = true
@@ -104,7 +105,10 @@ func (l *calcListener) EnterStructDef(c *parser.StructDefContext) {
 func (l *calcListener) ExitStructDef(c *parser.StructDefContext) {
 	DebugPrintln("Exiting struct def")
 
-	l.nodeStack.Push(l.PopStructDef())
+	structDef := l.PopStructDef()
+	l.structNo++
+	structDef.Type.Name = fmt.Sprintf("anon_struct%d", l.structNo)
+	l.nodeStack.Push(structDef)
 }
 
 func (l *calcListener) EnterNamedStructDef(c *parser.NamedStructDefContext) {
@@ -117,7 +121,9 @@ func (l *calcListener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
 	DebugPrintln("Exiting named struct def")
 
 	ident := fmt.Sprintf("%s", c.GetIdent().GetText())
-	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident}, l.PopStructDef()})
+	structDef := l.PopStructDef()
+	structDef.Type.Name = ident
+	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident}, structDef})
 }
 
 func (l *calcListener) PopStructDef() *ast.StructDef {

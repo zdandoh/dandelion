@@ -60,6 +60,7 @@ func (f FuncType) TypeString() string {
 }
 
 type StructType struct {
+	Name        string
 	MemberTypes []Type
 	MemberNames []string
 }

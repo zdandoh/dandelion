@@ -46,7 +46,7 @@ func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {
 				}},
 			},
 			Args: args,
-			Type: &types.FuncType{argTypes, types.StructType{argTypes, memberNames}},
+			Type: &types.FuncType{argTypes, types.StructType{node.Type.Name, argTypes, memberNames}},
 		}
 		retVal = constructor
 	}
