@@ -406,6 +406,23 @@ func (l *calcListener) ExitArray(c *parser.ArrayContext) {
 	l.nodeStack.Push(newArr)
 }
 
+func (l *calcListener) EnterTuple(c *parser.TupleContext) {
+	DebugPrintln("Entering tuple")
+}
+
+func (l *calcListener) ExitTuple(c *parser.TupleContext) {
+	DebugPrintln("Exiting tuple")
+
+	newTup := &ast.TupleLiteral{}
+	elemCount := len(filterCommas(c.GetElems().GetChildren()))
+
+	for i := 0; i < elemCount; i++ {
+		newTup.Exprs = append([]ast.Node{l.nodeStack.Pop()}, newTup.Exprs...)
+	}
+
+	l.nodeStack.Push(newTup)
+}
+
 func (l *calcListener) EnterSliceExp(c *parser.SliceExpContext) {
 	DebugPrintln("Entering slice exp")
 }

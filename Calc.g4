@@ -21,6 +21,7 @@ structbody: lines=typeline*;
 expr
    : '(' expr ')'                                 # ParenExp
    | '[' elems=explist ']'                        # Array
+   | '(' elems=explist ')'                        # Tuple
    | expr '.' IDENT                               # StructAccess
    | expr '[' index=expr ']'                      # SliceExp
    | left=expr PIPE right=expr                    # PipeExp

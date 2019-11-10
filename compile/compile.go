@@ -37,6 +37,7 @@ type CFunc struct {
 }
 
 var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
+var LenType lltypes.Type
 var IntType = lltypes.I32
 var BoolType = lltypes.I1
 var Zero = constant.NewInt(IntType, 0)
@@ -75,7 +76,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 	case types.ArrayType:
 		subtype := c.typeToLLType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
-		return lltypes.NewPointer(lltypes.NewStruct(IntType, arrPtr))
+		return lltypes.NewPointer(lltypes.NewStruct(LenType, arrPtr))
 	case types.StructType:
 		typeDef, ok := c.TypeDefs[t.Name]
 		if ok {
@@ -88,6 +89,13 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 			memberTypes[i] = c.typeToLLType(member)
 		}
 		return lltypes.NewPointer(lltypes.NewStruct(memberTypes...))
+	case types.TupleType:
+		elemTypes := make([]lltypes.Type, len(t.Types))
+		for i, elem := range t.Types {
+			elemTypes[i] = c.typeToLLType(elem)
+		}
+
+		return lltypes.NewPointer(lltypes.NewStruct(elemTypes...))
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
@@ -95,6 +103,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 
 func (c *Compiler) SetupTypes(prog *ast.Program) {
 	StrType = c.mod.NewTypeDef("str", StrType)
+	LenType = c.mod.NewTypeDef("len_t", lltypes.NewInt(32))
 
 	for _, structDef := range prog.Structs {
 		newDefPtr := c.typeToLLType(structDef.Type)
@@ -212,6 +221,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.currBlock.NewSRem(c.CompileNode(node.Left), c.CompileNode(node.Right))
 	case *ast.Assign:
 		retVal = c.compileAssign(node)
+	case *ast.Pipeline:
+		retVal = c.compilePipeline(node)
 	case *ast.FunApp:
 		callee := c.CompileNode(node.Fun)
 
@@ -320,11 +331,35 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		retVal = list
 	case *ast.SliceNode:
-		list := c.CompileNode(node.Arr)
+		sliceable := c.CompileNode(node.Arr)
 		index := c.CompileNode(node.Index)
 
-		elemPtr := c.getListElemPtr(list, index)
-		retVal = c.currBlock.NewLoad(elemPtr)
+		// Do some hacky stuff here to allow for slicing different types without explicit ast info
+		// If the type is a struct that starts with len_t, it's a list, otherwise it's a tuple
+		ptrType := sliceable.Type().(*lltypes.PointerType).ElemType
+		structType := ptrType.(*lltypes.StructType)
+		fmt.Println(structType.Fields[0].Name())
+
+		if structType.Fields[0].Name() == "len_t" {
+			// Array type
+			elemPtr := c.getListElemPtr(sliceable, index)
+			retVal = c.currBlock.NewLoad(elemPtr)
+		} else {
+			// Tuple type
+			elemPtr := c.currBlock.NewGetElementPtr(sliceable, Zero, index)
+			retVal = c.currBlock.NewLoad(elemPtr)
+		}
+	case *ast.TupleLiteral:
+		tupleType := c.typeToLLType(node.Type).(*lltypes.PointerType).ElemType
+		tuplePtr := c.currBlock.NewAlloca(tupleType)
+
+		for i, elem := range node.Exprs {
+			elemPtr := c.CompileNode(elem)
+			tupleElemPtr := c.currBlock.NewGetElementPtr(tuplePtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
+			c.currBlock.NewStore(elemPtr, tupleElemPtr)
+		}
+
+		retVal = tuplePtr
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := c.currBlock.NewAlloca(structType)
@@ -347,6 +382,11 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	}
 
 	return retVal
+}
+
+func (c *Compiler) compilePipeline(node *ast.Pipeline) value.Value {
+
+	return nil
 }
 
 func (c *Compiler) compileAssign(node *ast.Assign) value.Value {

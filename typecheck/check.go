@@ -4,6 +4,7 @@ import (
 	"ahead/ast"
 	"ahead/types"
 	"errors"
+	"fmt"
 	"reflect"
 )
 
@@ -173,6 +174,19 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		}
 		node.Type = types.ArrayType{exprTypes[0]}
 		retType = node.Type
+	case *ast.TupleLiteral:
+		tupType := types.TupleType{}
+		for _, elem := range node.Exprs {
+			elemType, err := c.TypeCheck(elem)
+			if err != nil {
+				retErr = err
+				break
+			}
+			tupType.Types = append(tupType.Types, elemType)
+		}
+
+		node.Type = tupType
+		retType = tupType
 	case *ast.SliceNode:
 		indexType, err := c.TypeCheck(node.Index)
 		if err != nil {
@@ -185,21 +199,69 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 			break
 		}
 
-		arrType, err := c.TypeCheck(node.Arr)
+		slicedType, err := c.TypeCheck(node.Arr)
 		if err != nil {
 			retErr = err
 			break
 		}
 
-		arr, isArr := arrType.(types.ArrayType)
-		if !isArr {
-			retErr = errors.New("Must slice into array type")
+		switch targetType := slicedType.(type) {
+		case types.ArrayType:
+			retType = targetType.Subtype
+		case types.TupleType:
+			// Tuples must be indexed with a constant int
+			literalIndex, ok := node.Index.(*ast.Num)
+			if !ok {
+				retErr = errors.New("Tuple must be indexed by constant integer")
+				break
+			}
+			retType = targetType.Types[literalIndex.Value]
+		default:
+			retErr = errors.New("Target type doesn't support slicing")
+		}
+	case *ast.StrExp:
+		retType = types.StringType{}
+	case *ast.Pipeline:
+		firstType, err := c.TypeCheck(node.Ops[0])
+		if err != nil {
+			retErr = err
 			break
 		}
 
-		retType = arr.Subtype
-	case *ast.StrExp:
-		retType = types.StringType{}
+		arrType, ok := firstType.(types.ArrayType)
+		if !ok {
+			retErr = errors.New("First element of pipeline should evaluate to array")
+			break
+		}
+
+		var lastOutputType types.Type = arrType.Subtype
+		for i := 1; i < len(node.Ops); i++ {
+			currOp := node.Ops[i]
+			opType, err := c.TypeCheck(currOp)
+			if err != nil {
+				retErr = err
+				break
+			}
+
+			funType, ok := opType.(*types.FuncType)
+			if !ok {
+				retErr = errors.New("Pipe operations must be functions")
+				break
+			}
+
+			fmt.Printf("%+v\n", funType)
+			if len(funType.ArgTypes) != 3 ||
+				!(funType.ArgTypes[0] == types.IntType{} &&
+					funType.ArgTypes[1] == lastOutputType &&
+					funType.ArgTypes[2] == types.ArrayType{lastOutputType}) {
+				retErr = errors.New("Pipeline function doesn't have correct signature")
+				break
+			}
+
+			lastOutputType = funType.RetType
+		}
+
+		retType = types.ArrayType{lastOutputType}
 	case *ast.StructInstance:
 		memberTypes := make([]types.Type, len(node.Values))
 		memberNames := make([]string, len(node.Values))

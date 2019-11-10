@@ -1,9 +1,6 @@
 package compile
 
 import (
-	"ahead/parser"
-	"ahead/transform"
-	"fmt"
 	"testing"
 )
 
@@ -219,17 +216,27 @@ return x;
 	}
 }
 
-func TestPipeline(t *testing.T) {
+func TestCompileTuple(t *testing.T) {
 	src := `
-adder = f{
-	e = e + 1;
-};
-[1, 2, 3] -> f{ e = e + 1; } -> ([1, 2, 3] -> adder) -> bobbie -> p;
-[1, 2, 3] -> p;
+x = (3, "string", 4);
+return x[2];
 `
 
-	prog := parser.ParseProgram(src)
-	transform.TransformAst(prog)
-
-	fmt.Println(prog)
+	if !CompileCheckExit(src, 4) {
+		t.FailNow()
+	}
 }
+
+//func TestPipeline(t *testing.T) {
+//	src := `
+//adder = f(int e, int i, int[] a) int {
+//	e * 2;
+//};
+//newarr = [1, 2, 3] -> adder;
+//return newarr[2];
+//`
+//
+//	if !CompileCheckExit(src, 6) {
+//		t.FailNow()
+//	}
+//}

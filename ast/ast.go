@@ -267,6 +267,23 @@ func (n *ArrayLiteral) String() string {
 	return arrStr
 }
 
+type TupleLiteral struct {
+	Exprs []Node
+	Type  types.TupleType
+}
+
+func (n *TupleLiteral) String() string {
+	tupStr := "("
+
+	exprStrings := make([]string, 0)
+	for _, expr := range n.Exprs {
+		exprStrings = append(exprStrings, fmt.Sprintf("%v", expr))
+	}
+
+	tupStr += strings.Join(exprStrings, ", ") + ")"
+	return tupStr
+}
+
 type SliceNode struct {
 	Index Node
 	Arr   Node

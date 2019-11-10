@@ -38,6 +38,20 @@ func (a ArrayType) TypeString() string {
 	return fmt.Sprintf("%s[]", a.Subtype.TypeString())
 }
 
+type TupleType struct {
+	Types []Type
+}
+
+func (a TupleType) TypeString() string {
+	typeStrings := make([]string, 0)
+
+	for _, elem := range a.Types {
+		typeStrings = append(typeStrings, elem.TypeString())
+	}
+
+	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
+}
+
 type NullType struct {
 }
 
