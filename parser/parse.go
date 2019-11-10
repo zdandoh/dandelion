@@ -195,6 +195,21 @@ func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
 	l.typeStack.Push(funType)
 }
 
+func (l *calcListener) EnterTypedTup(c *parser.TypedTupContext) {
+	DebugPrintln("Entering typed tuple")
+}
+
+func (l *calcListener) ExitTypedTup(c *parser.TypedTupContext) {
+	DebugPrintln("Exiting typed tuple")
+
+	tupType := types.TupleType{}
+	typeCount := int(math.Ceil(float64(c.GetTuptypes().GetChildCount()) / 2.0))
+	for i := 0; i < typeCount; i++ {
+		tupType.Types = append([]types.Type{l.typeStack.Pop()}, tupType.Types...)
+	}
+	l.typeStack.Push(tupType)
+}
+
 func (l *calcListener) EnterTypedArr(c *parser.TypedArrContext) {
 	DebugPrintln("Entering typed arr")
 }

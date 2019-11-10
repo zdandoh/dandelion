@@ -31,6 +31,20 @@ return d;
 	}
 }
 
+func TestCompileFunc2(t *testing.T) {
+	src := `
+fun = f(int a, string b) int {
+	a;
+};
+
+return fun(4, "data");
+`
+
+	if !CompileCheckExit(src, 4) {
+		t.FailNow()
+	}
+}
+
 func TestCompileConditional(t *testing.T) {
 	src := `
 x = 100;
@@ -223,6 +237,20 @@ return x[2];
 `
 
 	if !CompileCheckExit(src, 4) {
+		t.FailNow()
+	}
+}
+
+func TestTupleFunc(t *testing.T) {
+	src := `
+fun = f(int x) (int, int, string) {
+	(3, 4, "data");
+};
+
+return fun(111)[0];
+`
+
+	if !CompileCheckExit(src, 3) {
 		t.FailNow()
 	}
 }

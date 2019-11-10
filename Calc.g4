@@ -12,6 +12,7 @@ typed
     : IDENT                                 # BaseType
     | 'f' '(' ftypelist=typelist ')' typed  # TypedFun
     | typed '[' ']'                         # TypedArr
+    | '(' tuptypes=typelist ')'             # TypedTup
     ;
 typedidents: typed IDENT (',' typed IDENT)* (',')?;
 explist: expr? (',' expr)*;
