@@ -30,6 +30,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	var retVal Node
 
 	switch node := astNode.(type) {
+	case *ParenExp:
+		retVal = &ParenExp{WalkAst(node.Exp, w)}
 	case *Assign:
 		retVal = &Assign{WalkAst(node.Target, w), WalkAst(node.Expr, w)}
 	case *Num:
@@ -40,6 +42,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &AddSub{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
 	case *PipeExp:
 		retVal = &PipeExp{WalkAst(node.Left, w), WalkAst(node.Right, w)}
+	case *Pipeline:
+		retVal = &Pipeline{WalkList(node.Ops, w)}
 	case *CommandExp:
 		retVal = &CommandExp{node.Command, node.Args}
 	case *MulDiv:

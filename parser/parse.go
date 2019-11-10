@@ -31,6 +31,16 @@ func DebugPrintln(more ...interface{}) {
 	}
 }
 
+func (l *calcListener) EnterParenExp(c *parser.ParenExpContext) {
+	DebugPrintln("Enter paren exp")
+}
+
+func (l *calcListener) ExitParenExp(c *parser.ParenExpContext) {
+	DebugPrintln("Exiting paren exp")
+
+	l.nodeStack.Push(&ast.ParenExp{l.nodeStack.Pop()})
+}
+
 func (l *calcListener) EnterAddSub(c *parser.AddSubContext) {
 	DebugPrintln("Enter addsub " + c.GetText())
 }
@@ -178,7 +188,7 @@ func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
 
 	// TODO figure out how to do this properly
 	typeCount := int(math.Ceil(float64(c.GetFtypelist().GetChildCount()) / 2.0))
-	for i := 0; i < typeCount; i++{
+	for i := 0; i < typeCount; i++ {
 		funType.ArgTypes = append(funType.ArgTypes, l.typeStack.Pop())
 	}
 	funType.RetType = l.typeStack.Pop()

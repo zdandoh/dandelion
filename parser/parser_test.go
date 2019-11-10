@@ -28,3 +28,11 @@ f(string[] names, int[] numbers) f(int, int) int {
 	prog := ParseProgram(src)
 	fmt.Println(prog)
 }
+
+func TestParsePipeline(t *testing.T) {
+	src := `
+[1, 2, 3] -> f{ e = e + 1; } -> p;
+`
+
+	fmt.Println(ParseProgram(src))
+}

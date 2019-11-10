@@ -1,6 +1,9 @@
 package compile
 
 import (
+	"ahead/parser"
+	"ahead/transform"
+	"fmt"
 	"testing"
 )
 
@@ -203,4 +206,30 @@ return l1.num;
 	if !CompileCheckExit(src, 71) {
 		t.FailNow()
 	}
+}
+
+func TestCompileParens(t *testing.T) {
+	src := `
+x = (3 + 4) * 7;
+return x;
+`
+
+	if !CompileCheckExit(src, 49) {
+		t.FailNow()
+	}
+}
+
+func TestPipeline(t *testing.T) {
+	src := `
+adder = f{
+	e = e + 1;
+};
+[1, 2, 3] -> f{ e = e + 1; } -> ([1, 2, 3] -> adder) -> bobbie -> p;
+[1, 2, 3] -> p;
+`
+
+	prog := parser.ParseProgram(src)
+	transform.TransformAst(prog)
+
+	fmt.Println(prog)
 }

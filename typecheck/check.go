@@ -60,6 +60,8 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 	var retType types.Type
 
 	switch node := astNode.(type) {
+	case *ast.ParenExp:
+		retType, retErr = c.TypeCheck(node.Exp)
 	case *ast.Assign:
 		// TODO expand this to actually check other assignment types
 		switch target := node.Target.(type) {

@@ -52,6 +52,14 @@ func (n *Mod) String() string {
 	return fmt.Sprintf("%v %% %v", n.Left, n.Right)
 }
 
+type ParenExp struct {
+	Exp Node
+}
+
+func (n *ParenExp) String() string {
+	return fmt.Sprintf("(%v)", n.Exp)
+}
+
 type MulDiv struct {
 	Left  Node
 	Right Node
@@ -283,6 +291,20 @@ type PipeExp struct {
 
 func (n *PipeExp) String() string {
 	return fmt.Sprintf("%v -> %v", n.Left, n.Right)
+}
+
+type Pipeline struct {
+	Ops []Node
+}
+
+func (n *Pipeline) String() string {
+	segStrs := make([]string, 0)
+
+	for _, op := range n.Ops {
+		segStrs = append(segStrs, fmt.Sprintf("%v", op))
+	}
+
+	return "(" + strings.Join(segStrs, " -> ") + ")"
 }
 
 type CommandExp struct {

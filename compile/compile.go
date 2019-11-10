@@ -190,6 +190,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	var retVal value.Value
 
 	switch node := astNode.(type) {
+	case *ast.ParenExp:
+		retVal = c.CompileNode(node.Exp)
 	case *ast.Num:
 		retVal = constant.NewInt(IntType, node.Value)
 	case *ast.AddSub:
