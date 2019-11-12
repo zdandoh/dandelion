@@ -157,6 +157,15 @@ func (n *StructDef) String() string {
 	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))
 }
 
+type Closure struct {
+	Target  Node
+	Unbound []string
+}
+
+func (n *Closure) String() string {
+	return fmt.Sprintf("<closure of '%s'>", n.Target)
+}
+
 type StructInstance struct {
 	Values []Node
 	DefRef *StructDef

@@ -9,4 +9,5 @@ func TransformAst(prog *ast.Program) {
 	RenameIdents(prog)
 	RemFuncs(prog)
 	RemovePipes(prog)
+	ExtractClosures(prog)
 }

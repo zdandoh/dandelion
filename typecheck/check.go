@@ -283,6 +283,13 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		structType := targetType.(types.StructType)
 		node.TargetType = structType
 		retType = structType.MemberType(node.Field.(*ast.Ident).Value)
+	case *ast.Closure:
+		funType, err := c.TypeCheck(node.Target)
+		if err != nil {
+			retErr = err
+			break
+		}
+		retType = funType
 	default:
 		panic("Typecheck not defined for node: " + reflect.TypeOf(node).String())
 	}
