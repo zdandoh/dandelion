@@ -41,6 +41,7 @@ var LenType lltypes.Type
 var IntType = lltypes.I32
 var BoolType = lltypes.I1
 var Zero = constant.NewInt(IntType, 0)
+var InitTrampoline value.Value
 
 func pointerType(t types.Type) bool {
 	switch t.(type) {
@@ -113,6 +114,13 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 }
 
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
+	InitTrampoline = c.mod.NewFunc(
+		"llvm.init.trampoline",
+		lltypes.Void,
+		ir.NewParam("tramp", lltypes.I8Ptr),
+		ir.NewParam("func", lltypes.I8Ptr),
+		ir.NewParam("nval", lltypes.I8Ptr))
+
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
 
@@ -255,6 +263,22 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		cFun := c.FEnv[c.currFun.Name()]
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
+	case *ast.Closure:
+		tupleType := types.TupleType{}
+		tupleIdents := make([]ast.Node, 0)
+		for _, unboundName := range node.Unbound {
+			tupleType.Types = append(tupleType.Types, c.TEnv[unboundName])
+			tupleIdents = append(tupleIdents, &ast.Ident{unboundName})
+		}
+
+		closureTuple := &ast.TupleLiteral{tupleIdents, tupleType}
+		tuplePtr := c.CompileNode(closureTuple)
+		trampPtr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
+		sourceFuncPtr := c.CompileNode(node.Target)
+
+		c.currBlock.NewCall(InitTrampoline, trampPtr, sourceFuncPtr, tuplePtr)
+		castTrampPtr := c.currBlock.NewBitCast(trampPtr, sourceFuncPtr.Type())
+		retVal = castTrampPtr
 	case *ast.If:
 		prevContinuation := c.currBlock.Term
 
