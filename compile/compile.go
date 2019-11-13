@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 	"io/ioutil"
@@ -45,7 +46,7 @@ var InitTrampoline value.Value
 
 func pointerType(t types.Type) bool {
 	switch t.(type) {
-	case *types.FuncType:
+	case types.FuncType:
 		return true
 	}
 
@@ -67,7 +68,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		return lltypes.NewPointer(StrType)
 	case types.NullType:
 		return lltypes.Void
-	case *types.FuncType:
+	case types.FuncType:
 		retType := c.typeToLLType(t.RetType)
 		argTypes := make([]lltypes.Type, 0)
 		for _, arg := range t.ArgTypes {
@@ -130,6 +131,10 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		for i := 0; i < len(fun.Args); i++ {
 			argName := fun.Args[i].(*ast.Ident).Value
 			newParam := ir.NewParam(argName, c.typeToLLType(fun.Type.ArgTypes[i]))
+			if i == 0 && len(fun.Unbound) > 0 {
+				// Mark the first param as a closure param
+				newParam.Attrs = append(newParam.Attrs, enum.ParamAttrNest)
+			}
 			params = append(params, newParam)
 		}
 
@@ -264,20 +269,19 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.Closure:
-		tupleType := types.TupleType{}
-		tupleIdents := make([]ast.Node, 0)
-		for _, unboundName := range node.Unbound {
-			tupleType.Types = append(tupleType.Types, c.TEnv[unboundName])
-			tupleIdents = append(tupleIdents, &ast.Ident{unboundName})
-		}
-
-		closureTuple := &ast.TupleLiteral{tupleIdents, tupleType}
-		tuplePtr := c.CompileNode(closureTuple)
-		trampPtr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
+		trampArr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
+		trampPtr := c.currBlock.NewBitCast(trampArr, lltypes.I8Ptr)
 		sourceFuncPtr := c.CompileNode(node.Target)
+		sourceFuncI8Ptr := c.currBlock.NewBitCast(sourceFuncPtr, lltypes.I8Ptr)
+		cloTuple := c.CompileNode(&ast.Ident{node.Name})
+		tuplePtr := c.currBlock.NewBitCast(cloTuple, lltypes.I8Ptr)
 
-		c.currBlock.NewCall(InitTrampoline, trampPtr, sourceFuncPtr, tuplePtr)
-		castTrampPtr := c.currBlock.NewBitCast(trampPtr, sourceFuncPtr.Type())
+		c.currBlock.NewCall(InitTrampoline, trampPtr, sourceFuncI8Ptr, tuplePtr)
+
+		newType := sourceFuncPtr.Type().(*lltypes.PointerType).ElemType.(*lltypes.FuncType)
+		newType.Params = newType.Params[1:len(newType.Params)]
+		newTypePtr := lltypes.NewPointer(newType)
+		castTrampPtr := c.currBlock.NewBitCast(trampPtr, newTypePtr)
 		retVal = castTrampPtr
 	case *ast.If:
 		prevContinuation := c.currBlock.Term

@@ -55,9 +55,9 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *FunDef:
 		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
-		retVal = &FunDef{newBlock, walkedArgs, node.Type}
+		retVal = &FunDef{newBlock, walkedArgs, WalkList(node.Unbound, w), node.Type}
 	case *Closure:
-		retVal = &Closure{WalkAst(node.Target, w), node.Unbound}
+		retVal = &Closure{node.Name, WalkAst(node.Target, w)}
 	case *FunApp:
 		walkedArgs := WalkList(node.Args, w)
 		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}
@@ -114,7 +114,13 @@ func WalkBlock(block *Block, w AstWalker) *Block {
 	newBlock = &Block{}
 	newLines := make([]Node, 0)
 	for _, line := range block.Lines {
-		newLines = append(newLines, WalkAst(line, w))
+		result := WalkAst(line, w)
+		bundle, isBundle := result.(*LineBundle)
+		if isBundle {
+			newLines = append(newLines, bundle.Lines...)
+		} else {
+			newLines = append(newLines, result)
+		}
 	}
 	newBlock.Lines = newLines
 
