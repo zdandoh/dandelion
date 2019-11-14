@@ -96,10 +96,9 @@ func (n *Ident) String() string {
 }
 
 type FunDef struct {
-	Body    *Block
-	Args    []Node
-	Unbound []Node
-	Type    types.FuncType
+	Body *Block
+	Args []Node
+	Type *types.FuncType
 }
 
 func NewFunDef() *FunDef {
@@ -115,7 +114,7 @@ func (n *FunDef) String() string {
 	argStrings := make([]string, 0)
 	for i := 0; i < len(n.Args); i++ {
 		argString := n.Args[i].(*Ident).Value
-		if len(n.Type.ArgTypes) == len(n.Args) {
+		if n.Type != nil {
 			argString = fmt.Sprintf("%s %s", n.Type.ArgTypes[i].TypeString(), argString)
 		}
 		argStrings = append(argStrings, argString)
@@ -124,7 +123,7 @@ func (n *FunDef) String() string {
 	if len(n.Args) > 0 {
 		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
-	if len(n.Type.ArgTypes) == len(n.Args) {
+	if n.Type != nil {
 		lines += " " + n.Type.RetType.TypeString() + " "
 	}
 
@@ -133,14 +132,6 @@ func (n *FunDef) String() string {
 
 	lines += "}"
 	return lines
-}
-
-type LineBundle struct {
-	Lines []Node
-}
-
-func (n *LineBundle) String() string {
-	return "__UNRESOLVED_LINE_BUNDLE__"
 }
 
 type StructMember struct {
@@ -167,8 +158,8 @@ func (n *StructDef) String() string {
 }
 
 type Closure struct {
-	Name   string
-	Target Node
+	Target  Node
+	Unbound []string
 }
 
 func (n *Closure) String() string {

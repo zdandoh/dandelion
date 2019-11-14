@@ -2,16 +2,12 @@ package transform
 
 import (
 	"ahead/ast"
-	"ahead/types"
-	"fmt"
 )
 
 type UnboundVars map[string]bool
 
 type ClosureExtractor struct {
-	Prog         *ast.Program
 	FuncUnbounds map[string]UnboundVars
-	CloCount     int
 }
 
 type UnboundFinder struct {
@@ -38,7 +34,6 @@ func NewUnboundFinder(funDef *ast.FunDef, prog *ast.Program) *UnboundFinder {
 func ExtractClosures(prog *ast.Program) {
 	c := &ClosureExtractor{}
 	c.FuncUnbounds = make(map[string]UnboundVars)
-	c.Prog = prog
 
 	// Collect unbound names for each function
 	for fName, fun := range prog.Funcs {
@@ -90,37 +85,16 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 			break
 		}
 
-		// Create the closure
 		closure := &ast.Closure{}
 		closure.Target = ident
 
-		unboundNames := make([]ast.Node, 0)
+		unboundNames := make([]string, 0)
 		for unboundName, _ := range unboundVals {
-			unboundNames = append(unboundNames, &ast.Ident{unboundName})
+			unboundNames = append(unboundNames, unboundName)
 		}
+		closure.Unbound = unboundNames
 
-		cloContainer := &ast.LineBundle{}
-
-		c.CloCount++
-		cloName := fmt.Sprintf("closure.%d", c.CloCount)
-		closure.Name = cloName
-		cloTuple := &ast.TupleLiteral{unboundNames, types.TupleType{}}
-		cloAssign := &ast.Assign{&ast.Ident{cloName}, cloTuple}
-		cloContainer.Lines = append(cloContainer.Lines, cloAssign)
-		cloContainer.Lines = append(cloContainer.Lines, &ast.Assign{node.Target, closure})
-
-		// Update the function def to take an extra arg and unpack the closure
-		funDef := c.Prog.Funcs[ident.Value]
-		funDef.Unbound = unboundNames
-		funDef.Args = append([]ast.Node{&ast.Ident{cloName}}, funDef.Args...)
-		funDef.Type.ArgTypes = append([]types.Type{types.TupleType{}}, funDef.Type.ArgTypes...)
-
-		for i, name := range unboundNames {
-			assign := &ast.Assign{name, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{cloName}}}
-			funDef.Body.Lines = append([]ast.Node{assign}, funDef.Body.Lines...)
-		}
-
-		retVal = cloContainer
+		retVal = &ast.Assign{node.Target, closure}
 	}
 
 	return retVal
