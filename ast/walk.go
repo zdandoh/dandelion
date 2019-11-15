@@ -114,7 +114,13 @@ func WalkBlock(block *Block, w AstWalker) *Block {
 	newBlock = &Block{}
 	newLines := make([]Node, 0)
 	for _, line := range block.Lines {
-		newLines = append(newLines, WalkAst(line, w))
+		result := WalkAst(line, w)
+		bundle, isBundle := result.(*LineBundle)
+		if isBundle {
+			newLines = append(newLines, bundle.Lines...)
+		} else {
+			newLines = append(newLines, result)
+		}
 	}
 	newBlock.Lines = newLines
 

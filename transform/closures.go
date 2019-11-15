@@ -52,8 +52,12 @@ func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
 
 	switch node := astNode.(type) {
 	case *ast.Assign:
-		targetIdent := node.Target.(*ast.Ident).Value
-		f.Defs[targetIdent] = true
+		targetIdent, ok := node.Target.(*ast.Ident)
+		if !ok {
+			// Not assigning to an identifier
+			break
+		}
+		f.Defs[targetIdent.Value] = true
 	case *ast.Ident:
 		_, ok := f.Defs[node.Value]
 		if !ok {

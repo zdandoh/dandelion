@@ -98,7 +98,7 @@ func (n *Ident) String() string {
 type FunDef struct {
 	Body *Block
 	Args []Node
-	Type *types.FuncType
+	Type types.FuncType
 }
 
 func NewFunDef() *FunDef {
@@ -114,7 +114,7 @@ func (n *FunDef) String() string {
 	argStrings := make([]string, 0)
 	for i := 0; i < len(n.Args); i++ {
 		argString := n.Args[i].(*Ident).Value
-		if n.Type != nil {
+		if len(n.Type.ArgTypes) > i {
 			argString = fmt.Sprintf("%s %s", n.Type.ArgTypes[i].TypeString(), argString)
 		}
 		argStrings = append(argStrings, argString)
@@ -123,7 +123,7 @@ func (n *FunDef) String() string {
 	if len(n.Args) > 0 {
 		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
-	if n.Type != nil {
+	if n.Type.RetType != nil {
 		lines += " " + n.Type.RetType.TypeString() + " "
 	}
 
@@ -155,6 +155,14 @@ func (n *StructDef) String() string {
 	}
 
 	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))
+}
+
+type LineBundle struct {
+	Lines []Node
+}
+
+func (n *LineBundle) String() string {
+	return "__UNRESOLVED_LINE_BUNDLE__"
 }
 
 type Closure struct {

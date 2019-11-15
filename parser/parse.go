@@ -250,7 +250,7 @@ func (l *calcListener) EnterStart(c *parser.StartContext) {
 func (l *calcListener) ExitStart(c *parser.StartContext) {
 	mainFunc := ast.NewFunDef()
 	mainFunc.Args = []ast.Node{}
-	mainFunc.Type = &types.FuncType{[]types.Type{}, types.IntType{}}
+	mainFunc.Type = types.FuncType{[]types.Type{}, types.IntType{}}
 	mainFunc.Body = l.blockStack.Pop()
 	l.mainFunc = mainFunc
 }
@@ -291,12 +291,11 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 	// TODO figure out how to do this properly
 	isPipeFunc := strings.HasPrefix(c.GetText(), "f{")
 
-	funType := &types.FuncType{}
+	funType := types.FuncType{}
 	isFunTyped := c.GetReturntype() != nil
 
 	if isFunTyped {
 		funType.RetType = l.typeStack.Pop()
-		funDef.Type = funType
 	}
 
 	var args []ast.Node
@@ -324,6 +323,7 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 
 	funDef.Args = args
 	funDef.Body = l.blockStack.Pop()
+	funDef.Type = funType
 	l.nodeStack.Push(funDef)
 }
 

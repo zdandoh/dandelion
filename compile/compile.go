@@ -43,15 +43,6 @@ var BoolType = lltypes.I1
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
 
-func pointerType(t types.Type) bool {
-	switch t.(type) {
-	case *types.FuncType:
-		return true
-	}
-
-	return false
-}
-
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
 	return fmt.Sprintf("%s_%d", label, c.LabelNo)
@@ -67,7 +58,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		return lltypes.NewPointer(StrType)
 	case types.NullType:
 		return lltypes.Void
-	case *types.FuncType:
+	case types.FuncType:
 		retType := c.typeToLLType(t.RetType)
 		argTypes := make([]lltypes.Type, 0)
 		for _, arg := range t.ArgTypes {

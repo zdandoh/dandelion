@@ -31,8 +31,8 @@ func NewTypeChecker() *TypeChecker {
 
 func NewTEnv() map[string]types.Type {
 	tenv := make(map[string]types.Type)
-	tenv["p"] = &types.FuncType{[]types.Type{types.ArrayType{types.AnyType{}}}, types.AnyType{}}
-	tenv["abs"] = &types.FuncType{[]types.Type{types.IntType{}}, types.IntType{}}
+	tenv["p"] = types.FuncType{[]types.Type{types.ArrayType{types.AnyType{}}}, types.AnyType{}}
+	tenv["abs"] = types.FuncType{[]types.Type{types.IntType{}}, types.IntType{}}
 
 	return tenv
 }
@@ -43,7 +43,7 @@ func TypeCheck(prog *ast.Program) (map[string]types.Type, error) {
 	for name, fun := range prog.Funcs {
 		checker.TEnv[name] = fun.Type
 	}
-	checker.TEnv["main"] = &types.FuncType{[]types.Type{}, types.IntType{}}
+	checker.TEnv["main"] = types.FuncType{[]types.Type{}, types.IntType{}}
 
 	for _, funDef := range prog.Funcs {
 		checker.CurrFunc = funDef
@@ -127,7 +127,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 			retErr = err
 			break
 		}
-		funType, ok := targetType.(*types.FuncType)
+		funType, ok := targetType.(types.FuncType)
 		if !ok {
 			retErr = errors.New("Tried to call non-function: " + reflect.TypeOf(targetType).String())
 			break
@@ -243,7 +243,7 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 				break
 			}
 
-			funType, ok := opType.(*types.FuncType)
+			funType, ok := opType.(types.FuncType)
 			if !ok {
 				retErr = errors.New("Pipe operations must be functions")
 				break
