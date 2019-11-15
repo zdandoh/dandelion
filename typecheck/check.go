@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 type TypeChecker struct {
@@ -113,7 +114,11 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 		retType = types.NullType{}
 	case *ast.FunDef:
 		for i := 0; i < len(node.Args); i++ {
-			c.TEnv[node.Args[i].(*ast.Ident).Value] = node.Type.ArgTypes[i]
+			argName := node.Args[i].(*ast.Ident).Value
+			if strings.HasPrefix(argName, "closure.") {
+				continue
+			}
+			c.TEnv[argName] = node.Type.ArgTypes[i]
 		}
 		_, err := c.TypeCheckBlock(node.Body.Lines)
 		if err != nil {

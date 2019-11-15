@@ -78,6 +78,7 @@ func (n *Num) String() string {
 	return fmt.Sprintf("%d", n.Value)
 }
 
+// TODO create an "Assignable" interface so you don't always need to do a type switch on the target
 type Assign struct {
 	Target Node
 	Expr   Node

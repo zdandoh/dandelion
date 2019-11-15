@@ -255,20 +255,20 @@ return fun(111)[0];
 	}
 }
 
-//func TestClosure(t *testing.T) {
-//	src := `
-//x = 56;
-//fun = f(int one, string two) int {
-//	x;
-//};
-//
-//return fun(1, "two");
-//`
-//
-//	if !CompileCheckExit(src, 56) {
-//		t.FailNow()
-//	}
-//}
+func TestClosure(t *testing.T) {
+	src := `
+x = 56;
+fun = f(int one, string two) int {
+	x;
+};
+
+return fun(1, "two");
+`
+
+	if !CompileCheckExit(src, 56) {
+		t.FailNow()
+	}
+}
 
 //func TestPipeline(t *testing.T) {
 //	src := `
