@@ -42,6 +42,7 @@ var IntType = lltypes.I32
 var BoolType = lltypes.I1
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
+var AdjustTrampoline value.Value
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -111,6 +112,10 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		ir.NewParam("tramp", lltypes.I8Ptr),
 		ir.NewParam("func", lltypes.I8Ptr),
 		ir.NewParam("nval", lltypes.I8Ptr))
+	AdjustTrampoline = c.mod.NewFunc(
+		"llvm.adjust.trampoline",
+		lltypes.I8Ptr,
+		ir.NewParam("tramp", lltypes.I8Ptr))
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
@@ -265,10 +270,18 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		closureTuple := &ast.TupleLiteral{tupleIdents, tupleType}
 		tuplePtr := c.CompileNode(closureTuple)
 		trampPtr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
+		trampPtr.Align = ir.Align(4)
 		sourceFuncPtr := c.CompileNode(node.Target)
 
-		c.currBlock.NewCall(InitTrampoline, trampPtr, sourceFuncPtr, tuplePtr)
-		castTrampPtr := c.currBlock.NewBitCast(trampPtr, sourceFuncPtr.Type())
+		// Cast all ptr types
+		trampBytePtr := c.currBlock.NewGetElementPtr(trampPtr, Zero, Zero)
+		sourceFuncBytePtr := c.currBlock.NewBitCast(sourceFuncPtr, lltypes.I8Ptr)
+		tupleBytePtr := c.currBlock.NewBitCast(tuplePtr, lltypes.I8Ptr)
+
+		c.currBlock.NewCall(InitTrampoline, trampBytePtr, sourceFuncBytePtr, tupleBytePtr)
+		adjustedTrampPtr := c.currBlock.NewCall(AdjustTrampoline, trampBytePtr)
+
+		castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, sourceFuncPtr.Type())
 		retVal = castTrampPtr
 	case *ast.If:
 		prevContinuation := c.currBlock.Term

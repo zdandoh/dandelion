@@ -259,7 +259,10 @@ func TestClosure(t *testing.T) {
 	src := `
 x = 56;
 fun = f(int one, string two) int {
-	x;
+	if 1 == 1 {
+		x;
+	};
+	one;
 };
 
 return fun(1, "two");
