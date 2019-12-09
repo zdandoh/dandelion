@@ -2,6 +2,9 @@ package ast
 
 import (
 	"ahead/types"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/llir/llvm/ir/enum"
 	"strings"
@@ -365,4 +368,14 @@ type YieldExp struct {
 
 func (n *YieldExp) String() string {
 	return fmt.Sprintf("yield %s", n.Target)
+}
+
+func HashNode(node Node) string {
+	nodeBytes, err := json.Marshal(node)
+	if err != nil {
+		panic(err)
+	}
+
+	hash := sha256.New()
+	return hex.EncodeToString(hash.Sum(nodeBytes))
 }

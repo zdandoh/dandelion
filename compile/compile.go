@@ -474,8 +474,11 @@ func (c *Compiler) CompileBlock(block *ast.Block) {
 func CompileCheckExit(progText string, code int) bool {
 	prog := parser.ParseProgram(progText)
 	transform.TransformAst(prog)
+	typecheck.Infer(prog)
+	os.Exit(1)
 
 	fmt.Println(prog)
+
 	tEnv, err := typecheck.TypeCheck(prog)
 	if err != nil {
 		log.Fatal("Program doesn't type check: " + err.Error())

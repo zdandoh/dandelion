@@ -11,21 +11,12 @@ import (
 
 type TypeChecker struct {
 	TEnv     map[string]types.Type
-	Cons     Constraints
 	CurrFunc *ast.FunDef
-}
-
-type Constraints map[string][]*TypeConstraint
-
-type TypeConstraint struct {
-	FunDef *ast.FunDef
-	Args   []ast.Node
 }
 
 func NewTypeChecker() *TypeChecker {
 	checker := &TypeChecker{}
 	checker.TEnv = NewTEnv()
-	checker.Cons = make(Constraints)
 
 	return checker
 }
@@ -127,6 +118,15 @@ func (c *TypeChecker) TypeCheck(astNode ast.Node) (types.Type, error) {
 
 		retType = node.Type
 	case *ast.FunApp:
+		appArgTypes := make([]types.Type, 0)
+		for _, arg := range node.Args {
+			argType, err := c.TypeCheck(arg)
+			if err != nil {
+				return argType, err
+			}
+			appArgTypes = append(appArgTypes, argType)
+		}
+
 		targetType, err := c.TypeCheck(node.Fun)
 		if err != nil {
 			retErr = err

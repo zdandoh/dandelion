@@ -255,6 +255,22 @@ return fun(111)[0];
 	}
 }
 
+func TestInfer(t *testing.T) {
+	src := `
+fun = f(x, y, z) {
+	return x + y + z;
+};
+
+a = 3;
+b = 12;
+return fun(a, b, 11);
+`
+
+	if !CompileCheckExit(src, 36) {
+		t.FailNow()
+	}
+}
+
 func TestClosure(t *testing.T) {
 	src := `
 x = 56;
