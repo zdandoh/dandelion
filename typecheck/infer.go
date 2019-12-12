@@ -4,7 +4,6 @@ import (
 	"ahead/ast"
 	"ahead/types"
 	"fmt"
-	"reflect"
 	"strings"
 )
 
@@ -19,7 +18,7 @@ func (t TypeVar) ConsString() string {
 }
 
 type Constraint struct {
-	Left TypeVar
+	Left  TypeVar
 	Right Constrainable
 }
 
@@ -64,14 +63,14 @@ func (t Fun) ConsString() string {
 
 type TypeInferer struct {
 	TypeNo      TypeVar
-	Subexps     map[TypeVar]ast.Node
+	Subexps     []ast.Node
 	HashToType  map[string]TypeVar
 	Constraints []Constraint
 }
 
 func NewTypeInferer() *TypeInferer {
 	newInf := &TypeInferer{}
-	newInf.Subexps = make(map[TypeVar]ast.Node)
+	newInf.Subexps = make([]ast.Node, 0)
 	newInf.HashToType = make(map[string]TypeVar)
 	newInf.Constraints = make([]Constraint, 0)
 
@@ -87,9 +86,10 @@ func Infer(prog *ast.Program) {
 		ast.WalkAst(funDef, infer)
 	}
 
-	for k, v := range infer.Subexps {
-		fmt.Printf("%s\t%s\t%+v\n", k, reflect.TypeOf(v), v)
-	}
+	//for funVarName, funDef := range prog.Funcs {
+	//	fmt.Println(funVarName)
+	//	infer.AddCons(Constraint{infer.GetTypeVar(&ast.Ident{funVarName}), infer.GetTypeVar(funDef)})
+	//}
 
 	infer.CreateConstraints()
 	UnifyConstraints(infer.Constraints)
@@ -99,7 +99,7 @@ func (i *TypeInferer) AddCons(con Constraint) {
 	i.Constraints = append(i.Constraints, con)
 }
 
-func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) TypeVar {
+func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) (TypeVar, bool) {
 	nodeHash := ast.HashNode(astNode)
 	typeNo, ok := i.HashToType[nodeHash]
 	if !ok {
@@ -108,13 +108,15 @@ func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) TypeVar {
 		typeNo = i.TypeNo
 	}
 
-	return typeNo
+	return typeNo, ok
+}
+
+func (i *TypeInferer) GetTypeVar(astNode ast.Node) TypeVar {
+	tVar, _ := i.NodeToTypeVar(astNode)
+	return tVar
 }
 
 func (i *TypeInferer) WalkNode(astNode ast.Node) ast.Node {
-	typeNo := i.NodeToTypeVar(astNode)
-	i.Subexps[typeNo] = astNode
-
 	return nil
 }
 
@@ -122,24 +124,42 @@ func (i *TypeInferer) WalkBlock(block *ast.Block) *ast.Block {
 	return nil
 }
 
+func (i *TypeInferer) PostWalk(astNode ast.Node) {
+	_, existed := i.NodeToTypeVar(astNode)
+	if !existed {
+		i.Subexps = append(i.Subexps, astNode)
+	}
+}
+
 func (i *TypeInferer) CreateConstraints() {
-	for typeVar, astNode := range i.Subexps {
+	fmt.Println("--- ORDERED SUBEXPS ---")
+	for _, astNode := range i.Subexps {
+		typeVar, _ := i.NodeToTypeVar(astNode)
+		fmt.Println(typeVar, "-", astNode)
+	}
+
+	for _, astNode := range i.Subexps {
+		typeVar, _ := i.NodeToTypeVar(astNode)
+
 		switch node := astNode.(type) {
 		case *ast.Num:
 			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
 		case *ast.StrExp:
 			i.AddCons(Constraint{typeVar, BaseType{types.StringType{}}})
 		case *ast.AddSub:
-			i.AddCons(Constraint{i.NodeToTypeVar(node.Left), i.NodeToTypeVar(node.Right)})
+			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
+			i.AddCons(Constraint{typeVar, i.GetTypeVar(node.Right)})
 		case *ast.MulDiv:
-			i.AddCons(Constraint{i.NodeToTypeVar(node.Left), i.NodeToTypeVar(node.Right)})
+			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 		case *ast.Assign:
-			i.AddCons(Constraint{i.NodeToTypeVar(node.Target), i.NodeToTypeVar(node.Expr)})
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 		case *ast.FunApp:
 			argVars := make([]TypeVar, 0)
 			for _, arg := range node.Args {
-				argVars = append(argVars, i.NodeToTypeVar(arg))
+				argVars = append(argVars, i.GetTypeVar(arg))
 			}
+
+			i.AddCons(Constraint{i.GetTypeVar(node.Fun), Fun{argVars, typeVar}})
 		case *ast.Ident:
 			// Identifiers don't add any additional constraints
 		}

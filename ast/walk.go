@@ -9,6 +9,12 @@ type AstWalker interface {
 	WalkBlock(*Block) *Block
 }
 
+type PostAstWalker interface {
+	WalkNode(Node) Node
+	WalkBlock(*Block) *Block
+	PostWalk(Node)
+}
+
 type BaseWalker struct {
 	WalkN func(Node) Node
 	WalkB func(*Block) *Block
@@ -90,6 +96,11 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = node
 	default:
 		panic("WalkAst not defined for type: " + reflect.TypeOf(astNode).String())
+	}
+
+	postWalker, isPost := w.(PostAstWalker)
+	if isPost {
+		postWalker.PostWalk(astNode)
 	}
 
 	return retVal
