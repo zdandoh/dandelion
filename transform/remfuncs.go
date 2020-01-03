@@ -11,7 +11,7 @@ type FuncRemover struct {
 }
 
 // Remove all inline function definitions from the program and add them to the Funcs.
-// Generated functions are named fun_<number>
+// Anonymous functions are named fun_<number>
 func RemFuncs(prog *ast.Program) {
 	remover := &FuncRemover{}
 	remover.funcs = make(map[string]*ast.FunDef)
@@ -33,6 +33,14 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 	var retVal ast.Node
 
 	switch node := astNode.(type) {
+	case *ast.Assign:
+		// Whenever a function definition is directly assigned to an identifier, give it that name globally.
+		targetIdent, isTargetIdent := node.Target.(*ast.Ident)
+		exprFunc, isExprFunc := node.Expr.(*ast.FunDef)
+		if isExprFunc && isTargetIdent {
+			r.funcs[targetIdent.Value] = exprFunc
+			retVal = &ast.LineBundle{}
+		}
 	case *ast.FunDef:
 		newName := r.newFunName()
 		r.funcs[newName] = node

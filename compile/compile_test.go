@@ -257,13 +257,12 @@ return fun(111)[0];
 
 func TestInfer(t *testing.T) {
 	src := `
-fun = f(x, y, z) {
-	x + y + z;
+add = f(x, y) {
+	x + y;
 };
-
-fun(1, 2, 3);
+add(3, 4);
+bob = add;
 `
-
 	if !CompileCheckExit(src, 36) {
 		t.FailNow()
 	}

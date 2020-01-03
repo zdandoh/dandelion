@@ -18,7 +18,7 @@ func (t TypeVar) ConsString() string {
 }
 
 type Constraint struct {
-	Left  TypeVar
+	Left  Constrainable
 	Right Constrainable
 }
 
@@ -66,6 +66,7 @@ type TypeInferer struct {
 	Subexps     []ast.Node
 	HashToType  map[string]TypeVar
 	Constraints []Constraint
+	FunLookup   map[string]Fun
 }
 
 func NewTypeInferer() *TypeInferer {
@@ -73,6 +74,7 @@ func NewTypeInferer() *TypeInferer {
 	newInf.Subexps = make([]ast.Node, 0)
 	newInf.HashToType = make(map[string]TypeVar)
 	newInf.Constraints = make([]Constraint, 0)
+	newInf.FunLookup = make(map[string]Fun)
 
 	return newInf
 }
@@ -81,22 +83,43 @@ func Infer(prog *ast.Program) {
 	infer := NewTypeInferer()
 
 	fmt.Println(prog)
-	// Label all subexpressions
+	// Setup all function defs
+	for fName, funDef := range prog.Funcs {
+		funCons := Fun{}
+		for _, arg := range funDef.Args {
+			funCons.Args = append(funCons.Args, infer.GetTypeVar(arg))
+		}
+
+		retVar := infer.NewTypeVar()
+		funCons.Ret = retVar
+
+		infer.FunLookup[fName] = funCons
+	}
+
+	// Collect all unique subexpressions
 	for _, funDef := range prog.Funcs {
 		ast.WalkAst(funDef, infer)
 	}
 
-	//for funVarName, funDef := range prog.Funcs {
-	//	fmt.Println(funVarName)
-	//	infer.AddCons(Constraint{infer.GetTypeVar(&ast.Ident{funVarName}), infer.GetTypeVar(funDef)})
-	//}
-
-	infer.CreateConstraints()
-	UnifyConstraints(infer.Constraints)
+	fmt.Println(infer.FunLookup)
+	infer.CreateConstraints(prog)
+	l := Unify2(infer.Constraints, make(map[Constrainable]Constrainable), 0)
+	fmt.Println("--- THINGIES ---")
+	for k, v := range l {
+		fmt.Println(k.ConsString(), ":", v.ConsString())
+	}
+	fmt.Println(l)
+	fmt.Println(LookupFunc("add_1", l, infer))
+	//UnifyConstraints(infer.Constraints)
 }
 
 func (i *TypeInferer) AddCons(con Constraint) {
 	i.Constraints = append(i.Constraints, con)
+}
+
+func (i *TypeInferer) NewTypeVar() TypeVar {
+	i.TypeNo++
+	return i.TypeNo
 }
 
 func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) (TypeVar, bool) {
@@ -131,11 +154,20 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	}
 }
 
-func (i *TypeInferer) CreateConstraints() {
+func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	fmt.Println("--- ORDERED SUBEXPS ---")
 	for _, astNode := range i.Subexps {
 		typeVar, _ := i.NodeToTypeVar(astNode)
 		fmt.Println(typeVar, "-", astNode)
+	}
+
+	for fName, funDef := range prog.Funcs {
+		baseFun := i.FunLookup[fName]
+		if fName == "main" {
+			i.Constraints = append(i.Constraints, Constraint{baseFun.Ret, BaseType{types.IntType{}}})
+		} else {
+			i.Constraints = append(i.Constraints, Constraint{baseFun.Ret, i.GetTypeVar(funDef.Body.Lines[len(funDef.Body.Lines)-1])})
+		}
 	}
 
 	for _, astNode := range i.Subexps {
@@ -154,12 +186,17 @@ func (i *TypeInferer) CreateConstraints() {
 		case *ast.Assign:
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 		case *ast.FunApp:
-			argVars := make([]TypeVar, 0)
-			for _, arg := range node.Args {
-				argVars = append(argVars, i.GetTypeVar(arg))
+			baseFun := i.FunLookup[node.Fun.(*ast.Ident).Value]
+			fmt.Println("BASE", baseFun)
+			newFun := Fun{}
+			for k, arg := range node.Args {
+				i.AddCons(Constraint{i.GetTypeVar(arg), baseFun.Args[k]})
+				newFun.Args = append(newFun.Args, i.GetTypeVar(arg))
 			}
+			i.AddCons(Constraint{i.GetTypeVar(node), baseFun.Ret})
+			newFun.Ret = i.GetTypeVar(node)
 
-			i.AddCons(Constraint{i.GetTypeVar(node.Fun), Fun{argVars, typeVar}})
+			fmt.Println(baseFun.ConsString(), "=", newFun.ConsString())
 		case *ast.Ident:
 			// Identifiers don't add any additional constraints
 		}
