@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+type Constrainable interface {
+	ConsString() string
+}
+
 type TypeVar int
 
 func (t TypeVar) String() string {
@@ -20,23 +24,6 @@ func (t TypeVar) ConsString() string {
 type Constraint struct {
 	Left  Constrainable
 	Right Constrainable
-}
-
-type Constrainable interface {
-	ConsString() string
-}
-
-type Same struct {
-	Types []TypeVar
-}
-
-func (t Same) ConsString() string {
-	varStrings := make([]string, 0)
-	for _, tVar := range t.Types {
-		varStrings = append(varStrings, tVar.ConsString())
-	}
-
-	return fmt.Sprintf("same(%s)", strings.Join(varStrings, ", "))
 }
 
 type BaseType struct {
@@ -65,6 +52,7 @@ type TypeInferer struct {
 	TypeNo      TypeVar
 	Subexps     []ast.Node
 	HashToType  map[string]TypeVar
+	TypeToNode  map[TypeVar]ast.Node
 	Constraints []Constraint
 	FunLookup   map[string]Fun
 }
@@ -75,6 +63,7 @@ func NewTypeInferer() *TypeInferer {
 	newInf.HashToType = make(map[string]TypeVar)
 	newInf.Constraints = make([]Constraint, 0)
 	newInf.FunLookup = make(map[string]Fun)
+	newInf.TypeToNode = make(map[TypeVar]ast.Node)
 
 	return newInf
 }
@@ -103,14 +92,42 @@ func Infer(prog *ast.Program) {
 
 	fmt.Println(infer.FunLookup)
 	infer.CreateConstraints(prog)
-	l := Unify2(infer.Constraints, make(map[Constrainable]Constrainable), 0)
-	fmt.Println("--- THINGIES ---")
-	for k, v := range l {
-		fmt.Println(k.ConsString(), ":", v.ConsString())
+	subs := Unify(infer.Constraints, make(map[Constrainable]Constrainable), 0)
+	infer.ConstructTypes(subs)
+}
+
+func (i *TypeInferer) ConstructTypes(subs Subs) {
+	fmt.Println("--- FINAL TYPES ---")
+	for _, subExp := range i.Subexps {
+		initialVar := i.GetTypeVar(subExp)
+		resolvedType := i.ResolveType(initialVar, subs)
+
+		fmt.Println(subExp, "-", resolvedType.TypeString())
 	}
-	fmt.Println(l)
-	fmt.Println(LookupFunc("add_1", l, infer))
-	//UnifyConstraints(infer.Constraints)
+}
+
+func (i *TypeInferer) ResolveType(typeVar TypeVar, subs Subs) types.Type {
+	finalVar := LookupVar(typeVar, subs)
+	baseType, isBaseType := finalVar.(BaseType)
+	if isBaseType {
+		return baseType.Type
+	}
+
+	finalTVar := finalVar.(TypeVar)
+	sourceNode := i.TypeToNode[finalTVar]
+
+	switch node := sourceNode.(type) {
+	case *ast.FunDef:
+		funType := types.FuncType{}
+		for _, arg := range node.Args {
+			argType := i.ResolveType(i.GetTypeVar(arg), subs)
+			funType.ArgTypes = append(funType.ArgTypes, argType)
+		}
+		funType.RetType = i.ResolveType(i.GetTypeVar(node.Body.Lines[len(node.Body.Lines)-1]), subs)
+		return funType
+	}
+
+	return types.NullType{}
 }
 
 func (i *TypeInferer) AddCons(con Constraint) {
@@ -128,6 +145,7 @@ func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) (TypeVar, bool) {
 	if !ok {
 		i.TypeNo++
 		i.HashToType[nodeHash] = i.TypeNo
+		i.TypeToNode[i.TypeNo] = astNode
 		typeNo = i.TypeNo
 	}
 
@@ -164,9 +182,11 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	for fName, funDef := range prog.Funcs {
 		baseFun := i.FunLookup[fName]
 		if fName == "main" {
-			i.Constraints = append(i.Constraints, Constraint{baseFun.Ret, BaseType{types.IntType{}}})
+			i.AddCons(Constraint{baseFun.Ret, BaseType{types.IntType{}}})
 		} else {
-			i.Constraints = append(i.Constraints, Constraint{baseFun.Ret, i.GetTypeVar(funDef.Body.Lines[len(funDef.Body.Lines)-1])})
+			fName := &ast.Ident{fName}
+			i.AddCons(Constraint{i.GetTypeVar(fName), i.GetTypeVar(funDef)})                              // Constraint to assign variable name to actual function
+			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(funDef.Body.Lines[len(funDef.Body.Lines)-1])}) // Setup return constraint for function
 		}
 	}
 

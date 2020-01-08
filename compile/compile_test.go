@@ -260,8 +260,12 @@ func TestInfer(t *testing.T) {
 add = f(x, y) {
 	x + y;
 };
+
+bob = f() {
+	add;
+};
+cob = bob;
 add(3, 4);
-bob = add;
 `
 	if !CompileCheckExit(src, 36) {
 		t.FailNow()

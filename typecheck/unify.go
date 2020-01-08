@@ -1,96 +1,87 @@
 package typecheck
 
 import (
-	"ahead/types"
 	"fmt"
+	"reflect"
+	"strings"
 )
 
-type Substitutions map[TypeVar]types.Type
+type Subs map[Constrainable]Constrainable
 
-func (s Substitutions) Copy() Substitutions {
-	newSubs := make(Substitutions)
-	for k, v := range s {
-		newSubs[k] = v
+func LookupVar(v TypeVar, subs Subs) Constrainable {
+	cons, ok := subs[v]
+	if !ok {
+		return v
+	}
+	_, isBase := cons.(BaseType)
+	if isBase {
+		return cons
 	}
 
-	return newSubs
+	return LookupVar(cons.(TypeVar), subs)
 }
 
-func (s Substitutions) String() string {
-	str := ""
-	for k, v := range s {
-		str += fmt.Sprintf("%s = %s | ", k, v.TypeString())
+func LookupFunc(fName string, subs Subs, i *TypeInferer) string {
+	argStrs := make([]string, 0)
+	baseFun := i.FunLookup[fName]
+	for _, arg := range baseFun.Args {
+		argStrs = append(argStrs, LookupVar(arg, subs).ConsString())
 	}
 
-	return str
+	return fmt.Sprintf("(%s -> %s)", strings.Join(argStrs, " "), LookupVar(baseFun.Ret, subs).ConsString())
 }
 
-func UnifyConstraints(cons []Constraint) {
-	subs := make(Substitutions)
+func ReplaceCons(constraints []Constraint, old Constrainable, new Constrainable) {
+	for i, con := range constraints {
+		if con.Left == old {
+			con = Constraint{new, con.Right}
+		}
+		if con.Right == old {
+			con = Constraint{con.Left, new}
+		}
 
-	for _, con := range cons {
-		fmt.Println("Unifying:", con.Right.ConsString(), con.Left.ConsString())
-		subs = Unify(con.Left, con.Right, subs)
-		fmt.Println(subs)
+		constraints[i] = con
 	}
 }
 
-func Unify(left Constrainable, right Constrainable, subs Substitutions) Substitutions {
-	if subs == nil {
-		return nil
-	} else if left == right {
+func Unify(constraints []Constraint, subs Subs, curr int) Subs {
+	if curr == len(constraints) {
 		return subs
 	}
+	currCons := constraints[curr]
 
-	leftVar, ok := left.(TypeVar)
-	if ok {
-		return UnifyVar(leftVar, right, subs)
-	}
-	rightVar, ok := right.(TypeVar)
-	if ok {
-		return UnifyVar(rightVar, left, subs)
+	if currCons.Left == currCons.Right {
+		constraints[curr] = Constraint{}
+		return Unify(constraints, subs, curr+1)
 	}
 
-	leftFun, isLeftFun := left.(Fun)
-	rightFun, isRightFun := right.(Fun)
-	if isLeftFun && isRightFun {
-		if len(leftFun.Args) != len(rightFun.Args) {
-			return nil
-		}
+	leftBase, isLeftBase := currCons.Left.(BaseType)
+	rightBase, isRightBase := currCons.Right.(BaseType)
 
-		subs = Unify(leftFun.Ret, rightFun.Ret, subs)
-		for i := 0; i < len(leftFun.Args); i++ {
-			subs = Unify(leftFun.Args[i], rightFun.Args[i], subs)
-		}
-		return subs
+	if isLeftBase && isRightBase && leftBase != rightBase {
+		panic("Type inference failed, base types not equal")
+	}
+	if isLeftBase {
+		subs[currCons.Right] = leftBase
+		ReplaceCons(constraints, currCons.Right, leftBase)
+		return Unify(constraints, subs, curr+1)
+	}
+	if isRightBase {
+		subs[currCons.Left] = rightBase
+		ReplaceCons(constraints, currCons.Left, rightBase)
+		return Unify(constraints, subs, curr+1)
 	}
 
-	return nil
-}
-
-func UnifyVar(tVar TypeVar, con Constrainable, subs Substitutions) Substitutions {
-	_, ok := subs[tVar]
-	if ok {
-		return Unify(BaseType{subs[tVar]}, con, subs)
+	rightVar, rightIsVar := currCons.Right.(TypeVar)
+	leftVar, leftIsVar := currCons.Left.(TypeVar)
+	if rightIsVar && leftIsVar {
+		subs[currCons.Left] = rightVar
+		ReplaceCons(constraints, leftVar, rightVar)
+		return Unify(constraints, subs, curr+1)
 	}
 
-	conVar, conIsVar := con.(TypeVar)
-	if conIsVar {
-		conType, conInSubs := subs[conVar]
-		if conInSubs {
-			return Unify(tVar, BaseType{conType}, subs)
-		}
-	}
+	fmt.Println(reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right))
+	panic("wut")
 
-	newSubs := subs.Copy()
-	newSubs[tVar] = con.(BaseType).Type
-	return newSubs
-}
-
-func Contains(tVar TypeVar, con Constrainable, subs Substitutions) bool {
-	if tVar == con {
-		return true
-	}
-
-	return false
+	return Unify(constraints, subs, curr+1)
 }
