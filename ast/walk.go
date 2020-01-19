@@ -61,7 +61,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *FunDef:
 		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
-		retVal = &FunDef{newBlock, walkedArgs, node.Type}
+		retVal = &FunDef{newBlock, walkedArgs, node.TypeHint}
 	case *Closure:
 		retVal = &Closure{WalkAst(node.Target, w), node.Unbound}
 	case *FunApp:
@@ -93,6 +93,12 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *SliceNode:
 		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w)}
 	case *StrExp:
+		retVal = node
+	case *BoolExp:
+		retVal = node
+	case *ByteExp:
+		retVal = node
+	case *FloatExp:
 		retVal = node
 	default:
 		panic("WalkAst not defined for type: " + reflect.TypeOf(astNode).String())

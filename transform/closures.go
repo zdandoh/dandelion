@@ -10,7 +10,7 @@ type UnboundVars map[string]bool
 
 type ClosureExtractor struct {
 	FuncUnbounds map[string]UnboundVars
-	Prog *ast.Program
+	Prog         *ast.Program
 }
 
 type UnboundFinder struct {
@@ -115,9 +115,9 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 		enclosedFunc.Args = append(enclosedFunc.Args, &ast.Ident{tupleName})
 
 		closingFunc := &ast.FunDef{
-			Body: &ast.Block{[]ast.Node{}},
-			Args: closingArgs,
-			Type: enclosedFunc.Type,
+			Body:     &ast.Block{[]ast.Node{}},
+			Args:     closingArgs,
+			TypeHint: enclosedFunc.TypeHint,
 		}
 		c.Prog.Funcs[cloName] = closingFunc
 		closure := &ast.Closure{}

@@ -171,6 +171,10 @@ func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 		t = types.IntType{}
 	case "bool":
 		t = types.BoolType{}
+	case "float":
+		t = types.FloatType{}
+	case "byte":
+		t = types.ByteType{}
 	default:
 		panic(fmt.Sprintf("Unknown type '%s'", c.GetText()))
 	}
@@ -250,7 +254,7 @@ func (l *calcListener) EnterStart(c *parser.StartContext) {
 func (l *calcListener) ExitStart(c *parser.StartContext) {
 	mainFunc := ast.NewFunDef()
 	mainFunc.Args = []ast.Node{}
-	mainFunc.Type = types.FuncType{[]types.Type{}, types.IntType{}}
+	mainFunc.TypeHint = &types.FuncType{[]types.Type{}, types.IntType{}}
 	mainFunc.Body = l.blockStack.Pop()
 	l.mainFunc = mainFunc
 }
@@ -323,7 +327,10 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 
 	funDef.Args = args
 	funDef.Body = l.blockStack.Pop()
-	funDef.Type = funType
+
+	if isFunTyped {
+		funDef.TypeHint = &funType
+	}
 	l.nodeStack.Push(funDef)
 }
 
@@ -402,6 +409,50 @@ func (l *calcListener) ExitCompExp(c *parser.CompExpContext) {
 	compNode.Left = l.nodeStack.Pop()
 
 	l.nodeStack.Push(compNode)
+}
+
+func (l *calcListener) EnterBoolExp(c *parser.BoolExpContext) {
+	DebugPrintln("Entering bool literal")
+}
+
+func (l *calcListener) ExitBoolExp(c *parser.BoolExpContext) {
+	DebugPrintln("Exiting bool literal")
+
+	boolExp := &ast.BoolExp{}
+	boolExp.Value = c.GetText() == "true"
+
+	l.nodeStack.Push(boolExp)
+}
+
+func (l *calcListener) EnterByteExp(c *parser.ByteExpContext) {
+	DebugPrintln("Entering byte literal")
+}
+
+func (l *calcListener) ExitByteExp(c *parser.ByteExpContext) {
+	DebugPrintln("Exiting byte literal")
+
+	byteExp := &ast.ByteExp{}
+	byteStr := c.GetText()
+	byteExp.Value = byte(byteStr[1])
+
+	l.nodeStack.Push(byteExp)
+}
+
+func (l *calcListener) EnterFloatExp(c *parser.FloatExpContext) {
+	DebugPrintln("Entering float literal")
+}
+
+func (l *calcListener) ExitFloatExp(c *parser.FloatExpContext) {
+	DebugPrintln("Exiting float literal")
+
+	var err error
+	floatExp := &ast.FloatExp{}
+	floatExp.Value, err = strconv.ParseFloat(c.GetText(), 64)
+	if err != nil {
+		panic("error parsing float: " + err.Error())
+	}
+
+	l.nodeStack.Push(floatExp)
 }
 
 func (l *calcListener) EnterArray(c *parser.ArrayContext) {

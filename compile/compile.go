@@ -24,7 +24,7 @@ type Compiler struct {
 	currFun   *ir.Func
 	mod       *ir.Module
 	PEnv      map[string]value.Value
-	TEnv      map[string]types.Type
+	Types     map[ast.NodeHash]types.Type
 	FEnv      map[string]*CFunc
 	TypeDefs  map[string]lltypes.Type
 	LabelNo   int
@@ -39,6 +39,7 @@ type CFunc struct {
 var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
 var LenType lltypes.Type
 var IntType = lltypes.I32
+var ByteType = lltypes.I8
 var BoolType = lltypes.I1
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
@@ -55,6 +56,8 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		return BoolType
 	case types.IntType:
 		return IntType
+	case types.ByteType:
+		return ByteType
 	case types.StringType:
 		return lltypes.NewPointer(StrType)
 	case types.NullType:
@@ -76,7 +79,6 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 			return typeDef
 		}
 
-		fmt.Println("Creating struct value:", t.Name)
 		memberTypes := make([]lltypes.Type, len(t.MemberTypes))
 		for i, member := range t.MemberTypes {
 			memberTypes[i] = c.typeToLLType(member)
@@ -92,6 +94,10 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 	default:
 		panic("Unknown type: " + reflect.TypeOf(myType).String())
 	}
+}
+
+func (c *Compiler) GetType(node ast.Node) types.Type {
+	return c.Types[ast.HashNode(node)]
 }
 
 func (c *Compiler) SetupTypes(prog *ast.Program) {
@@ -121,11 +127,12 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
 
 	for name, fun := range prog.Funcs {
-		llRetType := c.typeToLLType(fun.Type.RetType)
+		llRetType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
 		params := make([]*ir.Param, 0)
 		for i := 0; i < len(fun.Args); i++ {
 			argName := fun.Args[i].(*ast.Ident).Value
-			newParam := ir.NewParam(argName, c.typeToLLType(fun.Type.ArgTypes[i]))
+			argType := c.typeToLLType(c.GetType(fun.Args[i]))
+			newParam := ir.NewParam(argName, argType)
 			params = append(params, newParam)
 		}
 
@@ -142,18 +149,19 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	c.currFun = cFun.Func
 	c.currBlock = c.currFun.NewBlock(c.getLabel(name + "_entry"))
 
-	_, isVoid := fun.Type.RetType.(types.NullType)
+	_, isVoid := c.GetType(fun).(types.FuncType).RetType.(types.NullType)
 
 	// Bind function args
 	for i, arg := range fun.Args {
 		argName := arg.(*ast.Ident).Value
-		argType := c.typeToLLType(c.TEnv[argName])
+		argType := c.typeToLLType(c.GetType(arg))
 		argPtr := c.currBlock.NewAlloca(argType)
 		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
 		c.PEnv[argName] = argPtr
 	}
 	// Allocate space for return value & setup return block
-	retPtr := c.currBlock.NewAlloca(c.typeToLLType(fun.Type.RetType))
+	retType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
+	retPtr := c.currBlock.NewAlloca(retType)
 	cFun.RetPtr = retPtr
 	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
 	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
@@ -177,12 +185,12 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 }
 
-func Compile(prog *ast.Program, TEnv map[string]types.Type) string {
+func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {
 	c := Compiler{}
 	c.PEnv = make(map[string]value.Value)
 	c.FEnv = make(map[string]*CFunc)
 	c.TypeDefs = make(map[string]lltypes.Type)
-	c.TEnv = TEnv
+	c.Types = Types
 
 	c.mod = ir.NewModule()
 
@@ -207,6 +215,10 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.CompileNode(node.Exp)
 	case *ast.Num:
 		retVal = constant.NewInt(IntType, node.Value)
+	case *ast.ByteExp:
+		retVal = constant.NewInt(ByteType, int64(node.Value))
+	case *ast.BoolExp:
+		retVal = constant.NewBool(node.Value)
 	case *ast.AddSub:
 		switch node.Op {
 		case "+":
@@ -263,7 +275,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		tupleType := types.TupleType{}
 		tupleIdents := make([]ast.Node, 0)
 		for _, unboundName := range node.Unbound {
-			tupleType.Types = append(tupleType.Types, c.TEnv[unboundName])
+			unboundIdent := &ast.Ident{unboundName}
+			tupleType.Types = append(tupleType.Types, c.GetType(unboundIdent))
 			tupleIdents = append(tupleIdents, &ast.Ident{unboundName})
 		}
 
@@ -425,7 +438,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		targetName := target.Value
 		targetAddr, ok := c.PEnv[targetName]
 		if !ok {
-			targetType, ok := c.TEnv[targetName]
+			targetType, ok := c.Types[ast.HashNode(node.Target)]
 			if !ok {
 				panic("Identifier not in type environment: " + targetName)
 			}
@@ -473,20 +486,14 @@ func (c *Compiler) CompileBlock(block *ast.Block) {
 
 func CompileCheckExit(progText string, code int) bool {
 	prog := parser.ParseProgram(progText)
-	transform.TransformAst(prog)
-	typecheck.Infer(prog)
-	os.Exit(1)
-
 	fmt.Println(prog)
+	transform.TransformAst(prog)
 
-	tEnv, err := typecheck.TypeCheck(prog)
-	if err != nil {
-		log.Fatal("Program doesn't type check: " + err.Error())
-	}
+	progTypes := typecheck.Infer(prog)
 
-	llvm_ir := Compile(prog, tEnv)
+	llvm_ir := Compile(prog, progTypes)
 	fmt.Println(llvm_ir)
-	err = ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
+	err := ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
 	if err != nil {
 		fmt.Println(err)
 	}

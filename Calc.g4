@@ -35,8 +35,11 @@ expr
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
    | expr op=(LT|LTE|GT|GTE|EQ) expr              # CompExp
+   | FLOAT                                        # FloatExp
    | NUMBER                                       # Number
    | STRING                                       # StrExp
+   | BYTE                                         # ByteExp
+   | (TRUE|FALSE)                                 # BoolExp
    | COMMAND                                      # CommandExp
    | IDENT                                        # Ident
    ;

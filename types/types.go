@@ -30,6 +30,20 @@ func (i BoolType) TypeString() string {
 	return "bool"
 }
 
+type ByteType struct {
+}
+
+func (i ByteType) TypeString() string {
+	return "byte"
+}
+
+type FloatType struct {
+}
+
+func (i FloatType) TypeString() string {
+	return "float"
+}
+
 type ArrayType struct {
 	Subtype Type
 }

@@ -100,9 +100,9 @@ func (n *Ident) String() string {
 }
 
 type FunDef struct {
-	Body *Block
-	Args []Node
-	Type types.FuncType
+	Body     *Block
+	Args     []Node
+	TypeHint *types.FuncType
 }
 
 func NewFunDef() *FunDef {
@@ -118,8 +118,8 @@ func (n *FunDef) String() string {
 	argStrings := make([]string, 0)
 	for i := 0; i < len(n.Args); i++ {
 		argString := n.Args[i].(*Ident).Value
-		if len(n.Type.ArgTypes) > i {
-			argString = fmt.Sprintf("%s %s", n.Type.ArgTypes[i].TypeString(), argString)
+		if n.TypeHint != nil && len(n.TypeHint.ArgTypes) > i {
+			argString = fmt.Sprintf("%s %s", n.TypeHint.ArgTypes[i].TypeString(), argString)
 		}
 		argStrings = append(argStrings, argString)
 	}
@@ -127,8 +127,8 @@ func (n *FunDef) String() string {
 	if len(n.Args) > 0 {
 		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
-	if n.Type.RetType != nil {
-		lines += " " + n.Type.RetType.TypeString() + " "
+	if n.TypeHint != nil {
+		lines += " " + n.TypeHint.RetType.TypeString() + " "
 	}
 
 	lines += "{\n"
@@ -370,12 +370,38 @@ func (n *YieldExp) String() string {
 	return fmt.Sprintf("yield %s", n.Target)
 }
 
-func HashNode(node Node) string {
+type BoolExp struct {
+	Value bool
+}
+
+func (n *BoolExp) String() string {
+	return fmt.Sprintf("%t", n.Value)
+}
+
+type ByteExp struct {
+	Value byte
+}
+
+func (n *ByteExp) String() string {
+	return fmt.Sprintf("%d", n.Value)
+}
+
+type FloatExp struct {
+	Value float64
+}
+
+func (n *FloatExp) String() string {
+	return fmt.Sprintf("%v", n.Value)
+}
+
+type NodeHash string
+
+func HashNode(node Node) NodeHash {
 	nodeBytes, err := json.Marshal(node)
 	if err != nil {
 		panic(err)
 	}
 
 	hash := sha256.New()
-	return hex.EncodeToString(hash.Sum(nodeBytes))
+	return NodeHash(hex.EncodeToString(hash.Sum(nodeBytes)))
 }

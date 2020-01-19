@@ -255,6 +255,33 @@ return fun(111)[0];
 	}
 }
 
+// This doesn't work because main has an int return type, not i8
+//func TestByteLiteral(t *testing.T) {
+//	src := `
+//x = 'h';
+//y = 'g';
+//
+//return y;
+//`
+//
+//	CompileCheckExit(src, 103)
+//}
+
+func TestBooleanLiteral(t *testing.T) {
+	src := `
+x = true;
+y = false;
+if x {
+	return 43;
+};
+return 21;
+`
+
+	if !CompileCheckExit(src, 43) {
+		t.FailNow()
+	}
+}
+
 func TestInfer(t *testing.T) {
 	src := `
 add = f(x, y) {
@@ -264,10 +291,16 @@ add = f(x, y) {
 bob = f() {
 	add;
 };
+
+unrelated = f(x, y, z) {
+	p = z + 1;
+	x + y + 3;
+};
+
 cob = bob;
-add(3, 4);
+return add(3, 4);
 `
-	if !CompileCheckExit(src, 36) {
+	if !CompileCheckExit(src, 7) {
 		t.FailNow()
 	}
 }
@@ -277,7 +310,7 @@ func TestClosure(t *testing.T) {
 x = 56;
 fun = f(int one, string two) int {
 	if 1 == 1 {
-		x;
+		return x;
 	};
 	one;
 };
