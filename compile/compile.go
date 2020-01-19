@@ -41,6 +41,7 @@ var LenType lltypes.Type
 var IntType = lltypes.I32
 var ByteType = lltypes.I8
 var BoolType = lltypes.I1
+var FloatType = lltypes.Float
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
 var AdjustTrampoline value.Value
@@ -58,6 +59,8 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		return IntType
 	case types.ByteType:
 		return ByteType
+	case types.FloatType:
+		return FloatType
 	case types.StringType:
 		return lltypes.NewPointer(StrType)
 	case types.NullType:
@@ -217,6 +220,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = constant.NewInt(IntType, node.Value)
 	case *ast.ByteExp:
 		retVal = constant.NewInt(ByteType, int64(node.Value))
+	case *ast.FloatExp:
+		retVal = constant.NewFloat(FloatType, node.Value)
 	case *ast.BoolExp:
 		retVal = constant.NewBool(node.Value)
 	case *ast.AddSub:

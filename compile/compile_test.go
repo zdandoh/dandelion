@@ -16,6 +16,17 @@ return d;
 	}
 }
 
+func TestCompileFloat(t *testing.T) {
+	src := `
+data = 3.5;
+return 6;
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.FailNow()
+	}
+}
+
 func TestCompileFunc(t *testing.T) {
 	src := `
 my_func = f(int a, int b) int {

@@ -231,6 +231,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		switch node := astNode.(type) {
 		case *ast.Num:
 			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
+		case *ast.FloatExp:
+			i.AddCons(Constraint{typeVar, BaseType{types.FloatType{}}})
 		case *ast.StrExp:
 			i.AddCons(Constraint{typeVar, BaseType{types.StringType{}}})
 		case *ast.ByteExp:
