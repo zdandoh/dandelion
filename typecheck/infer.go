@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const DebugTypeInf = true
+
 type Constrainable interface {
 	ConsString() string
 }
@@ -56,13 +58,20 @@ func (t Fun) ConsString() string {
 	return fmt.Sprintf("(%s -> %s)", strings.Join(varStrings, ", "), t.Ret.ConsString())
 }
 
+func DebugInfer(more ...interface{}) {
+	if DebugTypeInf {
+		fmt.Println(more...)
+	}
+}
+
 type TypeInferer struct {
-	TypeNo      TypeVar
-	Subexps     []ast.Node
-	HashToType  map[ast.NodeHash]TypeVar
-	TypeToNode  map[TypeVar]ast.Node
-	Constraints []Constraint
-	FunLookup   map[string]Fun
+	TypeNo       TypeVar
+	Subexps      []ast.Node
+	HashToType   map[ast.NodeHash]TypeVar
+	TypeToNode   map[TypeVar]ast.Node
+	Constraints  []Constraint
+	FunLookup    map[string]Fun
+	FunDefLookup map[*ast.FunDef]Fun
 }
 
 func NewTypeInferer() *TypeInferer {
@@ -71,6 +80,7 @@ func NewTypeInferer() *TypeInferer {
 	newInf.HashToType = make(map[ast.NodeHash]TypeVar)
 	newInf.Constraints = make([]Constraint, 0)
 	newInf.FunLookup = make(map[string]Fun)
+	newInf.FunDefLookup = make(map[*ast.FunDef]Fun)
 	newInf.TypeToNode = make(map[TypeVar]ast.Node)
 
 	return newInf
@@ -79,7 +89,8 @@ func NewTypeInferer() *TypeInferer {
 func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 	infer := NewTypeInferer()
 
-	fmt.Println(prog)
+	DebugInfer("--- Program ast before inference ---")
+	DebugInfer(prog)
 	// Setup all function defs
 	for fName, funDef := range prog.Funcs {
 		funCons := Fun{}
@@ -92,6 +103,7 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 		funCons.Ret = retVar
 
 		infer.FunLookup[fName] = funCons
+		infer.FunDefLookup[funDef] = funCons
 	}
 
 	// Collect all unique subexpressions
@@ -106,14 +118,14 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 
 func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 	finalTypes := make(map[ast.NodeHash]types.Type)
-	fmt.Println("--- FINAL TYPES ---")
+	DebugInfer("--- FINAL TYPES ---")
 
 	for _, subExp := range i.Subexps {
 		initialVar := i.GetTypeVar(subExp)
 		resolvedType := i.ResolveType(initialVar, subs)
 
 		finalTypes[ast.HashNode(subExp)] = resolvedType
-		fmt.Println(subExp, "-", resolvedType.TypeString())
+		DebugInfer(subExp, "-", resolvedType.TypeString())
 	}
 
 	for fName, _ := range i.FunLookup {
@@ -122,7 +134,7 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 		resolvedType := i.ResolveType(initialVar, subs)
 
 		finalTypes[ast.HashNode(fIdent)] = resolvedType
-		fmt.Println(fName, "-", resolvedType.TypeString())
+		DebugInfer(fName, "-", resolvedType.TypeString())
 	}
 
 	return finalTypes
@@ -145,7 +157,7 @@ func (i *TypeInferer) ResolveType(typeVar TypeVar, subs Subs) types.Type {
 			argType := i.ResolveType(i.GetTypeVar(arg), subs)
 			funType.ArgTypes = append(funType.ArgTypes, argType)
 		}
-		funType.RetType = i.ResolveType(i.GetTypeVar(node.Body.Lines[len(node.Body.Lines)-1]), subs)
+		funType.RetType = i.ResolveType(i.FunDefLookup[node].Ret, subs)
 		return funType
 	}
 
@@ -200,28 +212,36 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 }
 
 func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
-	fmt.Println("--- ORDERED SUBEXPS ---")
+	DebugInfer("--- ORDERED SUBEXPS ---")
 	for _, astNode := range i.Subexps {
 		typeVar, _ := i.NodeToTypeVar(astNode)
-		fmt.Println(typeVar, "-", astNode)
+		DebugInfer(typeVar, "-", astNode)
 	}
 
+	// Create constraints for all globally defined functions
 	for fName, funDef := range prog.Funcs {
 		fIdent := &ast.Ident{fName}
+		baseFun := i.FunLookup[fName]
 		i.AddCons(Constraint{i.GetTypeVar(fIdent), i.GetTypeVar(funDef)}) // Constraint to assign variable name to actual function
 
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
 			i.AddCons(Constraint{i.GetTypeVar(fIdent), BaseType{*funDef.TypeHint}})
-			continue
+			for argNo, arg := range funDef.Args {
+				i.AddCons(Constraint{i.GetTypeVar(arg), BaseType{funDef.TypeHint.ArgTypes[argNo]}})
+			}
+			i.AddCons(Constraint{i.GetTypeVar(baseFun.Ret), BaseType{funDef.TypeHint.RetType}})
 		}
 
-		baseFun := i.FunLookup[fName]
-		if fName == "main" {
-			i.AddCons(Constraint{baseFun.Ret, BaseType{types.IntType{}}})
-		} else {
-			// TODO make this work for empty functions
-			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(funDef.Body.Lines[len(funDef.Body.Lines)-1])}) // Setup return constraint for function
+		// Check if function has a non-return last line. If so, setup inference for that line.
+		var lastLine ast.Node
+		if len(funDef.Body.Lines) > 0 {
+			lastLine = funDef.Body.Lines[len(funDef.Body.Lines)-1]
+		}
+
+		_, isReturn := lastLine.(*ast.ReturnExp)
+		if lastLine != nil && !isReturn {
+			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
 		}
 	}
 
@@ -244,6 +264,9 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{typeVar, i.GetTypeVar(node.Right)})
 		case *ast.MulDiv:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
+			i.AddCons(Constraint{typeVar, i.GetTypeVar(node.Right)})
+		case *ast.ParenExp:
+			i.AddCons(Constraint{i.GetTypeVar(node), i.GetTypeVar(node.Exp)})
 		case *ast.Assign:
 			if EmptyList(node.Expr) {
 				// This is a special case, the empty list is the only expression that does not have a distinct type,
@@ -280,8 +303,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		}
 	}
 
-	fmt.Println("------ CONSTRAINTS ------")
+	DebugInfer("------ CONSTRAINTS ------")
 	for _, c := range i.Constraints {
-		fmt.Printf("%s = %s\n", c.Left, c.Right.ConsString())
+		DebugInfer("%s = %s\n", c.Left, c.Right.ConsString())
 	}
 }

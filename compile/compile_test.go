@@ -316,6 +316,16 @@ return add(3, 4);
 	}
 }
 
+func TestInferMain(t *testing.T) {
+	src := `
+return 3 + 4;
+`
+
+	if !CompileCheckExit(src, 7) {
+		t.FailNow()
+	}
+}
+
 func TestClosure(t *testing.T) {
 	src := `
 x = 56;
