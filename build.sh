@@ -1,3 +1,4 @@
-java -jar ./antlr.jar -Dlanguage=Go -o aparser Calc.g4 CalcLex.g4
+#!/usr/bin/env bash
+
+java -jar antlr.jar -Dlanguage=Go -o aparser Calc.g4 CalcLex.g4
 go build
-go test ./...
