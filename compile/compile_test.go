@@ -16,13 +16,15 @@ return d;
 	}
 }
 
-func TestCompileFloat(t *testing.T) {
+func TestFloatOps(t *testing.T) {
 	src := `
 data = 3.5;
-return 6;
+data + 32.7;
+33.3 / 4.2;
+21.3 * 7.0;
 `
 
-	if !CompileCheckExit(src, 6) {
+	if !CompileCheckExit(src, 0) {
 		t.FailNow()
 	}
 }
@@ -312,6 +314,17 @@ cob = bob;
 return add(3, 4);
 `
 	if !CompileCheckExit(src, 7) {
+		t.FailNow()
+	}
+}
+
+func TestInferAddable(t *testing.T) {
+	src := `
+flo = 4.6;
+res = 3.0 + flo;
+`
+
+	if !CompileCheckExit(src, 0) {
 		t.FailNow()
 	}
 }

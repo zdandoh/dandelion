@@ -6,6 +6,7 @@ import (
 	"ahead/transform"
 	"ahead/typecheck"
 	"ahead/types"
+	"bytes"
 	"fmt"
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -225,18 +226,44 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.BoolExp:
 		retVal = constant.NewBool(node.Value)
 	case *ast.AddSub:
-		switch node.Op {
-		case "+":
-			retVal = c.currBlock.NewAdd(c.CompileNode(node.Left), c.CompileNode(node.Right))
-		case "-":
-			retVal = c.currBlock.NewSub(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		rightNode := c.CompileNode(node.Right)
+		leftNode := c.CompileNode(node.Left)
+		addType := rightNode.Type()
+
+		if addType.Equal(IntType) {
+			switch node.Op {
+			case "+":
+				retVal = c.currBlock.NewAdd(leftNode, rightNode)
+			case "-":
+				retVal = c.currBlock.NewSub(leftNode, rightNode)
+			}
+		} else if addType.Equal(FloatType) {
+			switch node.Op {
+			case "+":
+				retVal = c.currBlock.NewFAdd(leftNode, rightNode)
+			case "-":
+				retVal = c.currBlock.NewFSub(leftNode, rightNode)
+			}
 		}
 	case *ast.MulDiv:
-		switch node.Op {
-		case "*":
-			retVal = c.currBlock.NewMul(c.CompileNode(node.Left), c.CompileNode(node.Right))
-		case "/":
-			retVal = c.currBlock.NewSDiv(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		rightNode := c.CompileNode(node.Right)
+		leftNode := c.CompileNode(node.Left)
+		addType := rightNode.Type()
+
+		if addType.Equal(IntType) {
+			switch node.Op {
+			case "*":
+				retVal = c.currBlock.NewMul(leftNode, rightNode)
+			case "/":
+				retVal = c.currBlock.NewSDiv(leftNode, rightNode)
+			}
+		} else if addType.Equal(FloatType) {
+			switch node.Op {
+			case "*":
+				retVal = c.currBlock.NewFMul(leftNode, rightNode)
+			case "/":
+				retVal = c.currBlock.NewFDiv(leftNode, rightNode)
+			}
 		}
 	case *ast.Mod:
 		retVal = c.currBlock.NewSRem(c.CompileNode(node.Left), c.CompileNode(node.Right))
@@ -487,6 +514,45 @@ func (c *Compiler) CompileBlock(block *ast.Block) {
 		fmt.Printf("Compiling line %d of block\n", lineNo)
 		c.CompileNode(line)
 	}
+}
+
+func CompileSource(progText string) string {
+	prog := parser.ParseProgram(progText)
+	transform.TransformAst(prog)
+
+	progTypes := typecheck.Infer(prog)
+	llvmIr := Compile(prog, progTypes)
+
+	return llvmIr
+}
+
+func ExecIR(llvmIr string) error {
+	cmd := exec.Command("lli")
+	buffer := bytes.NewBufferString(llvmIr)
+
+	cmd.Stdin = buffer
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	exitStatus := 0
+	err = cmd.Wait()
+	if err != nil {
+		exitCode, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitCode.Sys().(syscall.WaitStatus)
+			if ok {
+				exitStatus = status.ExitStatus()
+			}
+		}
+	}
+
+	os.Exit(exitStatus)
+	return nil
 }
 
 func CompileCheckExit(progText string, code int) bool {

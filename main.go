@@ -1,21 +1,11 @@
 package main
 
 import (
-	"ahead/interp"
-	"ahead/parser"
-	"ahead/transform"
+	"ahead/compile"
 	"fmt"
 	"io/ioutil"
 	"os"
 )
-
-func RunProgram(src string) {
-	prog := parser.ParseProgram(src)
-	transform.TransformAst(prog)
-
-	i := interp.NewInterpreter()
-	i.Interp(prog)
-}
 
 func main() {
 	var src []byte
@@ -31,5 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	RunProgram(string(src))
+	llvmIr := compile.CompileSource(string(src))
+	err = compile.ExecIR(llvmIr)
+	fmt.Println(err)
 }

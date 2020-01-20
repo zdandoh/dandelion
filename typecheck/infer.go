@@ -36,6 +36,21 @@ func (t BaseType) ConsString() string {
 	return t.Type.TypeString()
 }
 
+type Options struct {
+	Types []types.Type
+}
+
+func (t Options) ConsString() string {
+	typeStrings := make([]string, 0)
+	for _, t := range t.Types {
+		typeStrings = append(typeStrings, t.TypeString())
+	}
+
+	return fmt.Sprintf("option[%s]", strings.Join(typeStrings, ", "))
+}
+
+var Addable = Options{[]types.Type{types.FloatType{}, types.IntType{}, types.StringType{}}}
+
 //func (c Container) ConsString() string {
 //	subStrs := make([]string, 0)
 //	for _, sub := range c.Subtypes {
