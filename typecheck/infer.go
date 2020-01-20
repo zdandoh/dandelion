@@ -51,13 +51,15 @@ func (t Options) ConsString() string {
 
 var Addable = Options{[]types.Type{types.FloatType{}, types.IntType{}, types.StringType{}}}
 
-//func (c Container) ConsString() string {
-//	subStrs := make([]string, 0)
-//	for _, sub := range c.Subtypes {
-//		subStrs = append(subStrs, sub.ConsString())
-//	}
-//	return fmt.Sprintf("(%s)", strings.Join(subStrs, ", "))
-//}
+type Container struct {
+	Type    types.Type
+	Subtype Constrainable
+	Index   int
+}
+
+func (c Container) ConsString() string {
+	return fmt.Sprintf("container<%v>[%v]", c.Type.TypeString(), c.Subtype.ConsString())
+}
 
 type Fun struct {
 	Args []TypeVar
@@ -82,6 +84,7 @@ func DebugInfer(more ...interface{}) {
 type TypeInferer struct {
 	TypeNo       TypeVar
 	Subexps      []ast.Node
+	Subtypes     map[TypeVar]TypeVar
 	HashToType   map[ast.NodeHash]TypeVar
 	TypeToNode   map[TypeVar]ast.Node
 	Constraints  []Constraint
@@ -97,6 +100,7 @@ func NewTypeInferer() *TypeInferer {
 	newInf.FunLookup = make(map[string]Fun)
 	newInf.FunDefLookup = make(map[*ast.FunDef]Fun)
 	newInf.TypeToNode = make(map[TypeVar]ast.Node)
+	newInf.Subtypes = make(map[TypeVar]TypeVar)
 
 	return newInf
 }
@@ -174,6 +178,12 @@ func (i *TypeInferer) ResolveType(typeVar TypeVar, subs Subs) types.Type {
 		}
 		funType.RetType = i.ResolveType(i.FunDefLookup[node].Ret, subs)
 		return funType
+	case *ast.ArrayLiteral:
+		listType := types.ArrayType{}
+		subTypevar := i.GetSubtype(node)
+		subType := i.ResolveType(subTypevar, subs)
+		listType.Subtype = subType
+		return listType
 	}
 
 	return types.NullType{}
@@ -224,6 +234,18 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	if !existed {
 		i.Subexps = append(i.Subexps, astNode)
 	}
+}
+
+func (i *TypeInferer) GetSubtype(astNode ast.Node) TypeVar {
+	typeVar := i.GetTypeVar(astNode)
+	subtype, ok := i.Subtypes[typeVar]
+	if !ok {
+		subtype = i.NewTypeVar()
+		i.Subtypes[typeVar] = subtype
+		fmt.Println("Created subtype", subtype)
+	}
+
+	return subtype
 }
 
 func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
@@ -309,17 +331,20 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		// Identifiers don't add any additional constraints
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
-		//case *ast.ArrayLiteral:
-		//	if len(node.Exprs) > 0 {
-		//		i.AddCons(Constraint{typeVar, Container{BaseType{types.ArrayType{}}, []Constrainable{i.GetTypeVar(node.Exprs[0])}}})
-		//	}
+		case *ast.ArrayLiteral:
+			subtypeVar := i.GetSubtype(node)
+			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0}})
+			if len(node.Exprs) > 0 {
+				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
+			}
 		case *ast.SliceNode:
-			i.AddCons(Constraint{i.GetTypeVar(node.Arr), BaseType{types.ArrayType{}}})
+			subTypevar := i.GetSubtype(i.GetTypeVar(node))
+			i.AddCons(Constraint{typeVar, subTypevar})
 		}
 	}
 
 	DebugInfer("------ CONSTRAINTS ------")
 	for _, c := range i.Constraints {
-		DebugInfer("%s = %s\n", c.Left, c.Right.ConsString())
+		DebugInfer(c.Left, "=", c.Right.ConsString())
 	}
 }

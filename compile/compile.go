@@ -96,7 +96,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 
 		return lltypes.NewPointer(lltypes.NewStruct(elemTypes...))
 	default:
-		panic("Unknown type: " + reflect.TypeOf(myType).String())
+		panic(fmt.Sprintf("Unknown type: %v", reflect.TypeOf(myType)))
 	}
 }
 
@@ -379,16 +379,17 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(charPtr, charPtrDest)
 		retVal = strPtr
 	case *ast.ArrayLiteral:
-		listType := c.typeToLLType(node.Type).(*lltypes.PointerType).ElemType
-		subType := c.typeToLLType(node.Type.Subtype)
-		list := c.currBlock.NewAlloca(listType)
+		listType := c.GetType(node).(types.ArrayType)
+		llListType := c.typeToLLType(listType).(*lltypes.PointerType).ElemType
+		llSubtype := c.typeToLLType(listType.Subtype)
+		list := c.currBlock.NewAlloca(llListType)
 
 		// Set list length
 		lenPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 		c.currBlock.NewStore(constant.NewInt(IntType, int64(node.Length)), lenPtr)
 
 		// Get array start ptr
-		arr := c.currBlock.NewAlloca(lltypes.NewArray(uint64(node.Length), subType))
+		arr := c.currBlock.NewAlloca(lltypes.NewArray(uint64(node.Length), llSubtype))
 		arrStart := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 
 		// Set arr start pointer in list

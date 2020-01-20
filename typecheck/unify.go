@@ -31,16 +31,27 @@ func LookupFunc(fName string, subs Subs, i *TypeInferer) string {
 	return fmt.Sprintf("(%s -> %s)", strings.Join(argStrs, " "), LookupVar(baseFun.Ret, subs).ConsString())
 }
 
-func ReplaceCons(constraints []Constraint, old Constrainable, new Constrainable) {
-	for i, con := range constraints {
-		if con.Left == old {
-			con = Constraint{new, con.Right}
+func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Constrainable {
+	switch cons := check.(type) {
+	case TypeVar:
+		if cons == old {
+			return new
 		}
-		if con.Right == old {
-			con = Constraint{con.Left, new}
+	case Container:
+		if cons.Subtype == old {
+			return Container{cons.Type, new, cons.Index}
 		}
+	}
 
-		constraints[i] = con
+	return check
+}
+
+func ReplaceAllCons(constraints []Constraint, old Constrainable, new Constrainable) {
+	for i, con := range constraints {
+		newLeft := ReplaceCons(con.Left, old, new)
+		newRight := ReplaceCons(con.Right, old, new)
+
+		constraints[i] = Constraint{newLeft, newRight}
 	}
 }
 
@@ -63,12 +74,12 @@ func Unify(constraints []Constraint, subs Subs, curr int) Subs {
 	}
 	if isLeftBase {
 		subs[currCons.Right] = leftBase
-		ReplaceCons(constraints, currCons.Right, leftBase)
+		ReplaceAllCons(constraints, currCons.Right, leftBase)
 		return Unify(constraints, subs, curr+1)
 	}
 	if isRightBase {
 		subs[currCons.Left] = rightBase
-		ReplaceCons(constraints, currCons.Left, rightBase)
+		ReplaceAllCons(constraints, currCons.Left, rightBase)
 		return Unify(constraints, subs, curr+1)
 	}
 
@@ -76,12 +87,17 @@ func Unify(constraints []Constraint, subs Subs, curr int) Subs {
 	leftVar, leftIsVar := currCons.Left.(TypeVar)
 	if rightIsVar && leftIsVar {
 		subs[currCons.Left] = rightVar
-		ReplaceCons(constraints, leftVar, rightVar)
+		ReplaceAllCons(constraints, leftVar, rightVar)
 		return Unify(constraints, subs, curr+1)
 	}
 
-	fmt.Println(reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right))
-	panic("wut")
+	_, isContainer := currCons.Right.(Container)
+	if leftIsVar && isContainer {
+		// Don't need to do anything special to containers
+		return Unify(constraints, subs, curr+1)
+	}
+
+	panic(fmt.Sprintf("Unable to unify '%s' and '%s'", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right)))
 
 	return Unify(constraints, subs, curr+1)
 }

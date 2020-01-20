@@ -89,7 +89,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *CompNode:
 		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *ArrayLiteral:
-		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w), node.Type}
+		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w)}
 	case *SliceNode:
 		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w)}
 	case *StrExp:

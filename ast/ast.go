@@ -273,7 +273,6 @@ func (n *CompNode) LLPred() enum.IPred {
 type ArrayLiteral struct {
 	Length int
 	Exprs  []Node
-	Type   types.ArrayType
 }
 
 func (n *ArrayLiteral) String() string {
