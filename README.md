@@ -1,6 +1,6 @@
 Ahead
 ---
-Ahead is a small language that intends to be useful for quickly writing terse utility/text processing programs. The goal of the project is to serve as a replacement for arcane bash incantations and shorter Python scripts.
+Ahead (name WIP) is a small language that intends to be useful for quickly writing terse utility/text processing programs. The goal of the project is to serve as a replacement for arcane bash incantations and shorter Python scripts.
 
 Core Features
 ---
