@@ -51,7 +51,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *Pipeline:
 		retVal = &Pipeline{WalkList(node.Ops, w)}
 	case *TupleLiteral:
-		retVal = &TupleLiteral{WalkList(node.Exprs, w), node.Type}
+		retVal = &TupleLiteral{WalkList(node.Exprs, w)}
 	case *CommandExp:
 		retVal = &CommandExp{node.Command, node.Args}
 	case *MulDiv:

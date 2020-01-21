@@ -2,7 +2,6 @@ package transform
 
 import (
 	"ahead/ast"
-	"ahead/types"
 	"fmt"
 )
 
@@ -103,7 +102,7 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 		for unboundName, _ := range unboundVals {
 			unboundNames = append(unboundNames, &ast.Ident{unboundName})
 		}
-		cloTuple := &ast.TupleLiteral{unboundNames, types.TupleType{}}
+		cloTuple := &ast.TupleLiteral{unboundNames}
 		tupAssign := &ast.Assign{&ast.Ident{tupleName}, cloTuple}
 
 		retLines.Lines = append(retLines.Lines, tupAssign)

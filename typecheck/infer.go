@@ -84,7 +84,7 @@ func DebugInfer(more ...interface{}) {
 type TypeInferer struct {
 	TypeNo       TypeVar
 	Subexps      []ast.Node
-	Subtypes     map[TypeVar]TypeVar
+	Subtypes     map[TypeVar][]TypeVar
 	HashToType   map[ast.NodeHash]TypeVar
 	TypeToNode   map[TypeVar]ast.Node
 	Constraints  []Constraint
@@ -100,7 +100,7 @@ func NewTypeInferer() *TypeInferer {
 	newInf.FunLookup = make(map[string]Fun)
 	newInf.FunDefLookup = make(map[*ast.FunDef]Fun)
 	newInf.TypeToNode = make(map[TypeVar]ast.Node)
-	newInf.Subtypes = make(map[TypeVar]TypeVar)
+	newInf.Subtypes = make(map[TypeVar][]TypeVar)
 
 	return newInf
 }
@@ -180,10 +180,20 @@ func (i *TypeInferer) ResolveType(typeVar TypeVar, subs Subs) types.Type {
 		return funType
 	case *ast.ArrayLiteral:
 		listType := types.ArrayType{}
-		subTypevar := i.GetSubtype(node)
+		subTypevar := i.GetSubtype(node, 0)
 		subType := i.ResolveType(subTypevar, subs)
 		listType.Subtype = subType
 		return listType
+	case *ast.TupleLiteral:
+		tupleType := types.TupleType{}
+		tupleLen := i.CountSubtypes(node)
+		for k := 0; k < tupleLen; k++ {
+			subTypevar := i.GetSubtype(node, k)
+			subType := i.ResolveType(subTypevar, subs)
+			tupleType.Types = append(tupleType.Types, subType)
+		}
+
+		return tupleType
 	}
 
 	return types.NullType{}
@@ -236,13 +246,29 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	}
 }
 
-func (i *TypeInferer) GetSubtype(astNode ast.Node) TypeVar {
+func (i *TypeInferer) CountSubtypes(astNode ast.Node) int {
+	return len(i.Subtypes[i.GetTypeVar(astNode)])
+}
+
+func (i *TypeInferer) GetSubtype(astNode ast.Node, index int) TypeVar {
 	typeVar := i.GetTypeVar(astNode)
-	subtype, ok := i.Subtypes[typeVar]
+	subtypeArr, ok := i.Subtypes[typeVar]
 	if !ok {
+		subtypeArr = make([]TypeVar, 0)
+		i.Subtypes[typeVar] = subtypeArr
+	}
+
+	if index > len(subtypeArr) || index < 0 {
+		panic(fmt.Sprintf("Asking for bad subtype index %d of '%v'", index, astNode))
+	}
+
+	var subtype TypeVar
+	if len(subtypeArr) > index {
+		subtype = subtypeArr[index]
+	} else {
 		subtype = i.NewTypeVar()
-		i.Subtypes[typeVar] = subtype
-		fmt.Println("Created subtype", subtype)
+		subtypeArr = append(subtypeArr, subtype)
+		i.Subtypes[typeVar] = subtypeArr
 	}
 
 	return subtype
@@ -311,6 +337,15 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			} else {
 				i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 			}
+
+			// Copy any constraint generating metadata to new bindings
+			_, isSlice := node.Target.(*ast.SliceNode)
+			if !isSlice {
+				subarr, ok := i.Subtypes[i.GetTypeVar(node.Expr)]
+				if ok {
+					i.Subtypes[i.GetTypeVar(node.Target)] = subarr
+				}
+			}
 		case *ast.FunApp:
 			baseFun, ok := i.FunLookup[node.Fun.(*ast.Ident).Value]
 			if !ok {
@@ -332,14 +367,22 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 		case *ast.ArrayLiteral:
-			subtypeVar := i.GetSubtype(node)
+			subtypeVar := i.GetSubtype(node, 0)
 			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0}})
 			if len(node.Exprs) > 0 {
 				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
 			}
+		case *ast.TupleLiteral:
+			dummyTupleType := types.TupleType{[]types.Type{}}
+			for k, exp := range node.Exprs {
+				subtypeVar := i.GetSubtype(node, k)
+				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(exp)})
+				i.AddCons(Constraint{typeVar, Container{dummyTupleType, subtypeVar, k}})
+			}
 		case *ast.SliceNode:
-			subTypevar := i.GetSubtype(i.GetTypeVar(node))
+			subTypevar := i.GetSubtype(i.GetTypeVar(node), 0)
 			i.AddCons(Constraint{typeVar, subTypevar})
+			fmt.Println(node, "->", subTypevar)
 		}
 	}
 

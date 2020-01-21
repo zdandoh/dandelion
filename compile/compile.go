@@ -312,7 +312,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			tupleIdents = append(tupleIdents, &ast.Ident{unboundName})
 		}
 
-		closureTuple := &ast.TupleLiteral{tupleIdents, tupleType}
+		closureTuple := &ast.TupleLiteral{tupleIdents}
 		tuplePtr := c.CompileNode(closureTuple)
 		trampPtr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
 		trampPtr.Align = ir.Align(4)
@@ -424,7 +424,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			retVal = c.currBlock.NewLoad(elemPtr)
 		}
 	case *ast.TupleLiteral:
-		tupleType := c.typeToLLType(node.Type).(*lltypes.PointerType).ElemType
+		tupleType := c.typeToLLType(c.GetType(node)).(*lltypes.PointerType).ElemType
 		tuplePtr := c.currBlock.NewAlloca(tupleType)
 
 		for i, elem := range node.Exprs {

@@ -289,7 +289,6 @@ func (n *ArrayLiteral) String() string {
 
 type TupleLiteral struct {
 	Exprs []Node
-	Type  types.TupleType
 }
 
 func (n *TupleLiteral) String() string {
