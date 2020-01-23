@@ -12,7 +12,7 @@ d = a + b + 78;
 return d;
 `
 	if !CompileCheckExit(src, 91) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -22,10 +22,11 @@ data = 3.5;
 data + 32.7;
 33.3 / 4.2;
 21.3 * 7.0;
+return 0;
 `
 
 	if !CompileCheckExit(src, 0) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -40,7 +41,7 @@ return d;
 `
 
 	if !CompileCheckExit(src, 53) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -54,7 +55,7 @@ return fun(4, "data");
 `
 
 	if !CompileCheckExit(src, 4) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -68,7 +69,7 @@ return x;
 `
 
 	if !CompileCheckExit(src, 36) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -79,13 +80,12 @@ return arr[1];
 `
 
 	if !CompileCheckExit(src, 6) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
 func TestNestedIf(t *testing.T) {
 	src := `
-
 condfun = f(int x) int {
 	if x < 6 {
 		x = 7;
@@ -103,7 +103,7 @@ return condfun(5) + condfun(2) + condfun(6);
 `
 
 	if !CompileCheckExit(src, 20) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -123,7 +123,7 @@ return x + y;
 `
 
 	if !CompileCheckExit(src, 200) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -135,7 +135,7 @@ return arr[2];
 `
 
 	if !CompileCheckExit(src, 21) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -158,7 +158,7 @@ return sum;
 `
 
 	if !CompileCheckExit(src, 140) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -168,18 +168,19 @@ string = "Look ma, a string!";
 `
 
 	if !CompileCheckExit(src, 0) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
 func TestNestedArray(t *testing.T) {
 	src := `
+[11, 12, 13][1];
 arr = [[1, 2, 3], [4, 5, 6]];
 return arr[1][1];
 `
 
 	if !CompileCheckExit(src, 5) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -195,7 +196,7 @@ return l1.num;
 `
 
 	if !CompileCheckExit(src, 3) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -209,7 +210,7 @@ return l1.num;
 `
 
 	if !CompileCheckExit(src, 54) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -228,7 +229,7 @@ return l1.num;
 `
 
 	if !CompileCheckExit(src, 71) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -239,18 +240,18 @@ return x;
 `
 
 	if !CompileCheckExit(src, 49) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
 func TestCompileTuple(t *testing.T) {
 	src := `
-x = (3, "string", 4);
+x = ("a string", "another string", 4);
 return x[2];
 `
 
 	if !CompileCheckExit(src, 4) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -264,7 +265,7 @@ return fun(111)[0];
 `
 
 	if !CompileCheckExit(src, 3) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -291,7 +292,7 @@ return 21;
 `
 
 	if !CompileCheckExit(src, 43) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -314,7 +315,7 @@ cob = bob;
 return add(3, 4);
 `
 	if !CompileCheckExit(src, 7) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -325,7 +326,42 @@ res = 3.0 + flo;
 `
 
 	if !CompileCheckExit(src, 0) {
-		t.FailNow()
+		t.Fail()
+	}
+}
+
+func TestInferSimpleFunc(t *testing.T) {
+	src := `
+fun = f(a, b) {
+	a + b + 1;
+};
+
+return fun(1, 4);
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.Fail()
+	}
+}
+
+func TestInferFunc(t *testing.T) {
+	src := `
+fun = f(a, b) {
+	a + b + 1;
+};
+
+bun = f(c, d) {
+	c + "string";
+	d + 1;
+};
+
+gun = fun;
+
+return gun(1, 4);
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.Fail()
 	}
 }
 
@@ -335,7 +371,7 @@ return 3 + 4;
 `
 
 	if !CompileCheckExit(src, 7) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -353,7 +389,7 @@ return fun(1, "two");
 `
 
 	if !CompileCheckExit(src, 56) {
-		t.FailNow()
+		t.Fail()
 	}
 }
 
@@ -367,6 +403,6 @@ return fun(1, "two");
 //`
 //
 //	if !CompileCheckExit(src, 6) {
-//		t.FailNow()
+//		t.Fail()
 //	}
 //}

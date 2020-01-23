@@ -3,33 +3,9 @@ package typecheck
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 type Subs map[Constrainable]Constrainable
-
-func LookupVar(v TypeVar, subs Subs) Constrainable {
-	cons, ok := subs[v]
-	if !ok {
-		return v
-	}
-	_, isBase := cons.(BaseType)
-	if isBase {
-		return cons
-	}
-
-	return LookupVar(cons.(TypeVar), subs)
-}
-
-func LookupFunc(fName string, subs Subs, i *TypeInferer) string {
-	argStrs := make([]string, 0)
-	baseFun := i.FunLookup[fName]
-	for _, arg := range baseFun.Args {
-		argStrs = append(argStrs, LookupVar(arg, subs).ConsString())
-	}
-
-	return fmt.Sprintf("(%s -> %s)", strings.Join(argStrs, " "), LookupVar(baseFun.Ret, subs).ConsString())
-}
 
 func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Constrainable {
 	switch cons := check.(type) {
@@ -37,10 +13,18 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 		if cons == old {
 			return new
 		}
-	case Container:
-		if cons.Subtype == old {
-			return Container{cons.Type, new, cons.Index}
+	case Fun:
+		for i, arg := range cons.Args {
+			cons.Args[i] = ReplaceCons(arg, old, new)
 		}
+		cons.Ret = ReplaceCons(cons.Ret, old, new)
+		return cons
+	case Container:
+		_, isIndexer := new.(Indexer)
+		if isIndexer {
+			return cons.Subtype
+		}
+		return Container{cons.Type, ReplaceCons(cons.Subtype, old, new), cons.Index}
 	}
 
 	return check
@@ -61,14 +45,10 @@ func Unify(constraints []Constraint, subs Subs, curr int) Subs {
 	}
 	currCons := constraints[curr]
 
-	if currCons.Left == currCons.Right {
-		constraints[curr] = Constraint{}
-		return Unify(constraints, subs, curr+1)
-	}
-
 	leftBase, isLeftBase := currCons.Left.(BaseType)
 	rightBase, isRightBase := currCons.Right.(BaseType)
 
+	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
 		panic("Type inference failed, base types not equal")
 	}
@@ -83,17 +63,52 @@ func Unify(constraints []Constraint, subs Subs, curr int) Subs {
 		return Unify(constraints, subs, curr+1)
 	}
 
+	// Unify type vars
 	rightVar, rightIsVar := currCons.Right.(TypeVar)
 	leftVar, leftIsVar := currCons.Left.(TypeVar)
+	if rightIsVar && leftIsVar && currCons.Left == currCons.Right {
+		constraints[curr] = Constraint{}
+		return Unify(constraints, subs, curr+1)
+	}
 	if rightIsVar && leftIsVar {
 		subs[currCons.Left] = rightVar
 		ReplaceAllCons(constraints, leftVar, rightVar)
 		return Unify(constraints, subs, curr+1)
 	}
+	if rightIsVar && !leftIsVar {
+		constraints[curr] = Constraint{currCons.Right, currCons.Left}
+		return Unify(constraints, subs, curr)
+	}
 
-	_, isContainer := currCons.Right.(Container)
-	if leftIsVar && isContainer {
-		// Don't need to do anything special to containers
+	rightFun, rightIsFun := currCons.Right.(Fun)
+	leftFun, leftIsFun := currCons.Left.(Fun)
+	if rightIsFun && leftIsFun {
+		if len(rightFun.Args) != len(leftFun.Args) {
+			panic("Unified functions don't have equal arg counts")
+		}
+		for k, arg := range leftFun.Args {
+			constraints = append(constraints, Constraint{arg, rightFun.Args[k]})
+		}
+		constraints = append(constraints, Constraint{leftFun.Ret, rightFun.Ret})
+		return Unify(constraints, subs, curr+1)
+	}
+	if rightIsFun && !leftIsFun {
+		subs[currCons.Left] = rightFun
+		ReplaceAllCons(constraints, currCons.Left, rightFun)
+		return Unify(constraints, subs, curr+1)
+	}
+
+	// Unify containers
+	rightContainer, isRightContainer := currCons.Right.(Container)
+	if leftIsVar && isRightContainer {
+		subs[currCons.Left] = rightContainer
+		ReplaceAllCons(constraints, leftVar, rightContainer)
+		return Unify(constraints, subs, curr+1)
+	}
+
+	rightIndexer, isRightIndexer := currCons.Right.(Indexer)
+	if leftIsVar && isRightIndexer {
+		ReplaceAllCons(constraints, leftVar, rightIndexer)
 		return Unify(constraints, subs, curr+1)
 	}
 

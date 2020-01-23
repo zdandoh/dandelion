@@ -403,3 +403,20 @@ func HashNode(node Node) NodeHash {
 	hash := sha256.New()
 	return NodeHash(hex.EncodeToString(hash.Sum(nodeBytes)))
 }
+
+func Statement(node Node) bool {
+	switch node.(type) {
+	case *Assign:
+		return true
+	case *ReturnExp:
+		return true
+	case *YieldExp:
+		return true
+	case *If:
+		return true
+	case *While:
+		return true
+	}
+
+	return false
+}

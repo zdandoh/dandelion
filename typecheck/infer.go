@@ -4,6 +4,7 @@ import (
 	"ahead/ast"
 	"ahead/types"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -61,9 +62,18 @@ func (c Container) ConsString() string {
 	return fmt.Sprintf("container<%v>[%v]", c.Type.TypeString(), c.Subtype.ConsString())
 }
 
+type Indexer struct {
+	Index  int
+	Target TypeVar
+}
+
+func (i Indexer) ConsString() string {
+	return fmt.Sprintf("%v[%d]", i.Target, i.Index)
+}
+
 type Fun struct {
-	Args []TypeVar
-	Ret  TypeVar
+	Args []Constrainable
+	Ret  Constrainable
 }
 
 func (t Fun) ConsString() string {
@@ -84,7 +94,6 @@ func DebugInfer(more ...interface{}) {
 type TypeInferer struct {
 	TypeNo       TypeVar
 	Subexps      []ast.Node
-	Subtypes     map[TypeVar][]TypeVar
 	HashToType   map[ast.NodeHash]TypeVar
 	TypeToNode   map[TypeVar]ast.Node
 	Constraints  []Constraint
@@ -100,7 +109,6 @@ func NewTypeInferer() *TypeInferer {
 	newInf.FunLookup = make(map[string]Fun)
 	newInf.FunDefLookup = make(map[*ast.FunDef]Fun)
 	newInf.TypeToNode = make(map[TypeVar]ast.Node)
-	newInf.Subtypes = make(map[TypeVar][]TypeVar)
 
 	return newInf
 }
@@ -136,11 +144,22 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 }
 
 func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
+	DebugInfer("--- SUBS ---")
+	for k, v := range subs {
+		fmt.Println(k.ConsString(), "->", v.ConsString())
+	}
+
 	finalTypes := make(map[ast.NodeHash]types.Type)
 	DebugInfer("--- FINAL TYPES ---")
 
 	for _, subExp := range i.Subexps {
+		if ast.Statement(subExp) {
+			finalTypes[ast.HashNode(subExp)] = types.NullType{}
+			continue
+		}
+
 		initialVar := i.GetTypeVar(subExp)
+		fmt.Println("Resolving", subExp)
 		resolvedType := i.ResolveType(initialVar, subs)
 
 		finalTypes[ast.HashNode(subExp)] = resolvedType
@@ -159,41 +178,45 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 	return finalTypes
 }
 
-func (i *TypeInferer) ResolveType(typeVar TypeVar, subs Subs) types.Type {
-	finalVar := LookupVar(typeVar, subs)
-	baseType, isBaseType := finalVar.(BaseType)
-	if isBaseType {
-		return baseType.Type
-	}
-
-	finalTVar := finalVar.(TypeVar)
-	sourceNode := i.TypeToNode[finalTVar]
-
-	switch node := sourceNode.(type) {
-	case *ast.FunDef:
+func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type {
+	switch cons := consItem.(type) {
+	case BaseType:
+		return cons.Type
+	case TypeVar:
+		nextCons, ok := subs[cons]
+		if !ok {
+			// Terminates at a type variable
+			return types.AnyType{}
+		}
+		return i.ResolveType(nextCons, subs)
+	case Fun:
 		funType := types.FuncType{}
-		for _, arg := range node.Args {
-			argType := i.ResolveType(i.GetTypeVar(arg), subs)
+		for _, arg := range cons.Args {
+			argType := i.ResolveType(arg, subs)
 			funType.ArgTypes = append(funType.ArgTypes, argType)
 		}
-		funType.RetType = i.ResolveType(i.FunDefLookup[node].Ret, subs)
+		funType.RetType = i.ResolveType(cons.Ret, subs)
 		return funType
-	case *ast.ArrayLiteral:
-		listType := types.ArrayType{}
-		subTypevar := i.GetSubtype(node, 0)
-		subType := i.ResolveType(subTypevar, subs)
-		listType.Subtype = subType
-		return listType
-	case *ast.TupleLiteral:
-		tupleType := types.TupleType{}
-		tupleLen := i.CountSubtypes(node)
-		for k := 0; k < tupleLen; k++ {
-			subTypevar := i.GetSubtype(node, k)
-			subType := i.ResolveType(subTypevar, subs)
-			tupleType.Types = append(tupleType.Types, subType)
-		}
-
-		return tupleType
+	default:
+		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
+		//case *ast.ArrayLiteral:
+		//	fmt.Println(subs)
+		//	os.Exit(1)
+		//	listType := types.ArrayType{types.NullType{}}
+		//	subTypevar := i.GetSubtype(node, 0)
+		//	subType := i.ResolveType(subTypevar, subs)
+		//	listType.Subtype = subType
+		//	return listType
+		//case *ast.TupleLiteral:
+		//	tupleType := types.TupleType{}
+		//	tupleLen := i.CountSubtypes(node)
+		//	for k := 0; k < tupleLen; k++ {
+		//		subTypevar := i.GetSubtype(node, k)
+		//		subType := i.ResolveType(subTypevar, subs)
+		//		tupleType.Types = append(tupleType.Types, subType)
+		//	}
+		//
+		//	return tupleType
 	}
 
 	return types.NullType{}
@@ -246,34 +269,6 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	}
 }
 
-func (i *TypeInferer) CountSubtypes(astNode ast.Node) int {
-	return len(i.Subtypes[i.GetTypeVar(astNode)])
-}
-
-func (i *TypeInferer) GetSubtype(astNode ast.Node, index int) TypeVar {
-	typeVar := i.GetTypeVar(astNode)
-	subtypeArr, ok := i.Subtypes[typeVar]
-	if !ok {
-		subtypeArr = make([]TypeVar, 0)
-		i.Subtypes[typeVar] = subtypeArr
-	}
-
-	if index > len(subtypeArr) || index < 0 {
-		panic(fmt.Sprintf("Asking for bad subtype index %d of '%v'", index, astNode))
-	}
-
-	var subtype TypeVar
-	if len(subtypeArr) > index {
-		subtype = subtypeArr[index]
-	} else {
-		subtype = i.NewTypeVar()
-		subtypeArr = append(subtypeArr, subtype)
-		i.Subtypes[typeVar] = subtypeArr
-	}
-
-	return subtype
-}
-
 func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	DebugInfer("--- ORDERED SUBEXPS ---")
 	for _, astNode := range i.Subexps {
@@ -285,15 +280,18 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	for fName, funDef := range prog.Funcs {
 		fIdent := &ast.Ident{fName}
 		baseFun := i.FunLookup[fName]
-		i.AddCons(Constraint{i.GetTypeVar(fIdent), i.GetTypeVar(funDef)}) // Constraint to assign variable name to actual function
+
+		// Constraint to assign variable name to actual function def
+		i.AddCons(Constraint{i.GetTypeVar(fIdent), baseFun})
+		i.AddCons(Constraint{i.GetTypeVar(fIdent), i.GetTypeVar(funDef)})
 
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
-			i.AddCons(Constraint{i.GetTypeVar(fIdent), BaseType{*funDef.TypeHint}})
-			for argNo, arg := range funDef.Args {
-				i.AddCons(Constraint{i.GetTypeVar(arg), BaseType{funDef.TypeHint.ArgTypes[argNo]}})
-			}
-			i.AddCons(Constraint{i.GetTypeVar(baseFun.Ret), BaseType{funDef.TypeHint.RetType}})
+			//i.AddCons(Constraint{i.GetTypeVar(fIdent), BaseType{*funDef.TypeHint}})
+			//for argNo, arg := range funDef.Args {
+			//	i.AddCons(Constraint{i.GetTypeVar(arg), BaseType{funDef.TypeHint.ArgTypes[argNo]}})
+			//}
+			i.AddCons(Constraint{baseFun.Ret, BaseType{funDef.TypeHint.RetType}})
 		}
 
 		// Check if function has a non-return last line. If so, setup inference for that line.
@@ -337,52 +335,44 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			} else {
 				i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 			}
-
-			// Copy any constraint generating metadata to new bindings
-			_, isSlice := node.Target.(*ast.SliceNode)
-			if !isSlice {
-				subarr, ok := i.Subtypes[i.GetTypeVar(node.Expr)]
-				if ok {
-					i.Subtypes[i.GetTypeVar(node.Target)] = subarr
-				}
-			}
 		case *ast.FunApp:
+			newFun := Fun{}
+			for _, arg := range node.Args {
+				newFun.Args = append(newFun.Args, i.GetTypeVar(arg))
+			}
+			newFun.Ret = i.NewTypeVar()
+
+			i.AddCons(Constraint{i.GetTypeVar(node.Fun), newFun})
+			i.AddCons(Constraint{typeVar, newFun.Ret})
+
 			baseFun, ok := i.FunLookup[node.Fun.(*ast.Ident).Value]
 			if !ok {
-				// Not a 'global' level function definition. We can't use an application for inference
+				// Not a 'global' level function definition. We can't use additional inference rules
 				break
 			}
 
-			newFun := Fun{}
-			for k, arg := range node.Args {
-				i.AddCons(Constraint{i.GetTypeVar(arg), baseFun.Args[k]})
-				newFun.Args = append(newFun.Args, i.GetTypeVar(arg))
-			}
-			i.AddCons(Constraint{i.GetTypeVar(node), baseFun.Ret})
-			newFun.Ret = i.GetTypeVar(node)
-
-			fmt.Println(baseFun.ConsString(), "=", newFun.ConsString())
+			i.AddCons(Constraint{typeVar, baseFun.Ret})
+			i.AddCons(Constraint{baseFun, newFun})
 		case *ast.Ident:
 		// Identifiers don't add any additional constraints
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
+			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
 		case *ast.ArrayLiteral:
-			subtypeVar := i.GetSubtype(node, 0)
+			subtypeVar := i.NewTypeVar()
 			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0}})
 			if len(node.Exprs) > 0 {
 				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
 			}
 		case *ast.TupleLiteral:
-			dummyTupleType := types.TupleType{[]types.Type{}}
-			for k, exp := range node.Exprs {
-				subtypeVar := i.GetSubtype(node, k)
-				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(exp)})
-				i.AddCons(Constraint{typeVar, Container{dummyTupleType, subtypeVar, k}})
-			}
+			//dummyTupleType := types.TupleType{[]types.Type{}}
+			//for k, exp := range node.Exprs {
+			//	subtypeVar := i.GetSubtype(node, k)
+			//	i.AddCons(Constraint{subtypeVar, i.GetTypeVar(exp)})
+			//	i.AddCons(Constraint{typeVar, Container{dummyTupleType, subtypeVar, k}})
+			//}
 		case *ast.SliceNode:
-			subTypevar := i.GetSubtype(i.GetTypeVar(node), 0)
-			i.AddCons(Constraint{typeVar, subTypevar})
-			fmt.Println(node, "->", subTypevar)
+			i.AddCons(Constraint{typeVar, Indexer{0, i.GetTypeVar(node.Arr)}})
 		}
 	}
 
