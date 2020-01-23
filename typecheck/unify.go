@@ -20,10 +20,6 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 		cons.Ret = ReplaceCons(cons.Ret, old, new)
 		return cons
 	case Container:
-		_, isIndexer := new.(Indexer)
-		if isIndexer {
-			return cons.Subtype
-		}
 		return Container{cons.Type, ReplaceCons(cons.Subtype, old, new), cons.Index}
 	}
 
@@ -100,15 +96,23 @@ func Unify(constraints []Constraint, subs Subs, curr int) Subs {
 
 	// Unify containers
 	rightContainer, isRightContainer := currCons.Right.(Container)
+	leftContainer, isLeftContainer := currCons.Left.(Container)
 	if leftIsVar && isRightContainer {
 		subs[currCons.Left] = rightContainer
 		ReplaceAllCons(constraints, leftVar, rightContainer)
 		return Unify(constraints, subs, curr+1)
 	}
-
-	rightIndexer, isRightIndexer := currCons.Right.(Indexer)
-	if leftIsVar && isRightIndexer {
-		ReplaceAllCons(constraints, leftVar, rightIndexer)
+	if isLeftContainer && isRightContainer {
+		//var realType types.Type
+		//nullT := types.NullType{}
+		//if rightContainer.Type != nullT {
+		//	realType = rightContainer.Type
+		//} else if leftContainer.Type != nullT {
+		//	realType = leftContainer.Type
+		//} else {
+		//	panic("Neither container in unification has a concrete type")
+		//}
+		constraints = append(constraints, Constraint{leftContainer.Subtype, rightContainer.Subtype})
 		return Unify(constraints, subs, curr+1)
 	}
 

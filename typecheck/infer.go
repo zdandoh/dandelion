@@ -62,15 +62,6 @@ func (c Container) ConsString() string {
 	return fmt.Sprintf("container<%v>[%v]", c.Type.TypeString(), c.Subtype.ConsString())
 }
 
-type Indexer struct {
-	Index  int
-	Target TypeVar
-}
-
-func (i Indexer) ConsString() string {
-	return fmt.Sprintf("%v[%d]", i.Target, i.Index)
-}
-
 type Fun struct {
 	Args []Constrainable
 	Ret  Constrainable
@@ -197,26 +188,17 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		}
 		funType.RetType = i.ResolveType(cons.Ret, subs)
 		return funType
+	case Container:
+		switch cons.Type.(type) {
+		case types.ArrayType:
+			listType := types.ArrayType{}
+			listType.Subtype = i.ResolveType(cons.Subtype, subs)
+			return listType
+		case types.TupleType:
+
+		}
 	default:
 		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
-		//case *ast.ArrayLiteral:
-		//	fmt.Println(subs)
-		//	os.Exit(1)
-		//	listType := types.ArrayType{types.NullType{}}
-		//	subTypevar := i.GetSubtype(node, 0)
-		//	subType := i.ResolveType(subTypevar, subs)
-		//	listType.Subtype = subType
-		//	return listType
-		//case *ast.TupleLiteral:
-		//	tupleType := types.TupleType{}
-		//	tupleLen := i.CountSubtypes(node)
-		//	for k := 0; k < tupleLen; k++ {
-		//		subTypevar := i.GetSubtype(node, k)
-		//		subType := i.ResolveType(subTypevar, subs)
-		//		tupleType.Types = append(tupleType.Types, subType)
-		//	}
-		//
-		//	return tupleType
 	}
 
 	return types.NullType{}
@@ -372,7 +354,9 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			//	i.AddCons(Constraint{typeVar, Container{dummyTupleType, subtypeVar, k}})
 			//}
 		case *ast.SliceNode:
-			i.AddCons(Constraint{typeVar, Indexer{0, i.GetTypeVar(node.Arr)}})
+			subtypeVar := i.NewTypeVar()
+			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, 0}})
+			i.AddCons(Constraint{typeVar, subtypeVar})
 		}
 	}
 
