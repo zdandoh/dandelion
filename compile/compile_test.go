@@ -389,6 +389,49 @@ return 3 + 4;
 	}
 }
 
+func TestFuncTupleInfer(t *testing.T) {
+	src := `
+fun = f(x) {
+	(x, 4, "string");
+};
+
+return fun("string")[1];
+`
+
+	if !CompileCheckExit(src, 4) {
+		t.Fail()
+	}
+}
+
+func TestInferArrSlice(t *testing.T) {
+	src := `
+arr = [1, 2, 3, 4, 5];
+arr[2] = 90;
+ret = arr[2] + arr[3];
+return ret;
+`
+
+	if !CompileCheckExit(src, 94) {
+		t.Fail()
+	}
+}
+
+func TestAmbiguousInfer(t *testing.T) {
+	src := `
+fun = f(x) {
+	x[3] = 7;
+	x;
+};
+
+arr = [1, 2, 3, 4, 5];
+return fun(arr)[3];
+`
+
+	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
 func TestClosure(t *testing.T) {
 	src := `
 x = 56;

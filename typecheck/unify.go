@@ -185,18 +185,22 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	if isLeftContainer && isRightContainer {
 		nullT := types.NullType{}
 
-		var new Constrainable
+		var newCon Constrainable
 		var old Constrainable
 		if rightContainer.Type != nullT {
 			u.ReplaceAllCons(leftContainer, rightContainer)
-			new = rightContainer
+			newCon = rightContainer
 			old = leftContainer
 		} else if leftContainer.Type != nullT {
 			u.ReplaceAllCons(rightContainer, leftContainer)
-			new = leftContainer
+			newCon = leftContainer
 			old = rightContainer
 		}
-		u.subs[old] = new
+
+		// Only do a replacement if one of them had a more concrete type
+		if old != nil && newCon != nil {
+			u.subs[old] = newCon
+		}
 
 		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightContainer.Subtype})
 		return nil
