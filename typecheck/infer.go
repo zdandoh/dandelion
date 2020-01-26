@@ -4,6 +4,7 @@ import (
 	"ahead/ast"
 	"ahead/types"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -27,6 +28,10 @@ func (t TypeVar) ConsString() string {
 type Constraint struct {
 	Left  Constrainable
 	Right Constrainable
+}
+
+func (c Constraint) String() string {
+	return fmt.Sprintf("%s = %s", c.Left.ConsString(), c.Right.ConsString())
 }
 
 type BaseType struct {
@@ -59,7 +64,19 @@ type Container struct {
 }
 
 func (c Container) ConsString() string {
-	return fmt.Sprintf("container<%v>[%v]", c.Type.TypeString(), c.Subtype.ConsString())
+	return fmt.Sprintf("container<%v>[%v]#%d", c.Type.TypeString(), c.Subtype.ConsString(), c.Index)
+}
+
+type Tup struct {
+	Subtypes []Constrainable
+}
+
+func (t Tup) ConsString() string {
+	subStrings := make([]string, 0)
+	for _, sub := range t.Subtypes {
+		subStrings = append(subStrings, sub.ConsString())
+	}
+	return fmt.Sprintf("(%s)", strings.Join(subStrings, ", "))
 }
 
 type Fun struct {
@@ -130,7 +147,19 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 	}
 
 	infer.CreateConstraints(prog)
-	subs := Unify(infer.Constraints, make(map[Constrainable]Constrainable), 0)
+
+	unifier := NewUnifier(infer.Constraints)
+	subs, err := unifier.UnifyAll()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	DebugInfer("------ FINAL CONSTRAINTS ------")
+	for _, c := range infer.Constraints {
+		DebugInfer(c.Left.ConsString(), "=", c.Right.ConsString())
+	}
+
 	return infer.ConstructTypes(subs)
 }
 
@@ -194,9 +223,22 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 			listType := types.ArrayType{}
 			listType.Subtype = i.ResolveType(cons.Subtype, subs)
 			return listType
-		case types.TupleType:
+		case types.NullType:
+			nextCont, ok := subs[cons]
+			if !ok {
+				return types.NullType{}
+			}
 
+			return i.ResolveType(nextCont, subs)
 		}
+	case Tup:
+		tupType := types.TupleType{}
+		for _, sub := range cons.Subtypes {
+			tupType.Types = append(tupType.Types, i.ResolveType(sub, subs))
+		}
+
+		return tupType
+
 	default:
 		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
 	}
@@ -347,21 +389,27 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
 			}
 		case *ast.TupleLiteral:
-			//dummyTupleType := types.TupleType{[]types.Type{}}
-			//for k, exp := range node.Exprs {
-			//	subtypeVar := i.GetSubtype(node, k)
-			//	i.AddCons(Constraint{subtypeVar, i.GetTypeVar(exp)})
-			//	i.AddCons(Constraint{typeVar, Container{dummyTupleType, subtypeVar, k}})
-			//}
+			tup := Tup{}
+			for _, exp := range node.Exprs {
+				expSubtype := i.GetTypeVar(exp)
+				tup.Subtypes = append(tup.Subtypes, expSubtype)
+			}
+			i.AddCons(Constraint{typeVar, tup})
 		case *ast.SliceNode:
+			index := -1
+			indexNode, isIndexNum := node.Index.(*ast.Num)
+			if isIndexNum {
+				index = int(indexNode.Value)
+			}
+
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, 0}})
+			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index}})
 			i.AddCons(Constraint{typeVar, subtypeVar})
 		}
 	}
 
 	DebugInfer("------ CONSTRAINTS ------")
 	for _, c := range i.Constraints {
-		DebugInfer(c.Left, "=", c.Right.ConsString())
+		DebugInfer(c.Left.ConsString(), "=", c.Right.ConsString())
 	}
 }

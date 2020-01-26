@@ -129,3 +129,42 @@ type AnyType struct {
 func (f AnyType) TypeString() string {
 	return "any"
 }
+
+func Equals(t1 Type, t2 Type) bool {
+	switch ty := t1.(type) {
+	case FuncType:
+		other, same := t2.(FuncType)
+		if same && Equals(ty.RetType, other.RetType) && len(ty.ArgTypes) == len(ty.ArgTypes) {
+			for k, arg := range ty.ArgTypes {
+				if !Equals(arg, other.ArgTypes[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	case ArrayType:
+		other, same := t2.(ArrayType)
+		if same && Equals(ty.Subtype, other.Subtype) {
+			return true
+		}
+		return false
+	case TupleType:
+		other, same := t2.(TupleType)
+		if same && len(ty.Types) == len(other.Types) {
+			for k, sub := range ty.Types {
+				if !Equals(sub, other.Types[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+
+	if t1 == t2 {
+		return true
+	}
+
+	return false
+}

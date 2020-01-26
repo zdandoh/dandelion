@@ -255,16 +255,30 @@ return x[2];
 	}
 }
 
+func TestReturnArr(t *testing.T) {
+	src := `
+fun = f() {
+	[1, 2, 3, 4, 5];
+};
+arr = fun();
+return arr[3];
+`
+
+	if !CompileCheckExit(src, 4) {
+		t.Fail()
+	}
+}
+
 func TestTupleFunc(t *testing.T) {
 	src := `
-fun = f(int x) (int, int, string) {
+fun = f() {
 	(3, 4, "data");
 };
 
-return fun(111)[0];
+return fun()[1];
 `
 
-	if !CompileCheckExit(src, 3) {
+	if !CompileCheckExit(src, 4) {
 		t.Fail()
 	}
 }
