@@ -219,6 +219,30 @@ return fun(Line("some data", 7));
 	}
 }
 
+func TestInferStructChoice(t *testing.T) {
+	src := `
+struct Line {
+	string value;
+	int num;
+};
+
+struct Pie {
+	string value;
+	int flavor;
+};
+
+fun = f(x) {
+	x.value;
+	x.flavor;
+};
+return 3;
+`
+
+	if !CompileCheckExit(src, 3) {
+		t.Fail()
+	}
+}
+
 func TestAnonStruct(t *testing.T) {
 	src := `
 l1 = struct {

@@ -120,7 +120,7 @@ func (f StructType) TypeString() string {
 	for _, member := range f.MemberTypes {
 		memberTypes = append(memberTypes, member.TypeString())
 	}
-	return "struct{" + strings.Join(memberTypes, ", ") + "}"
+	return "struct{" + strings.Join(memberTypes, ", ") + "}#" + f.Name
 }
 
 type AnyType struct {
@@ -165,6 +165,7 @@ func Equals(t1 Type, t2 Type) bool {
 		if same && other.Name == ty.Name {
 			return true
 		}
+		return false
 	}
 
 	if t1 == t2 {

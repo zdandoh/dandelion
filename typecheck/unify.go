@@ -125,6 +125,13 @@ func (u *Unifier) ReplaceAllCons(old Constrainable, new Constrainable) {
 	}
 }
 
+// TODO stop using this. Create a more advanced container for subs that allows holding unhashable types
+func (u *Unifier) ReplaceAllSubs(old Constrainable, new Constrainable) {
+	for con1, con2 := range u.subs {
+		u.subs[con1] = ReplaceCons(con2, old, new)
+	}
+}
+
 func (u *Unifier) UnifyAll() (Subs, error) {
 	for i := 0; i < len(u.cons); i++ {
 		err := u.Unify(u.cons[i])
@@ -295,6 +302,36 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		}
 		u.subs[leftVar] = newItem
 		return nil
+	}
+	if isLeftStructOpt && isRightStructOpt {
+		intersectStructs := make([]types.Type, 0)
+		for _, lType := range leftStructOpt.Types {
+			for _, rType := range rightStructOpt.Types {
+				if types.Equals(lType, rType) {
+					intersectStructs = append(intersectStructs, lType)
+				}
+			}
+		}
+
+		allDeps := make(map[TypeVar]string)
+		for k, v := range leftStructOpt.Dependants {
+			allDeps[k] = v
+		}
+		for k, v := range rightStructOpt.Dependants {
+			allDeps[k] = v
+		}
+
+		newOpt := StructOptions{intersectStructs, allDeps}
+		finalRepl, err := u.resolveStructOpt(leftStructOpt, newOpt)
+		u.ReplaceAllSubs(leftStructOpt, finalRepl)
+		if err != nil {
+			return err
+		}
+
+		finalRepl, err = u.resolveStructOpt(rightStructOpt, newOpt)
+		u.ReplaceAllSubs(rightStructOpt, finalRepl)
+
+		return err
 	}
 
 	return errors.Errorf("unable to unify '%v' and '%v'", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right))
