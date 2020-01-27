@@ -448,7 +448,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(node.Target)
 
-		structOffset := node.TargetType.Offset(node.Field.(*ast.Ident).Value)
+		structType := c.GetType(node.Target).(types.StructType)
+		structOffset := structType.Offset(node.Field.(*ast.Ident).Value)
 		memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
 		retVal = c.currBlock.NewLoad(memberPtr)
 	default:
@@ -491,8 +492,9 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		structPtr := c.CompileNode(target.Target)
 		expPtr := c.CompileNode(node.Expr)
 
-		offset := target.TargetType.Offset(target.Field.(*ast.Ident).Value)
-		destPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(offset)))
+		structType := c.GetType(target.Target).(types.StructType)
+		structOffset := structType.Offset(target.Field.(*ast.Ident).Value)
+		destPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(structOffset)))
 		c.currBlock.NewStore(expPtr, destPtr)
 	}
 

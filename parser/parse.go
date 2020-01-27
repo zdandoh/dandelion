@@ -21,6 +21,7 @@ type calcListener struct {
 	mainFunc   *ast.FunDef
 	typeStack  *TypeStack
 	structNo   int
+	emptyArrNo int
 }
 
 const Debug = true
@@ -141,6 +142,10 @@ func (l *calcListener) PopStructDef() *ast.StructDef {
 	newStruct := &ast.StructDef{}
 	for _, member := range block.Lines {
 		newStruct.Members = append(newStruct.Members, member.(*ast.StructMember))
+	}
+	for _, member := range newStruct.Members {
+		newStruct.Type.MemberNames = append(newStruct.Type.MemberNames, member.Name.Value)
+		newStruct.Type.MemberTypes = append(newStruct.Type.MemberTypes, member.Type)
 	}
 
 	return newStruct
@@ -467,6 +472,13 @@ func (l *calcListener) ExitArray(c *parser.ArrayContext) {
 
 	for i := 0; i < newArr.Length; i++ {
 		newArr.Exprs = append([]ast.Node{l.nodeStack.Pop()}, newArr.Exprs...)
+	}
+
+	if len(newArr.Exprs) == 0 {
+		l.emptyArrNo++
+		newArr.EmptyNo = l.emptyArrNo
+	} else {
+		newArr.EmptyNo = -1
 	}
 
 	l.nodeStack.Push(newArr)

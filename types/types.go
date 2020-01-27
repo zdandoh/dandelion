@@ -160,6 +160,11 @@ func Equals(t1 Type, t2 Type) bool {
 			return true
 		}
 		return false
+	case StructType:
+		other, same := t2.(StructType)
+		if same && other.Name == ty.Name {
+			return true
+		}
 	}
 
 	if t1 == t2 {

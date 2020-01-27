@@ -193,9 +193,8 @@ func (n *StructInstance) String() string {
 }
 
 type StructAccess struct {
-	Field      Node // Must be ident
-	Target     Node
-	TargetType types.StructType
+	Field  Node // Must be ident
+	Target Node
 }
 
 func (n *StructAccess) String() string {
@@ -273,6 +272,9 @@ func (n *CompNode) LLPred() enum.IPred {
 type ArrayLiteral struct {
 	Length int
 	Exprs  []Node
+	// Empty arrays are the only ast node that don't have a distinct type. We need to number each empty
+	// array to distinguish them for the type checker.
+	EmptyNo int
 }
 
 func (n *ArrayLiteral) String() string {
@@ -284,6 +286,11 @@ func (n *ArrayLiteral) String() string {
 	}
 
 	arrStr += strings.Join(exprStrings, ", ") + "]"
+
+	if n.EmptyNo > 0 {
+		arrStr += fmt.Sprintf("#%d", n.EmptyNo)
+	}
+
 	return arrStr
 }
 

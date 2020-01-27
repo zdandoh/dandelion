@@ -64,6 +64,23 @@ func Equals(c1 Constrainable, c2 Constrainable) bool {
 			return true
 		}
 		return false
+	case StructOptions:
+		other, same := c2.(StructOptions)
+		if same && len(cons.Dependants) == len(other.Dependants) && len(cons.Types) == len(cons.Types) {
+			for k, v := range cons.Dependants {
+				v2, ok := other.Dependants[k]
+				if !ok || v != v2 {
+					return false
+				}
+			}
+			for k, t := range cons.Types {
+				if !types.Equals(t, other.Types[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
 	default:
 		panic("Unknown constrainable in Equals check")
 	}
@@ -119,6 +136,24 @@ func (u *Unifier) UnifyAll() (Subs, error) {
 	return u.subs, nil
 }
 
+func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Constrainable, error) {
+	var newItem Constrainable = newOpt
+	if len(newOpt.Types) == 0 {
+		return nil, fmt.Errorf("no type satisfies struct constraints")
+	}
+	if len(newOpt.Types) == 1 {
+		// There is only one struct option, add base type constraints
+		structType := newOpt.Types[0].(types.StructType)
+		for depVar, dep := range newOpt.Dependants {
+			u.cons = append(u.cons, Constraint{depVar, BaseType{structType.MemberType(dep)}})
+		}
+		newItem = BaseType{structType}
+	}
+
+	u.ReplaceAllCons(old, newItem)
+	return newItem, nil
+}
+
 func (u *Unifier) Unify(currCons Constraint) error {
 	// Skip same sided vars
 	if Equals(currCons.Left, currCons.Right) {
@@ -128,14 +163,25 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	leftBase, isLeftBase := currCons.Left.(BaseType)
 	rightBase, isRightBase := currCons.Right.(BaseType)
+	rightStructOpt, isRightStructOpt := currCons.Right.(StructOptions)
+	leftStructOpt, isLeftStructOpt := currCons.Left.(StructOptions)
 
 	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
 		return fmt.Errorf("type inference failed, base types not equal")
 	}
 	if isLeftBase {
-		u.subs[currCons.Right] = leftBase
-		u.ReplaceAllCons(currCons.Right, leftBase)
+		return u.Unify(Constraint{currCons.Right, currCons.Left})
+	}
+	if isRightBase && isLeftStructOpt {
+		newOpt := StructOptions{}
+		newOpt.Dependants = leftStructOpt.Dependants
+		newOpt.Types = []types.Type{rightBase.Type}
+		_, err := u.resolveStructOpt(leftStructOpt, newOpt)
+		if err != nil {
+			return err
+		}
+		// I am not sure if this replacement needs to recorded in subs, but it seems like it doesn't
 		return nil
 	}
 	if isRightBase {
@@ -238,6 +284,18 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 
-	fmt.Println(currCons)
+	if rightIsVar && isLeftStructOpt {
+		return u.Unify(Constraint{rightVar, leftStructOpt})
+	}
+	if leftIsVar && isRightStructOpt {
+		u.subs[leftVar] = rightStructOpt
+		newItem, err := u.resolveStructOpt(leftVar, rightStructOpt)
+		if err != nil {
+			return err
+		}
+		u.subs[leftVar] = newItem
+		return nil
+	}
+
 	return errors.Errorf("unable to unify '%v' and '%v'", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right))
 }

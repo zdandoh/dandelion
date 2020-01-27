@@ -79,7 +79,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *StructDef:
 		retVal = &StructDef{Members: node.Members}
 	case *StructAccess:
-		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w), node.TargetType}
+		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w)}
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *ReturnExp:
@@ -89,7 +89,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *CompNode:
 		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w)}
 	case *ArrayLiteral:
-		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w)}
+		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w), node.EmptyNo}
 	case *SliceNode:
 		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w)}
 	case *StrExp:

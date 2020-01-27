@@ -55,6 +55,25 @@ func (t Options) ConsString() string {
 	return fmt.Sprintf("option[%s]", strings.Join(typeStrings, ", "))
 }
 
+type StructOptions struct {
+	Types      []types.Type
+	Dependants map[TypeVar]string
+}
+
+func (o StructOptions) ConsString() string {
+	typeStrings := make([]string, 0)
+	depStrings := make([]string, 0)
+
+	for _, t := range o.Types {
+		typeStrings = append(typeStrings, t.TypeString())
+	}
+	for k, v := range o.Dependants {
+		depStrings = append(depStrings, fmt.Sprintf("%v: %v", k, v))
+	}
+
+	return fmt.Sprintf("struct-options[%s]<%s>", strings.Join(typeStrings, ", "), strings.Join(depStrings, ", "))
+}
+
 var Addable = Options{[]types.Type{types.FloatType{}, types.IntType{}, types.StringType{}}}
 
 type Container struct {
@@ -238,7 +257,6 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		}
 
 		return tupType
-
 	default:
 		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
 	}
@@ -293,6 +311,22 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	}
 }
 
+// TODO complete implementation of this function, won't handle many cases
+func hintToCons(hintType types.Type) Constrainable {
+	switch ty := hintType.(type) {
+	case types.FuncType:
+		fun := Fun{}
+		fun.Ret = hintToCons(ty.RetType)
+		for _, argT := range ty.ArgTypes {
+			fun.Args = append(fun.Args, hintToCons(argT))
+		}
+
+		return fun
+	default:
+		return BaseType{hintType}
+	}
+}
+
 func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	DebugInfer("--- ORDERED SUBEXPS ---")
 	for _, astNode := range i.Subexps {
@@ -311,11 +345,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
-			//i.AddCons(Constraint{i.GetTypeVar(fIdent), BaseType{*funDef.TypeHint}})
-			//for argNo, arg := range funDef.Args {
-			//	i.AddCons(Constraint{i.GetTypeVar(arg), BaseType{funDef.TypeHint.ArgTypes[argNo]}})
-			//}
-			i.AddCons(Constraint{baseFun.Ret, BaseType{funDef.TypeHint.RetType}})
+			i.AddCons(Constraint{i.GetTypeVar(fIdent), hintToCons(*funDef.TypeHint)})
 		}
 
 		// Check if function has a non-return last line. If so, setup inference for that line.
@@ -353,12 +383,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		case *ast.ParenExp:
 			i.AddCons(Constraint{i.GetTypeVar(node), i.GetTypeVar(node.Exp)})
 		case *ast.Assign:
-			if EmptyList(node.Expr) {
-				// This is a special case, the empty list is the only expression that does not have a distinct type,
-				// so we cannot create a standard constraint in this case.
-			} else {
-				i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
-			}
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {
@@ -405,6 +430,19 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			subtypeVar := i.NewTypeVar()
 			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index}})
 			i.AddCons(Constraint{typeVar, subtypeVar})
+		case *ast.StructAccess:
+			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
+			fieldName := node.Field.(*ast.Ident).Value
+			for _, structDef := range prog.Structs {
+				for _, member := range structDef.Members {
+					if member.Name.Value == fieldName {
+						options.Types = append(options.Types, structDef.Type)
+					}
+				}
+			}
+
+			options.Dependants[typeVar] = fieldName
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), options})
 		}
 	}
 

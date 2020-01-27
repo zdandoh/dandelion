@@ -192,10 +192,29 @@ struct Line {
 };
 
 l1 = Line("this is the contents of my line", 3);
+
 return l1.num;
 `
 
 	if !CompileCheckExit(src, 3) {
+		t.Fail()
+	}
+}
+
+func TestInferStruct(t *testing.T) {
+	src := `
+struct Line {
+	string value;
+	int num;
+};
+
+fun = f(x) {
+	x.num;
+};
+return fun(Line("some data", 7));
+`
+
+	if !CompileCheckExit(src, 7) {
 		t.Fail()
 	}
 }
@@ -416,7 +435,7 @@ return ret;
 	}
 }
 
-func TestAmbiguousInfer(t *testing.T) {
+func TestInferArray2(t *testing.T) {
 	src := `
 fun = f(x) {
 	x[3] = 7;
@@ -428,6 +447,22 @@ return fun(arr)[3];
 `
 
 	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
+func TestInferEmptyArray(t *testing.T) {
+	src := `
+empty = [];
+empty[0] = 7;
+
+empty2 = [];
+empty2[0] = "string";
+
+return 3;
+`
+
+	if !CompileCheckExit(src, 3) {
 		t.Fail()
 	}
 }
