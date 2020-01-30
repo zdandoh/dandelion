@@ -363,7 +363,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)
-		if lastLine != nil && !isReturn && !ast.Statement(lastLine) {
+		// Don't try to implicitly return from main
+		if lastLine != nil && !isReturn && fName != "main" {
 			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
 		}
 	}
