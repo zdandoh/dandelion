@@ -3,12 +3,15 @@ package transform
 import (
 	"ahead/ast"
 	"fmt"
+	"strings"
 )
 
 type FuncRemover struct {
 	funcs       map[string]*ast.FunDef
 	nameCounter int
 }
+
+const FunSuffix = "-imp"
 
 // Remove all inline function definitions from the program and add them to the Funcs.
 // Anonymous functions are named fun_<number>
@@ -24,7 +27,7 @@ func RemFuncs(prog *ast.Program) {
 }
 
 func (r *FuncRemover) newFunName() string {
-	name := fmt.Sprintf("fun_%d", r.nameCounter)
+	name := fmt.Sprintf("fun_%d"+FunSuffix, r.nameCounter)
 	r.nameCounter++
 	return name
 }
@@ -38,8 +41,8 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 		targetIdent, isTargetIdent := node.Target.(*ast.Ident)
 		exprFunc, isExprFunc := node.Expr.(*ast.FunDef)
 		if isExprFunc && isTargetIdent {
-			r.funcs[targetIdent.Value] = exprFunc
-			retVal = &ast.LineBundle{}
+			r.funcs[targetIdent.Value+FunSuffix] = exprFunc
+			retVal = &ast.Assign{targetIdent, &ast.Ident{targetIdent.Value + FunSuffix}}
 		}
 	case *ast.FunDef:
 		newName := r.newFunName()
@@ -53,4 +56,8 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 
 func (r *FuncRemover) WalkBlock(block *ast.Block) *ast.Block {
 	return nil
+}
+
+func TrimFunSuffix(fName string) string {
+	return strings.TrimSuffix(fName, FunSuffix)
 }

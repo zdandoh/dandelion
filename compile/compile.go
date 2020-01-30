@@ -140,6 +140,14 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 			params = append(params, newParam)
 		}
 
+		llFunType := c.typeToLLType(c.GetType(fun))
+
+		if name != "main" {
+			globFun := c.mod.NewGlobal(transform.TrimFunSuffix(name), llFunType)
+			globFun.Init = constant.NewNull(llFunType.(*lltypes.PointerType))
+			c.PEnv[transform.TrimFunSuffix(name)] = globFun
+		}
+
 		funPtr := c.mod.NewFunc(name, llRetType, params...)
 		c.FEnv[name] = &CFunc{funPtr, nil, nil}
 	}

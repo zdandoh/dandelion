@@ -45,6 +45,25 @@ return d;
 	}
 }
 
+func TestCallGlobal(t *testing.T) {
+	src := `
+other = f(a) {
+	a + 5;
+};
+
+my_func = f(a, b) {
+	other(a * b);
+};
+
+d = my_func(3, 8);
+return d;
+`
+
+	if !CompileCheckExit(src, 29) {
+		t.Fail()
+	}
+}
+
 func TestCompileFunc2(t *testing.T) {
 	src := `
 fun = f(int a, string b) int {
