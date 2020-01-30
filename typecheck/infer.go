@@ -245,6 +245,14 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		case types.NullType:
 			nextCont, ok := subs[cons]
 			if !ok {
+				// TODO fix this bug in a way that actually makes sense. If a subtype gets replaced, it isn't updated in
+				// Subs, so that array can no longer math a path through subs.
+				subRes := i.ResolveType(cons.Subtype, subs)
+				cons.Subtype = BaseType{subRes}
+				nextCont, ok := subs[cons]
+				if ok {
+					return i.ResolveType(nextCont, subs)
+				}
 				return types.NullType{}
 			}
 
@@ -355,7 +363,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)
-		if lastLine != nil && !isReturn {
+		if lastLine != nil && !isReturn && !ast.Statement(lastLine) {
 			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
 		}
 	}
@@ -384,6 +392,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{i.GetTypeVar(node), i.GetTypeVar(node.Exp)})
 		case *ast.Assign:
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
+			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {
@@ -394,7 +403,13 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{i.GetTypeVar(node.Fun), newFun})
 			i.AddCons(Constraint{typeVar, newFun.Ret})
 
-			baseFun, ok := i.FunLookup[node.Fun.(*ast.Ident).Value]
+			funIdent, ok := node.Fun.(*ast.Ident)
+			if !ok {
+				// Function node isn't a simple identifier, can't use additional inference
+				break
+			}
+
+			baseFun, ok := i.FunLookup[funIdent.Value]
 			if !ok {
 				// Not a 'global' level function definition. We can't use additional inference rules
 				break

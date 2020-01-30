@@ -164,25 +164,30 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		c.PEnv[argName] = argPtr
 	}
 	// Allocate space for return value & setup return block
+	// If the return value is null, return void
 	retType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
-	retPtr := c.currBlock.NewAlloca(retType)
-	cFun.RetPtr = retPtr
 	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
-	cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
+	if !isVoid {
+		retPtr := c.currBlock.NewAlloca(retType)
+		cFun.RetPtr = retPtr
+		cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
+	} else {
+		cFun.RetBlock.NewRet(nil)
+	}
 
 	for lineNo, line := range fun.Body.Lines {
 		if lineNo == 0 && name == "main" {
 			// Store 0 in the main return by default
-			c.currBlock.NewStore(constant.NewInt(IntType, 0), retPtr)
+			c.currBlock.NewStore(constant.NewInt(IntType, 0), cFun.RetPtr)
 		}
 
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
 		// TODO support multiple returns & returns that aren't at the end of the block
-		if lineNo == len(fun.Body.Lines)-1 && !isVoid {
-			if lastVal != nil && name != "main" {
+		if lineNo == len(fun.Body.Lines)-1 {
+			if lastVal != nil && name != "main" && !isVoid {
 				// Only auto-return when it's an expression
-				c.currBlock.NewStore(lastVal, retPtr)
+				c.currBlock.NewStore(lastVal, cFun.RetPtr)
 			}
 			c.currBlock.NewBr(cFun.RetBlock)
 		}

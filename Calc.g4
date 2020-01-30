@@ -7,7 +7,7 @@ start : line+ EOF;
 line: (expr|statement) ';';
 typeline: typed ident=IDENT ';';
 arglist: IDENT (',' IDENT)* (',')?;
-typelist: typed (',' typed)* (',')?;
+typelist: typed? (',' typed)*;
 typed
     : IDENT                                 # BaseType
     | 'f' '(' ftypelist=typelist ')' typed  # TypedFun

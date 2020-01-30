@@ -491,20 +491,90 @@ return 3;
 	}
 }
 
+func TestInferTupleArray(t *testing.T) {
+	src := `
+tup_arr = [(3, 4), (6, 7), (8, 9)];
+return tup_arr[2][0];
+`
+
+	if !CompileCheckExit(src, 8) {
+		t.Fail()
+	}
+}
+
+func TestMutableStruct(t *testing.T) {
+	src := `
+struct Line {
+	int num;
+};
+
+l = Line(45);
+fun = f(stru) {
+	stru.num = 33;
+};
+
+fun(l);
+
+return l.num;
+`
+
+	if !CompileCheckExit(src, 33) {
+		t.Fail()
+	}
+}
+
 func TestClosure(t *testing.T) {
 	src := `
 x = 56;
-fun = f(int one, string two) int {
-	if 1 == 1 {
-		return x;
-	};
-	one;
+fun = f() {
+	x + 1;
 };
 
-return fun(1, "two");
+return fun();
 `
 
-	if !CompileCheckExit(src, 56) {
+	if !CompileCheckExit(src, 57) {
+		t.Fail()
+	}
+}
+
+func TestMethod(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+};
+
+Point.mul = f() {
+	x * y;
+};
+
+p = Point(4, 5);
+p.thing = 
+lol = p.thing();
+return lol;
+`
+
+	if !CompileCheckExit(src, 20) {
+		t.Fail()
+	}
+}
+
+// Doesn't work because type hints aren't quite done
+func TestStructWithFunc(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+	f()int thing;
+};
+
+p = Point(4, 5, f(){5;});
+lol = p.thing();
+return lol;
+`
+
+	if !CompileCheckExit(src, 20) {
 		t.Fail()
 	}
 }
