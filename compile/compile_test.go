@@ -544,15 +544,90 @@ return l.num;
 
 func TestClosure(t *testing.T) {
 	src := `
-x = 56;
+x = 22;
+y = 6;
 fun = f() {
-	x + 1;
+	x + y + 1;
 };
 
 return fun();
 `
 
+	if !CompileCheckExit(src, 29) {
+		t.Fail()
+	}
+}
+
+func TestFancyClosure(t *testing.T) {
+	src := `
+x = 56;
+fun = f() {
+	inner = f() {
+		x + 1;
+	};
+};
+
+out = fun();
+return out();
+`
+
 	if !CompileCheckExit(src, 57) {
+		t.Fail()
+	}
+}
+
+func TestArrClosure(t *testing.T) {
+	src := `
+arr = [1, 2, 3, 4];
+fun = f() {
+	arr[2] = 9;
+};
+
+fun();
+return arr[2];
+`
+
+	if !CompileCheckExit(src, 9) {
+		t.Fail()
+	}
+}
+
+func TestMutableStructClosure(t *testing.T) {
+	src := `
+
+struct Point {
+	int x;
+	int y;
+};
+
+p = Point(45, 21);
+
+fun = f() {
+	p.x = 12;
+};
+
+fun();
+return p.x;
+`
+
+	if !CompileCheckExit(src, 12) {
+		t.Fail()
+	}
+}
+
+func TestMutableNumClosure(t *testing.T) {
+	src := `
+x = 22;
+fun = f() {
+	x + 1;
+	x = 33;
+};
+
+fun();
+return x;
+`
+
+	if !CompileCheckExit(src, 33) {
 		t.Fail()
 	}
 }

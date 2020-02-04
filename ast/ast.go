@@ -171,11 +171,13 @@ func (n *LineBundle) String() string {
 
 type Closure struct {
 	Target  Node
+	ArgTup  Node
+	NewFunc Node
 	Unbound []string
 }
 
 func (n *Closure) String() string {
-	return fmt.Sprintf("<closure of '%s'>", n.Target)
+	return fmt.Sprintf("<closure of '%v'>", n.Target)
 }
 
 type StructInstance struct {

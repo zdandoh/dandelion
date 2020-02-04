@@ -394,6 +394,16 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		case *ast.Assign:
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
 			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+		case *ast.Closure:
+			baseFun := i.FunLookup[node.Target.(*ast.Ident).Value]
+			cloFun := Fun{}
+			for i := 1; i < len(baseFun.Args); i++ {
+				cloFun.Args = append(cloFun.Args, baseFun.Args[0])
+			}
+			cloFun.Ret = baseFun.Ret
+
+			i.AddCons(Constraint{typeVar, cloFun})
+			i.AddCons(Constraint{baseFun.Args[0], i.GetTypeVar(node.ArgTup)})
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {

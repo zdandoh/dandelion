@@ -42,6 +42,7 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 		exprFunc, isExprFunc := node.Expr.(*ast.FunDef)
 		if isExprFunc && isTargetIdent {
 			r.funcs[targetIdent.Value+FunSuffix] = exprFunc
+			r.funcs[targetIdent.Value+FunSuffix].Body = ast.WalkBlock(exprFunc.Body, r)
 			retVal = &ast.Assign{targetIdent, &ast.Ident{targetIdent.Value + FunSuffix}}
 		}
 	case *ast.FunDef:

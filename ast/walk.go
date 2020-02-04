@@ -63,7 +63,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		newBlock := WalkBlock(node.Body, w)
 		retVal = &FunDef{newBlock, walkedArgs, node.TypeHint}
 	case *Closure:
-		retVal = &Closure{WalkAst(node.Target, w), node.Unbound}
+		retVal = &Closure{WalkAst(node.Target, w), WalkAst(node.ArgTup, w), WalkAst(node.NewFunc, w), node.Unbound}
 	case *FunApp:
 		walkedArgs := WalkList(node.Args, w)
 		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}

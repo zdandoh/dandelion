@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type UnboundVars map[string]bool
+type UnboundVars map[string]string
 
 type ClosureExtractor struct {
 	FuncUnbounds map[string]UnboundVars
@@ -20,7 +20,7 @@ type UnboundFinder struct {
 func NewUnboundFinder(funDef *ast.FunDef, prog *ast.Program) *UnboundFinder {
 	f := &UnboundFinder{}
 	f.Defs = make(map[string]bool)
-	f.Unbound = make(map[string]bool)
+	f.Unbound = make(map[string]string)
 
 	for name, _ := range prog.Funcs {
 		f.Defs[name] = true
@@ -41,8 +41,9 @@ func ExtractClosures(prog *ast.Program) {
 	// Collect unbound names for each function
 	for fName, fun := range prog.Funcs {
 		f := NewUnboundFinder(fun, prog)
-		ast.WalkAst(fun, f)
+		prog.Funcs[fName] = ast.WalkAst(fun, f).(*ast.FunDef)
 		c.FuncUnbounds[fName] = f.Unbound
+		fmt.Println(f.Unbound)
 	}
 
 	for i, fun := range prog.Funcs {
@@ -64,7 +65,12 @@ func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.Ident:
 		_, ok := f.Defs[node.Value]
 		if !ok {
-			f.Unbound[node.Value] = true
+			f.Unbound[node.Value] = node.Value + ".unbound"
+		}
+
+		newName, unbound := f.Unbound[node.Value]
+		if unbound {
+			retVal = &ast.Ident{newName}
 		}
 	}
 
@@ -94,33 +100,33 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		// Create closure
 		enclosedFunc := c.Prog.Funcs[ident.Value]
+
 		retLines := &ast.LineBundle{}
-		cloName := fmt.Sprintf("closure.%s", ident)
+		cloName := fmt.Sprintf("clo.%s", ident)
 		tupleName := fmt.Sprintf("%s.tup", cloName)
+		argName := fmt.Sprintf("%s.arg", cloName)
+
+		enclosedFunc.Args = append([]ast.Node{&ast.Ident{argName}}, enclosedFunc.Args...)
 
 		unboundNames := make([]ast.Node, 0)
-		for unboundName, _ := range unboundVals {
+		i := 0
+		for unboundName, newName := range unboundVals {
 			unboundNames = append(unboundNames, &ast.Ident{unboundName})
+			unboundAssign := &ast.Assign{&ast.Ident{newName}, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{argName}}}
+			enclosedFunc.Body.Lines = append([]ast.Node{unboundAssign}, enclosedFunc.Body.Lines...)
+			i++
 		}
 		cloTuple := &ast.TupleLiteral{unboundNames}
 		tupAssign := &ast.Assign{&ast.Ident{tupleName}, cloTuple}
 
+		enclosedFunc.Body.Lines = append(enclosedFunc.Body.Lines)
+
 		retLines.Lines = append(retLines.Lines, tupAssign)
 
-		closingArgs := make([]ast.Node, 0)
-		for _, arg := range enclosedFunc.Args {
-			closingArgs = append(closingArgs, &ast.Ident{arg.(*ast.Ident).Value})
-		}
-		enclosedFunc.Args = append(enclosedFunc.Args, &ast.Ident{tupleName})
-
-		closingFunc := &ast.FunDef{
-			Body:     &ast.Block{[]ast.Node{}},
-			Args:     closingArgs,
-			TypeHint: enclosedFunc.TypeHint,
-		}
-		c.Prog.Funcs[cloName] = closingFunc
 		closure := &ast.Closure{}
 		closure.Target = ident
+		closure.ArgTup = &ast.Ident{tupleName}
+		closure.NewFunc = node.Target
 
 		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, closure})
 		retVal = retLines

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 	"io/ioutil"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"syscall"
 )
 
@@ -46,6 +48,7 @@ var FloatType = lltypes.Float
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
 var AdjustTrampoline value.Value
+var MMap value.Value
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -126,6 +129,15 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		"llvm.adjust.trampoline",
 		lltypes.I8Ptr,
 		ir.NewParam("tramp", lltypes.I8Ptr))
+	MMap = c.mod.NewFunc(
+		"mmap",
+		lltypes.I8Ptr,
+		ir.NewParam("addr", lltypes.I8Ptr),
+		ir.NewParam("length", lltypes.I64),
+		ir.NewParam("prot", lltypes.I32),
+		ir.NewParam("flags", lltypes.I32),
+		ir.NewParam("fd", lltypes.I32),
+		ir.NewParam("offset", lltypes.I64))
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
@@ -137,15 +149,11 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 			argName := fun.Args[i].(*ast.Ident).Value
 			argType := c.typeToLLType(c.GetType(fun.Args[i]))
 			newParam := ir.NewParam(argName, argType)
+			// TODO do a better job of detecting the closure argument
+			if strings.HasSuffix(argName, ".arg") {
+				newParam.Attrs = append(newParam.Attrs, enum.ParamAttrNest)
+			}
 			params = append(params, newParam)
-		}
-
-		llFunType := c.typeToLLType(c.GetType(fun))
-
-		if name != "main" {
-			globFun := c.mod.NewGlobal(transform.TrimFunSuffix(name), llFunType)
-			globFun.Init = constant.NewNull(llFunType.(*lltypes.PointerType))
-			c.PEnv[transform.TrimFunSuffix(name)] = globFun
 		}
 
 		funPtr := c.mod.NewFunc(name, llRetType, params...)
@@ -317,29 +325,27 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.Closure:
-		tupleType := types.TupleType{}
-		tupleIdents := make([]ast.Node, 0)
-		for _, unboundName := range node.Unbound {
-			unboundIdent := &ast.Ident{unboundName}
-			tupleType.Types = append(tupleType.Types, c.GetType(unboundIdent))
-			tupleIdents = append(tupleIdents, &ast.Ident{unboundName})
-		}
-
-		closureTuple := &ast.TupleLiteral{tupleIdents}
-		tuplePtr := c.CompileNode(closureTuple)
-		trampPtr := c.currBlock.NewAlloca(lltypes.NewArray(72, lltypes.I8))
-		trampPtr.Align = ir.Align(4)
+		tuplePtr := c.CompileNode(node.ArgTup)
+		execMem := c.currBlock.NewCall(
+			MMap,
+			constant.NewNull(lltypes.I8Ptr),
+			constant.NewInt(lltypes.I64, 72),
+			constant.NewInt(lltypes.I32, 7),
+			constant.NewInt(lltypes.I32, 34),
+			constant.NewInt(lltypes.I32, 0),
+			constant.NewInt(lltypes.I64, 0),
+		)
 		sourceFuncPtr := c.CompileNode(node.Target)
 
 		// Cast all ptr types
-		trampBytePtr := c.currBlock.NewGetElementPtr(trampPtr, Zero, Zero)
 		sourceFuncBytePtr := c.currBlock.NewBitCast(sourceFuncPtr, lltypes.I8Ptr)
 		tupleBytePtr := c.currBlock.NewBitCast(tuplePtr, lltypes.I8Ptr)
 
-		c.currBlock.NewCall(InitTrampoline, trampBytePtr, sourceFuncBytePtr, tupleBytePtr)
-		adjustedTrampPtr := c.currBlock.NewCall(AdjustTrampoline, trampBytePtr)
+		c.currBlock.NewCall(InitTrampoline, execMem, sourceFuncBytePtr, tupleBytePtr)
+		adjustedTrampPtr := c.currBlock.NewCall(AdjustTrampoline, execMem)
 
-		castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, sourceFuncPtr.Type())
+		newFunType := c.typeToLLType(c.GetType(node.NewFunc))
+		castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, newFunType)
 		retVal = castTrampPtr
 	case *ast.If:
 		prevContinuation := c.currBlock.Term
@@ -494,7 +500,9 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			targetAddr = c.currBlock.NewAlloca(targetLLType)
 			c.PEnv[targetName] = targetAddr
 		}
-		c.currBlock.NewStore(c.CompileNode(node.Expr), targetAddr)
+
+		compiledExpr := c.CompileNode(node.Expr)
+		c.currBlock.NewStore(compiledExpr, targetAddr)
 	case *ast.SliceNode:
 		index := c.CompileNode(target.Index)
 		list := c.CompileNode(target.Arr)
