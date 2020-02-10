@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -579,26 +580,19 @@ func CompileCheckExit(progText string, code int) bool {
 		fmt.Println(err)
 	}
 
-	cmd := exec.Command("lli", "llvm_ir.ll")
-	err = cmd.Start()
+	output, err := exec.Command("bash", "-i", "tester.sh").Output()
 	if err != nil {
+		log.Println(string(output))
 		log.Fatalf(err.Error())
 	}
 
-	exitStatus := 0
-	err = cmd.Wait()
+	outputStr := strings.TrimSpace(string(output))
+	exitCode, err := strconv.Atoi(outputStr)
 	if err != nil {
-		exitCode, ok := err.(*exec.ExitError)
-		if ok {
-			status, ok := exitCode.Sys().(syscall.WaitStatus)
-			if ok {
-				exitStatus = status.ExitStatus()
-			}
-		}
+		log.Fatalln(outputStr, err)
 	}
 
-	fmt.Println("Exit code:", exitStatus)
-	if exitStatus != code {
+	if exitCode != code {
 		return false
 	}
 
