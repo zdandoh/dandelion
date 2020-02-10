@@ -558,17 +558,17 @@ return fun();
 	}
 }
 
-func TestFancyClosure(t *testing.T) {
+func TestPassClosure(t *testing.T) {
 	src := `
 x = 56;
 fun = f() {
-	inner = f() {
-		x + 1;
-	};
+	x + 1;
 };
 
-out = fun();
-return out();
+other = f(take) {
+	take();
+};
+return other(fun);
 `
 
 	if !CompileCheckExit(src, 57) {

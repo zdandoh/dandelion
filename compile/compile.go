@@ -48,7 +48,7 @@ var FloatType = lltypes.Float
 var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
 var AdjustTrampoline value.Value
-var MMap value.Value
+var AllocClo value.Value
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -129,15 +129,9 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		"llvm.adjust.trampoline",
 		lltypes.I8Ptr,
 		ir.NewParam("tramp", lltypes.I8Ptr))
-	MMap = c.mod.NewFunc(
-		"mmap",
-		lltypes.I8Ptr,
-		ir.NewParam("addr", lltypes.I8Ptr),
-		ir.NewParam("length", lltypes.I64),
-		ir.NewParam("prot", lltypes.I32),
-		ir.NewParam("flags", lltypes.I32),
-		ir.NewParam("fd", lltypes.I32),
-		ir.NewParam("offset", lltypes.I64))
+	AllocClo = c.mod.NewFunc(
+		"alloc_clo",
+		lltypes.I8Ptr)
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
@@ -326,15 +320,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
-		execMem := c.currBlock.NewCall(
-			MMap,
-			constant.NewNull(lltypes.I8Ptr),
-			constant.NewInt(lltypes.I64, 72),
-			constant.NewInt(lltypes.I32, 7),
-			constant.NewInt(lltypes.I32, 34),
-			constant.NewInt(lltypes.I32, 0),
-			constant.NewInt(lltypes.I64, 0),
-		)
+		execMem := c.currBlock.NewCall(AllocClo)
 		sourceFuncPtr := c.CompileNode(node.Target)
 
 		// Cast all ptr types
