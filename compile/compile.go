@@ -23,11 +23,33 @@ import (
 	"syscall"
 )
 
+type PointerEnv map[string]map[string]value.Value
+
+func (e PointerEnv) Set(fName string, vName string, val value.Value) {
+	funEnv, ok := e[fName]
+	if !ok {
+		e[fName] = make(map[string]value.Value)
+		funEnv = e[fName]
+	}
+
+	funEnv[vName] = val
+}
+
+func (e PointerEnv) Get(fName string, vName string) (value.Value, bool) {
+	funEnv, ok := e[fName]
+	if !ok {
+		return nil, false
+	}
+
+	val, stillOk := funEnv[vName]
+	return val, stillOk
+}
+
 type Compiler struct {
 	currBlock *ir.Block
 	currFun   *ir.Func
 	mod       *ir.Module
-	PEnv      map[string]value.Value
+	PEnv      PointerEnv
 	Types     map[ast.NodeHash]types.Type
 	FEnv      map[string]*CFunc
 	TypeDefs  map[string]lltypes.Type
@@ -172,7 +194,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		argType := c.typeToLLType(c.GetType(arg))
 		argPtr := c.currBlock.NewAlloca(argType)
 		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
-		c.PEnv[argName] = argPtr
+		c.PEnv.Set(c.currFun.Name(), argName, argPtr)
 	}
 	// Allocate space for return value & setup return block
 	// If the return value is null, return void
@@ -207,7 +229,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 
 func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {
 	c := Compiler{}
-	c.PEnv = make(map[string]value.Value)
+	c.PEnv = make(PointerEnv)
 	c.FEnv = make(map[string]*CFunc)
 	c.TypeDefs = make(map[string]lltypes.Type)
 	c.Types = Types
@@ -298,7 +320,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.currBlock.NewCall(callee, argVals...)
 	case *ast.Ident:
 		inFEnv := false
-		ptr, ok := c.PEnv[node.Value]
+		ptr, ok := c.PEnv.Get(c.currFun.Name(), node.Value)
 		if !ok {
 			var cFun *CFunc
 			cFun, inFEnv = c.FEnv[node.Value]
@@ -476,7 +498,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 	switch target := node.Target.(type) {
 	case *ast.Ident:
 		targetName := target.Value
-		targetAddr, ok := c.PEnv[targetName]
+		targetAddr, ok := c.PEnv.Get(c.currFun.Name(), targetName)
 		if !ok {
 			targetType, ok := c.Types[ast.HashNode(node.Target)]
 			if !ok {
@@ -485,7 +507,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			targetLLType := c.typeToLLType(targetType)
 
 			targetAddr = c.currBlock.NewAlloca(targetLLType)
-			c.PEnv[targetName] = targetAddr
+			c.PEnv.Set(c.currFun.Name(), targetName, targetAddr)
 		}
 
 		compiledExpr := c.CompileNode(node.Expr)
@@ -593,6 +615,7 @@ func CompileCheckExit(progText string, code int) bool {
 	}
 
 	if exitCode != code {
+		log.Println(outputStr)
 		return false
 	}
 

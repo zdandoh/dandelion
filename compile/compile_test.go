@@ -615,6 +615,68 @@ return p.x;
 	}
 }
 
+func TestNestedClosure(t *testing.T) {
+	src := `
+x = 34;
+fun = f() {
+	inner = f() {
+		more = f() {
+			76;
+		};
+
+		hoho = f() {
+			32;
+		};
+
+		x + 1;
+	};
+	inner;
+};
+
+capture = fun();
+return capture();
+`
+
+	if !CompileCheckExit(src, 35) {
+		t.Fail()
+	}
+}
+
+func TestNestedClosure2(t *testing.T) {
+	src := `
+fun = f() {
+	x = 34;
+	inner = f() {
+		x + 1;
+	};
+	inner;
+};
+
+return fun()();
+`
+
+	if !CompileCheckExit(src, 35) {
+		t.Fail()
+	}
+}
+
+func TestNestedClosure3(t *testing.T) {
+	src := `
+fun = f(x) {
+	inner = f() {
+		x + 1;
+	};
+	inner;
+};
+
+return fun(21)() + fun(5)();
+`
+
+	if !CompileCheckExit(src, 28) {
+		t.Fail()
+	}
+}
+
 func TestMutableNumClosure(t *testing.T) {
 	src := `
 x = 22;
@@ -644,7 +706,6 @@ Point.mul = f() {
 };
 
 p = Point(4, 5);
-p.thing = 
 lol = p.thing();
 return lol;
 `

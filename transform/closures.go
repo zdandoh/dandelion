@@ -5,22 +5,24 @@ import (
 	"fmt"
 )
 
-type UnboundVars map[string]string
+type UnboundVars map[string]bool
+type DefinedVars map[string]bool
 
 type ClosureExtractor struct {
 	FuncUnbounds map[string]UnboundVars
+	FuncBounds   map[string]DefinedVars
 	Prog         *ast.Program
 }
 
 type UnboundFinder struct {
-	Defs    map[string]bool
+	Defs    DefinedVars
 	Unbound UnboundVars
 }
 
 func NewUnboundFinder(funDef *ast.FunDef, prog *ast.Program) *UnboundFinder {
 	f := &UnboundFinder{}
-	f.Defs = make(map[string]bool)
-	f.Unbound = make(map[string]string)
+	f.Defs = make(DefinedVars)
+	f.Unbound = make(map[string]bool)
 
 	for name, _ := range prog.Funcs {
 		f.Defs[name] = true
@@ -33,9 +35,10 @@ func NewUnboundFinder(funDef *ast.FunDef, prog *ast.Program) *UnboundFinder {
 	return f
 }
 
-func ExtractClosures(prog *ast.Program) {
+func ExtractClosures(prog *ast.Program, funSources FunSources) {
 	c := &ClosureExtractor{}
 	c.FuncUnbounds = make(map[string]UnboundVars)
+	c.FuncBounds = make(map[string]DefinedVars)
 	c.Prog = prog
 
 	// Collect unbound names for each function
@@ -43,12 +46,33 @@ func ExtractClosures(prog *ast.Program) {
 		f := NewUnboundFinder(fun, prog)
 		prog.Funcs[fName] = ast.WalkAst(fun, f).(*ast.FunDef)
 		c.FuncUnbounds[fName] = f.Unbound
-		fmt.Println(f.Unbound)
+		c.FuncBounds[fName] = f.Defs
 	}
+
+	c.ResolveUnboundDeps("main", funSources)
 
 	for i, fun := range prog.Funcs {
 		prog.Funcs[i] = ast.WalkAst(fun, c).(*ast.FunDef)
 	}
+}
+
+// Parent functions should have all the unbound variables that their children have,
+// as long as those variables aren't bound in the parent. This function makes that happen.
+func (c *ClosureExtractor) ResolveUnboundDeps(fName string, funSources FunSources) UnboundVars {
+	children := funSources.Children(fName)
+	if children != nil {
+		for _, child := range children {
+			childUnbounds := c.ResolveUnboundDeps(child, funSources)
+			for unboundName, _ := range childUnbounds {
+				_, isBoundInParent := c.FuncBounds[fName][unboundName]
+				if !isBoundInParent {
+					c.FuncUnbounds[fName][unboundName] = true
+				}
+			}
+		}
+	}
+
+	return c.FuncUnbounds[fName]
 }
 
 func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
@@ -65,12 +89,7 @@ func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.Ident:
 		_, ok := f.Defs[node.Value]
 		if !ok {
-			f.Unbound[node.Value] = node.Value + ".unbound"
-		}
-
-		newName, unbound := f.Unbound[node.Value]
-		if unbound {
-			retVal = &ast.Ident{newName}
+			f.Unbound[node.Value] = true
 		}
 	}
 
@@ -110,9 +129,9 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		unboundNames := make([]ast.Node, 0)
 		i := 0
-		for unboundName, newName := range unboundVals {
+		for unboundName, _ := range unboundVals {
 			unboundNames = append(unboundNames, &ast.Ident{unboundName})
-			unboundAssign := &ast.Assign{&ast.Ident{newName}, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{argName}}}
+			unboundAssign := &ast.Assign{&ast.Ident{unboundName}, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{argName}}}
 			enclosedFunc.Body.Lines = append([]ast.Node{unboundAssign}, enclosedFunc.Body.Lines...)
 			i++
 		}

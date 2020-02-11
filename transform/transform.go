@@ -7,7 +7,7 @@ import (
 func TransformAst(prog *ast.Program) {
 	RemoveStructs(prog)
 	RenameIdents(prog)
-	RemFuncs(prog)
+	sources := RemFuncs(prog)
 	RemovePipes(prog)
-	ExtractClosures(prog)
+	ExtractClosures(prog, sources)
 }
