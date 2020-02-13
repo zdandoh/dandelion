@@ -514,6 +514,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			targetLLType := c.typeToLLType(targetType)
 
 			targetAddr = c.currBlock.NewAlloca(targetLLType)
+			targetAddr.(value.Named).SetName(targetName)
 			c.PEnv.Set(c.currFun.Name(), targetName, targetAddr)
 		}
 
