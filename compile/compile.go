@@ -203,7 +203,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	if !isVoid {
 		retPtr := c.currBlock.NewAlloca(retType)
 		cFun.RetPtr = retPtr
-		cFun.RetBlock.NewRet(cFun.RetBlock.NewLoad(retPtr))
+		cFun.RetBlock.NewRet(NewLoad(cFun.RetBlock, retPtr))
 	} else {
 		cFun.RetBlock.NewRet(nil)
 	}
@@ -333,7 +333,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		if inFEnv {
 			retVal = ptr
 		} else {
-			retVal = c.currBlock.NewLoad(ptr)
+			retVal = NewLoad(c.currBlock, ptr)
 		}
 	case *ast.CompNode:
 		retVal = c.currBlock.NewICmp(node.LLPred(), c.CompileNode(node.Left), c.CompileNode(node.Right))
@@ -398,12 +398,12 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		constArr := c.mod.NewGlobalDef(c.getLabel("strconst"), constant.NewCharArrayFromString(node.Value))
 
 		// Store string length
-		lenPtr := c.currBlock.NewGetElementPtr(strPtr, Zero, Zero)
+		lenPtr := NewGetElementPtr(c.currBlock, strPtr, Zero, Zero)
 		c.currBlock.NewStore(constant.NewInt(lltypes.I64, int64(len(node.Value))), lenPtr)
 
 		// Store actual string pointer
-		charPtr := c.currBlock.NewGetElementPtr(constArr, Zero, Zero)
-		charPtrDest := c.currBlock.NewGetElementPtr(strPtr, Zero, constant.NewInt(IntType, 1))
+		charPtr := NewGetElementPtr(c.currBlock, constArr, Zero, Zero)
+		charPtrDest := NewGetElementPtr(c.currBlock, strPtr, Zero, constant.NewInt(IntType, 1))
 		c.currBlock.NewStore(charPtr, charPtrDest)
 		retVal = strPtr
 	case *ast.ArrayLiteral:
@@ -413,21 +413,21 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		list := c.currBlock.NewAlloca(llListType)
 
 		// Set list length
-		lenPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		lenPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 		c.currBlock.NewStore(constant.NewInt(IntType, int64(node.Length)), lenPtr)
 
 		// Get array start ptr
 		arr := c.currBlock.NewAlloca(lltypes.NewArray(uint64(node.Length), llSubtype))
-		arrStart := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		arrStart := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 
 		// Set arr start pointer in list
-		arrPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
+		arrPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
 		c.currBlock.NewStore(arrStart, arrPtr)
 
 		// Set all arr elements
 		for i, val := range node.Exprs {
 			compVal := c.CompileNode(val)
-			elemPtr := c.currBlock.NewGetElementPtr(arr, constant.NewInt(IntType, int64(0)), constant.NewInt(IntType, int64(i)))
+			elemPtr := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, int64(0)), constant.NewInt(IntType, int64(i)))
 			c.currBlock.NewStore(compVal, elemPtr)
 		}
 
@@ -440,16 +440,15 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		// If the type is a struct that starts with len_t, it's a list, otherwise it's a tuple
 		ptrType := sliceable.Type().(*lltypes.PointerType).ElemType
 		structType := ptrType.(*lltypes.StructType)
-		fmt.Println(structType.Fields[0].Name())
 
 		if structType.Fields[0].Name() == "len_t" {
 			// Array type
 			elemPtr := c.getListElemPtr(sliceable, index)
-			retVal = c.currBlock.NewLoad(elemPtr)
+			retVal = NewLoad(c.currBlock, elemPtr)
 		} else {
 			// Tuple type
-			elemPtr := c.currBlock.NewGetElementPtr(sliceable, Zero, index)
-			retVal = c.currBlock.NewLoad(elemPtr)
+			elemPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, index)
+			retVal = NewLoad(c.currBlock, elemPtr)
 		}
 	case *ast.TupleLiteral:
 		tupleType := c.typeToLLType(c.GetType(node)).(*lltypes.PointerType).ElemType
@@ -457,7 +456,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		for i, elem := range node.Exprs {
 			elemPtr := c.CompileNode(elem)
-			tupleElemPtr := c.currBlock.NewGetElementPtr(tuplePtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
+			tupleElemPtr := NewGetElementPtr(c.currBlock, tuplePtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
 			c.currBlock.NewStore(elemPtr, tupleElemPtr)
 		}
 
@@ -468,7 +467,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		for i, member := range node.Values {
 			valuePtr := c.CompileNode(member)
-			memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
+			memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(lltypes.I32, int64(i)))
 			c.currBlock.NewStore(valuePtr, memberPtr)
 		}
 
@@ -478,8 +477,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		structType := c.GetType(node.Target).(types.StructType)
 		structOffset := structType.Offset(node.Field.(*ast.Ident).Value)
-		memberPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
-		retVal = c.currBlock.NewLoad(memberPtr)
+		memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
+		retVal = NewLoad(c.currBlock, memberPtr)
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
@@ -490,6 +489,14 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 func (c *Compiler) compilePipeline(node *ast.Pipeline) value.Value {
 
 	return nil
+}
+
+func NewLoad(block *ir.Block, ptr value.Value) value.Value {
+	return block.NewLoad(ptr.Type().(*lltypes.PointerType).ElemType, ptr)
+}
+
+func NewGetElementPtr(block *ir.Block, src value.Value, indicies ...value.Value) value.Value {
+	return block.NewGetElementPtr(src.Type().(*lltypes.PointerType).ElemType, src, indicies...)
 }
 
 func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
@@ -524,7 +531,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 
 		structType := c.GetType(target.Target).(types.StructType)
 		structOffset := structType.Offset(target.Field.(*ast.Ident).Value)
-		destPtr := c.currBlock.NewGetElementPtr(structPtr, Zero, constant.NewInt(lltypes.I32, int64(structOffset)))
+		destPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(lltypes.I32, int64(structOffset)))
 		c.currBlock.NewStore(expPtr, destPtr)
 	}
 
@@ -533,11 +540,11 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 
 func (c *Compiler) getListElemPtr(list value.Value, index value.Value) value.Value {
 	// Load the pointer to the array from the struct
-	arrPtr := c.currBlock.NewGetElementPtr(list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
+	arrPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
 	// Load the pointer itself
-	arrStart := c.currBlock.NewLoad(arrPtr)
+	arrStart := NewLoad(c.currBlock, arrPtr)
 	// Get the pointer for the specific element
-	elemPtr := c.currBlock.NewGetElementPtr(arrStart, index)
+	elemPtr := NewGetElementPtr(c.currBlock, arrStart, index)
 
 	return elemPtr
 }
