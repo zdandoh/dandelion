@@ -72,6 +72,7 @@ var Zero = constant.NewInt(IntType, 0)
 var InitTrampoline value.Value
 var AdjustTrampoline value.Value
 var AllocClo value.Value
+var Malloc value.Value
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -155,6 +156,10 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	AllocClo = c.mod.NewFunc(
 		"alloc_clo",
 		lltypes.I8Ptr)
+	Malloc = c.mod.NewFunc(
+		"malloc",
+		lltypes.I8Ptr,
+		ir.NewParam("size", lltypes.I64))
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil}
@@ -417,7 +422,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(constant.NewInt(IntType, int64(node.Length)), lenPtr)
 
 		// Get array start ptr
-		arr := c.currBlock.NewAlloca(lltypes.NewArray(uint64(node.Length), llSubtype))
+		arr := CallMalloc(c.currBlock, lltypes.NewArray(uint64(node.Length), llSubtype))
 		arrStart := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 
 		// Set arr start pointer in list
@@ -463,7 +468,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = tuplePtr
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
-		structPtr := c.currBlock.NewAlloca(structType)
+		structPtr := CallMalloc(c.currBlock, structType)
 
 		for i, member := range node.Values {
 			valuePtr := c.CompileNode(member)
@@ -499,6 +504,14 @@ func NewGetElementPtr(block *ir.Block, src value.Value, indicies ...value.Value)
 	return block.NewGetElementPtr(src.Type().(*lltypes.PointerType).ElemType, src, indicies...)
 }
 
+func CallMalloc(block *ir.Block, typ lltypes.Type) value.Value {
+	sizePtr := NewGetElementPtr(block, constant.NewNull(lltypes.NewPointer(typ)), constant.NewInt(lltypes.I32, 1))
+	size := block.NewPtrToInt(sizePtr, lltypes.I64)
+	mem := block.NewCall(Malloc, size)
+	castMem := block.NewBitCast(mem, lltypes.NewPointer(typ))
+	return castMem
+}
+
 func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 	var retVal value.Value
 
@@ -513,7 +526,17 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			}
 			targetLLType := c.typeToLLType(targetType)
 
-			targetAddr = c.currBlock.NewAlloca(targetLLType)
+			ptr, isPtr := targetLLType.(*lltypes.PointerType)
+			isFunc := false
+			if isPtr {
+				_, isFunc = ptr.ElemType.(*lltypes.FuncType)
+			}
+			if isPtr && !isFunc {
+				targetAddr = CallMalloc(c.currBlock, targetLLType)
+			} else {
+				targetAddr = c.currBlock.NewAlloca(targetLLType)
+			}
+
 			targetAddr.(value.Named).SetName(targetName)
 			c.PEnv.Set(c.currFun.Name(), targetName, targetAddr)
 		}
