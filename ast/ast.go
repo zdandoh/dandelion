@@ -410,7 +410,8 @@ func (n *CommandExp) String() string {
 }
 
 type ReturnExp struct {
-	Target Node
+	Target     Node
+	SourceFunc string
 }
 
 func (n *ReturnExp) String() string {

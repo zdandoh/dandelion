@@ -83,7 +83,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *ReturnExp:
-		retVal = &ReturnExp{WalkAst(node.Target, w)}
+		retVal = &ReturnExp{WalkAst(node.Target, w), node.SourceFunc}
 	case *YieldExp:
 		retVal = &YieldExp{WalkAst(node.Target, w)}
 	case *CompNode:

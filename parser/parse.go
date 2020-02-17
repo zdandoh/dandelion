@@ -377,7 +377,7 @@ func (l *calcListener) EnterReturn(c *parser.ReturnContext) {
 
 func (l *calcListener) ExitReturn(c *parser.ReturnContext) {
 	DebugPrintln("Exiting return")
-	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop()})
+	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop(), ""})
 }
 
 func (l *calcListener) EnterYield(c *parser.YieldContext) {

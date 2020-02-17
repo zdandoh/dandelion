@@ -119,13 +119,13 @@ func DebugInfer(more ...interface{}) {
 }
 
 type TypeInferer struct {
-	TypeNo       TypeVar
-	Subexps      []ast.Node
-	HashToType   map[ast.NodeHash]TypeVar
-	TypeToNode   map[TypeVar]ast.Node
-	Constraints  []Constraint
-	FunLookup    map[string]Fun
-	FunDefLookup map[*ast.FunDef]Fun
+	TypeNo      TypeVar
+	Subexps     []ast.Node
+	HashToType  map[ast.NodeHash]TypeVar
+	TypeToNode  map[TypeVar]ast.Node
+	Constraints []Constraint
+	FunLookup   map[string]Fun
+	currFun     string
 }
 
 func NewTypeInferer() *TypeInferer {
@@ -134,7 +134,6 @@ func NewTypeInferer() *TypeInferer {
 	newInf.HashToType = make(map[ast.NodeHash]TypeVar)
 	newInf.Constraints = make([]Constraint, 0)
 	newInf.FunLookup = make(map[string]Fun)
-	newInf.FunDefLookup = make(map[*ast.FunDef]Fun)
 	newInf.TypeToNode = make(map[TypeVar]ast.Node)
 
 	return newInf
@@ -157,11 +156,11 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 		funCons.Ret = retVar
 
 		infer.FunLookup[fName] = funCons
-		infer.FunDefLookup[funDef] = funCons
 	}
 
 	// Collect all unique subexpressions
-	for _, funDef := range prog.Funcs {
+	for fName, funDef := range prog.Funcs {
+		infer.currFun = fName
 		ast.WalkAst(funDef, infer)
 	}
 
@@ -314,6 +313,12 @@ func (i *TypeInferer) WalkBlock(block *ast.Block) *ast.Block {
 
 func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	_, existed := i.NodeToTypeVar(astNode)
+
+	ret, isRet := astNode.(*ast.ReturnExp)
+	if isRet {
+		ret.SourceFunc = i.currFun
+	}
+
 	if !existed {
 		i.Subexps = append(i.Subexps, astNode)
 	}
@@ -426,6 +431,9 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{baseFun, newFun})
 		case *ast.Ident:
 		// Identifiers don't add any additional constraints
+		case *ast.ReturnExp:
+			sourceFun := i.FunLookup[node.SourceFunc]
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), sourceFun.Ret})
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})

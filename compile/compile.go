@@ -58,9 +58,10 @@ type Compiler struct {
 }
 
 type CFunc struct {
-	Func     *ir.Func
-	RetPtr   value.Value
-	RetBlock *ir.Block
+	Func      *ir.Func
+	RetPtr    value.Value
+	RetBlock  *ir.Block
+	RetBlocks map[*ir.Block]bool // We don't want to overwrite returns that have already been setup, keep track of which blocks we've already returned from
 }
 
 var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
@@ -163,7 +164,7 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		ir.NewParam("size", lltypes.I64))
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
-	c.FEnv["abs"] = &CFunc{abs, nil, nil}
+	c.FEnv["abs"] = &CFunc{abs, nil, nil, nil}
 
 	for name, fun := range prog.Funcs {
 		llRetType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
@@ -180,7 +181,7 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 		}
 
 		funPtr := c.mod.NewFunc(name, llRetType, params...)
-		c.FEnv[name] = &CFunc{funPtr, nil, nil}
+		c.FEnv[name] = &CFunc{funPtr, nil, nil, make(map[*ir.Block]bool)}
 	}
 }
 
@@ -346,6 +347,13 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.currBlock.NewICmp(node.LLPred(), c.CompileNode(node.Left), c.CompileNode(node.Right))
 	case *ast.ReturnExp:
 		cFun := c.FEnv[c.currFun.Name()]
+
+		_, returned := cFun.RetBlocks[c.currBlock]
+		if returned {
+			break
+		}
+
+		cFun.RetBlocks[c.currBlock] = true
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.Closure:

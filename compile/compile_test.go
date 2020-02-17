@@ -762,6 +762,23 @@ return bound(p2);
 	}
 }
 
+func TestMultipleReturn(t *testing.T) {
+	src := `
+fun = f() {
+	num = 65;
+	return num;
+	num = 32;
+	return 21;
+};
+
+return fun();
+`
+
+	if !CompileCheckExit(src, 65) {
+		t.Fail()
+	}
+}
+
 // Doesn't work because type hints aren't quite done
 func TestStructWithFunc(t *testing.T) {
 	src := `
