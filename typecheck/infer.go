@@ -167,7 +167,7 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 
 	infer.CreateConstraints(prog)
 
-	unifier := NewUnifier(infer.Constraints)
+	unifier := NewUnifier(infer.Constraints, prog, infer.FunLookup)
 	subs, err := unifier.UnifyAll()
 	if err != nil {
 		fmt.Println(err)
@@ -396,11 +396,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
 		case *ast.Closure:
 			baseFun := i.FunLookup[node.Target.(*ast.Ident).Value]
-			cloFun := Fun{}
-			for i := 1; i < len(baseFun.Args); i++ {
-				cloFun.Args = append(cloFun.Args, baseFun.Args[0])
-			}
-			cloFun.Ret = baseFun.Ret
+			cloFun := remFirstArg(baseFun)
 
 			i.AddCons(Constraint{typeVar, cloFun})
 			i.AddCons(Constraint{baseFun.Args[0], i.GetTypeVar(node.ArgTup)})
@@ -465,6 +461,11 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 						options.Types = append(options.Types, structDef.Type)
 					}
 				}
+				for _, method := range structDef.Methods {
+					if method.Name == fieldName {
+						options.Types = append(options.Types, structDef.Type)
+					}
+				}
 			}
 
 			options.Dependants[typeVar] = fieldName
@@ -476,4 +477,14 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	for _, c := range i.Constraints {
 		DebugInfer(c.Left.ConsString(), "=", c.Right.ConsString())
 	}
+}
+
+func remFirstArg(baseFun Fun) Fun {
+	newFun := Fun{}
+	for i := 1; i < len(baseFun.Args); i++ {
+		newFun.Args = append(newFun.Args, baseFun.Args[0])
+	}
+	newFun.Ret = baseFun.Ret
+
+	return newFun
 }

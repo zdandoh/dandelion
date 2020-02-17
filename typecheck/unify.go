@@ -1,6 +1,7 @@
 package typecheck
 
 import (
+	"ahead/ast"
 	"ahead/types"
 	"fmt"
 	"github.com/pkg/errors"
@@ -10,14 +11,18 @@ import (
 type Subs map[Constrainable]Constrainable
 
 type Unifier struct {
-	cons []Constraint
-	subs Subs
+	cons  []Constraint
+	subs  Subs
+	prog  *ast.Program
+	funcs map[string]Fun
 }
 
-func NewUnifier(cons []Constraint) *Unifier {
+func NewUnifier(cons []Constraint, prog *ast.Program, funcs map[string]Fun) *Unifier {
 	u := &Unifier{}
 	u.cons = cons
 	u.subs = make(Subs)
+	u.prog = prog
+	u.funcs = funcs
 
 	return u
 }
@@ -151,8 +156,26 @@ func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Con
 	if len(newOpt.Types) == 1 {
 		// There is only one struct option, add base type constraints
 		structType := newOpt.Types[0].(types.StructType)
+
+		var structDef *ast.StructDef
+		for _, s := range u.prog.Structs {
+			if s.Type.Name == structType.Name {
+				structDef = s
+				break
+			}
+		}
+
 		for depVar, dep := range newOpt.Dependants {
-			u.cons = append(u.cons, Constraint{depVar, BaseType{structType.MemberType(dep)}})
+			fmt.Println(structType.Name, structDef)
+			if structDef.HasMethod(dep) {
+				// We need to treat struct methods differently than members
+				method := structDef.Method(dep)
+				u.cons = append(u.cons, Constraint{depVar, remFirstArg(u.funcs[method.TargetName])})
+				continue
+			} else {
+				// Member
+				u.cons = append(u.cons, Constraint{depVar, BaseType{structType.MemberType(dep)}})
+			}
 		}
 		newItem = BaseType{structType}
 	}

@@ -3,7 +3,10 @@ package transform
 import (
 	"ahead/ast"
 	"fmt"
+	"strings"
 )
+
+const NameSep = "_"
 
 type Renamer struct {
 	NameVersions map[string]int
@@ -30,10 +33,14 @@ func (r *Renamer) getName(name string) string {
 
 	r.NameVersions[name]++
 	nameNo := r.NameVersions[name]
-	localName = fmt.Sprintf("%s_%d", name, nameNo)
+	localName = fmt.Sprintf("%s%s%d", name, NameSep, nameNo)
 	r.LocalNames[name] = localName
 
 	return localName
+}
+
+func BaseName(name string) string {
+	return strings.Split(name, NameSep)[0]
 }
 
 func RenameIdents(prog *ast.Program) {

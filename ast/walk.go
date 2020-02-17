@@ -77,7 +77,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 
 		retVal = &StructInstance{newDefaults, node.DefRef}
 	case *StructDef:
-		retVal = &StructDef{Members: node.Members}
+		retVal = &StructDef{node.Members, node.Methods, node.Type}
 	case *StructAccess:
 		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w)}
 	case *If:

@@ -54,6 +54,7 @@ type Compiler struct {
 	FEnv      map[string]*CFunc
 	TypeDefs  map[string]lltypes.Type
 	LabelNo   int
+	prog      *ast.Program
 }
 
 type CFunc struct {
@@ -172,7 +173,7 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 			argType := c.typeToLLType(c.GetType(fun.Args[i]))
 			newParam := ir.NewParam(argName, argType)
 			// TODO do a better job of detecting the closure argument
-			if strings.HasSuffix(argName, ".arg") {
+			if strings.HasSuffix(argName, ".arg") || strings.HasPrefix(argName, "__this") {
 				newParam.Attrs = append(newParam.Attrs, enum.ParamAttrNest)
 			}
 			params = append(params, newParam)
@@ -238,6 +239,7 @@ func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {
 	c.FEnv = make(map[string]*CFunc)
 	c.TypeDefs = make(map[string]lltypes.Type)
 	c.Types = Types
+	c.prog = prog
 
 	c.mod = ir.NewModule()
 
@@ -348,19 +350,10 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewBr(cFun.RetBlock)
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
-		execMem := c.currBlock.NewCall(AllocClo)
 		sourceFuncPtr := c.CompileNode(node.Target)
-
-		// Cast all ptr types
-		sourceFuncBytePtr := c.currBlock.NewBitCast(sourceFuncPtr, lltypes.I8Ptr)
-		tupleBytePtr := c.currBlock.NewBitCast(tuplePtr, lltypes.I8Ptr)
-
-		c.currBlock.NewCall(InitTrampoline, execMem, sourceFuncBytePtr, tupleBytePtr)
-		adjustedTrampPtr := c.currBlock.NewCall(AdjustTrampoline, execMem)
-
 		newFunType := c.typeToLLType(c.GetType(node.NewFunc))
-		castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, newFunType)
-		retVal = castTrampPtr
+
+		retVal = c.extractFirstArg(c.currBlock, sourceFuncPtr, tuplePtr, newFunType)
 	case *ast.If:
 		prevContinuation := c.currBlock.Term
 
@@ -479,16 +472,47 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = structPtr
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(node.Target)
-
 		structType := c.GetType(node.Target).(types.StructType)
-		structOffset := structType.Offset(node.Field.(*ast.Ident).Value)
-		memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
-		retVal = NewLoad(c.currBlock, memberPtr)
+
+		var structDef *ast.StructDef
+		for _, s := range c.prog.Structs {
+			if s.Type.Name == structType.Name {
+				structDef = s
+				break
+			}
+		}
+
+		method := structDef.Method(node.Field.(*ast.Ident).Value)
+		if method != nil {
+			targFun := c.FEnv[method.TargetName].Func
+			structPtr := c.CompileNode(node.Target)
+			finalFunType := c.typeToLLType(c.GetType(node))
+			retVal = c.extractFirstArg(c.currBlock, targFun, structPtr, finalFunType)
+		} else {
+			// Member handling
+			structOffset := structType.Offset(node.Field.(*ast.Ident).Value)
+			memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
+			retVal = NewLoad(c.currBlock, memberPtr)
+		}
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}
 
 	return retVal
+}
+
+func (c *Compiler) extractFirstArg(block *ir.Block, sourceFun value.Value, argVal value.Value, finalType lltypes.Type) value.Value {
+	execMem := block.NewCall(AllocClo)
+
+	// Cast all ptr types
+	sourceFuncBytePtr := block.NewBitCast(sourceFun, lltypes.I8Ptr)
+	tupleBytePtr := block.NewBitCast(argVal, lltypes.I8Ptr)
+
+	block.NewCall(InitTrampoline, execMem, sourceFuncBytePtr, tupleBytePtr)
+	adjustedTrampPtr := block.NewCall(AdjustTrampoline, execMem)
+
+	castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, finalType)
+	return castTrampPtr
 }
 
 func (c *Compiler) compilePipeline(node *ast.Pipeline) value.Value {

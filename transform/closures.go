@@ -129,6 +129,7 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		unboundNames := make([]ast.Node, 0)
 		i := 0
+		// Rewrite function body to unpack all values
 		for unboundName, _ := range unboundVals {
 			unboundNames = append(unboundNames, &ast.Ident{unboundName})
 			unboundAssign := &ast.Assign{&ast.Ident{unboundName}, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{argName}}}

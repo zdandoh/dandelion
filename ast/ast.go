@@ -34,6 +34,7 @@ func (b *Block) String() string {
 }
 
 type Node interface {
+	String() string
 }
 
 type AddSub struct {
@@ -143,19 +144,66 @@ type StructMember struct {
 	Type types.Type
 }
 
+type StructMethod struct {
+	Name       string
+	TargetName string
+}
+
 func (n *StructMember) String() string {
 	return fmt.Sprintf("%s %s", n.Type.TypeString(), n.Name)
 }
 
 type StructDef struct {
 	Members []*StructMember
+	Methods []*StructMethod // Methods are discovered during function removal
 	Type    types.StructType
+}
+
+func (d *StructDef) Method(name string) *StructMethod {
+	for _, method := range d.Methods {
+		if method.Name == name {
+			return method
+		}
+	}
+
+	return nil
+}
+
+func (d *StructDef) HasMethod(name string) bool {
+	if d.Methods == nil {
+		return false
+	}
+
+	for _, method := range d.Methods {
+		if method.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *StructDef) HasMember(name string) bool {
+	for _, member := range d.Members {
+		if member.Name.Value == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *StructDef) Has(name string) bool {
+	return d.HasMember(name) || d.HasMethod(name)
 }
 
 func (n *StructDef) String() string {
 	members := make([]string, 0)
 	for _, member := range n.Members {
 		members = append(members, "    "+member.String())
+	}
+	for _, method := range n.Methods {
+		members = append(members, fmt.Sprintf("    %s()", method.Name))
 	}
 
 	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))

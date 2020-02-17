@@ -100,7 +100,17 @@ func (f StructType) MemberType(memberName string) Type {
 		}
 	}
 
-	panic("Unknown member name:" + memberName)
+	panic("Unknown member name: " + memberName)
+}
+
+func (f StructType) IsMember(name string) bool {
+	for _, member := range f.MemberNames {
+		if name == member {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (f StructType) Offset(offsetName string) int {

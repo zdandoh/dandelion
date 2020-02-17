@@ -10,6 +10,7 @@ a = 6;
 b = 7;
 d = a + b + 78;
 return d;
+
 `
 	if !CompileCheckExit(src, 91) {
 		t.Fail()
@@ -94,7 +95,7 @@ return x;
 
 func TestArrayCompile(t *testing.T) {
 	src := `
-arr = [5, 6, 7];
+arr = [5, 6, 7, 10, 20, 30];
 return arr[1];
 `
 
@@ -702,15 +703,61 @@ struct Point {
 };
 
 Point.mul = f() {
+	x = 11;
 	x * y;
 };
 
 p = Point(4, 5);
-lol = p.thing();
+lol = p.mul();
+return lol + p.x;
+`
+
+	if !CompileCheckExit(src, 66) {
+		t.Fail()
+	}
+}
+
+func TestMethod2(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+};
+
+Point.dot = f(other) {
+	x * other.x + y * other.y;
+};
+
+p = Point(3, 5);
+p2 = Point(2, 7);
+lol = p.dot(p2);
 return lol;
 `
 
-	if !CompileCheckExit(src, 20) {
+	if !CompileCheckExit(src, 41) {
+		t.Fail()
+	}
+}
+
+func TestBoundMethod(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+};
+
+Point.dot = f(other) {
+	x * other.x + y * other.y;
+};
+
+p = Point(3, 5);
+p2 = Point(2, 7);
+bound = p.dot;
+
+return bound(p2);
+`
+
+	if !CompileCheckExit(src, 41) {
 		t.Fail()
 	}
 }
