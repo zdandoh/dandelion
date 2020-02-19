@@ -16,6 +16,20 @@ func RemoveStructs(prog *ast.Program) {
 	remover.prog = prog
 
 	prog.Funcs["main"].Body = ast.WalkBlock(prog.Funcs["main"].Body, remover)
+
+	for _, sDef := range prog.Structs {
+		for _, member := range sDef.Members {
+			typeName, isTypeName := member.Type.(types.TypeName)
+			if isTypeName {
+				foundStruct := prog.Struct(typeName.Name)
+				if foundStruct == nil {
+					panic(fmt.Sprintf("Unknown type with name '%s'", typeName.Name))
+				}
+				member.Type = prog.Struct(typeName.Name).Type
+				fmt.Println("REPLACEMENT", member.Type.TypeString())
+			}
+		}
+	}
 }
 
 func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {

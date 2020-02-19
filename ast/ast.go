@@ -16,6 +16,16 @@ type Program struct {
 	Output  string
 }
 
+func (p *Program) Struct(name string) *StructDef {
+	for _, sDef := range p.Structs {
+		if sDef.Type.Name == name {
+			return sDef
+		}
+	}
+
+	return nil
+}
+
 type Block struct {
 	Lines []Node
 }
