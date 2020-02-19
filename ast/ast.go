@@ -16,6 +16,16 @@ type Program struct {
 	Output  string
 }
 
+func (p *Program) Struct(name string) *StructDef {
+	for _, sDef := range p.Structs {
+		if sDef.Type.Name == name {
+			return sDef
+		}
+	}
+
+	return nil
+}
+
 type Block struct {
 	Lines []Node
 }
@@ -207,6 +217,28 @@ func (n *StructDef) String() string {
 	}
 
 	return fmt.Sprintf("struct {\n%s\n}", strings.Join(members, "\n"))
+}
+
+func (n *StructDef) MemberType(memberName string) types.Type {
+	for _, member := range n.Members {
+		if member.Name.Value == memberName {
+			return member.Type
+		}
+	}
+
+	panic("Unknown member name: " + memberName)
+}
+
+func (n *StructDef) Offset(offsetName string) int {
+	structOffset := -1
+	for i, member := range n.Members {
+		if member.Name.Value == offsetName {
+			structOffset = i
+			break
+		}
+	}
+
+	return structOffset
 }
 
 type LineBundle struct {

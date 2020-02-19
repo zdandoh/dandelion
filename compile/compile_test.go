@@ -779,7 +779,88 @@ return fun();
 	}
 }
 
-// Doesn't work because type hints aren't quite done
+func TestNestedStruct(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+};
+
+struct Triangle {
+	Point v1;
+	Point v2;
+	Point v3;
+};
+
+tri = Triangle(Point(1, 2), Point(3, 4), Point(5, 6));
+
+return tri.v3.x;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+// Doesn't work because the parser can't parse struct types. Also need a null to actually instantiate the struct
+func TestRecursiveStruct(t *testing.T) {
+	src := `
+struct Node {
+	int val;
+	Node left;
+	Node right;
+};
+
+return 5;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+// Doesn't work because currently closures break recursion
+func TestRecursion(t *testing.T) {
+	src := `
+fun = f(x) {
+	if x == 0 {
+		return 5;
+	};
+
+	return fun(x - 1);
+};
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestCoroutine(t *testing.T) {
+	src := `
+fun = f() {
+	x = 0;
+	while x < 8 {
+		x = x + 1;
+		yield x;
+	};
+};
+
+y = 0;
+co = fun();
+y = y + next(co);
+y = y + next(co);
+y = y + next(co);
+
+return y;
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.Fail()
+	}
+}
+
+// Doesn't work type inferer can't deconstruct type hints well yet.
 func TestStructWithFunc(t *testing.T) {
 	src := `
 struct Point {

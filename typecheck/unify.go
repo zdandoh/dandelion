@@ -174,7 +174,7 @@ func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Con
 				continue
 			} else {
 				// Member
-				u.cons = append(u.cons, Constraint{depVar, BaseType{structType.MemberType(dep)}})
+				u.cons = append(u.cons, Constraint{depVar, BaseType{structDef.MemberType(dep)}})
 			}
 		}
 		newItem = BaseType{structType}

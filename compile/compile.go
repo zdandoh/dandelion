@@ -112,9 +112,10 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 			return typeDef
 		}
 
-		memberTypes := make([]lltypes.Type, len(t.MemberTypes))
-		for i, member := range t.MemberTypes {
-			memberTypes[i] = c.typeToLLType(member)
+		structDef := c.prog.Struct(t.Name)
+		memberTypes := make([]lltypes.Type, len(structDef.Members))
+		for i, member := range structDef.Members {
+			memberTypes[i] = c.typeToLLType(member.Type)
 		}
 		return lltypes.NewPointer(lltypes.NewStruct(memberTypes...))
 	case types.TupleType:
@@ -498,7 +499,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			retVal = c.extractFirstArg(c.currBlock, targFun, structPtr, finalFunType)
 		} else {
 			// Member handling
-			structOffset := structType.Offset(node.Field.(*ast.Ident).Value)
+			structOffset := structDef.Offset(node.Field.(*ast.Ident).Value)
 			memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
 			retVal = NewLoad(c.currBlock, memberPtr)
 		}
@@ -586,7 +587,8 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		expPtr := c.CompileNode(node.Expr)
 
 		structType := c.GetType(target.Target).(types.StructType)
-		structOffset := structType.Offset(target.Field.(*ast.Ident).Value)
+		structDef := c.prog.Struct(structType.Name)
+		structOffset := structDef.Offset(target.Field.(*ast.Ident).Value)
 		destPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(lltypes.I32, int64(structOffset)))
 		c.currBlock.NewStore(expPtr, destPtr)
 	}

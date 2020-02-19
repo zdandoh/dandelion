@@ -88,49 +88,11 @@ func (f FuncType) TypeString() string {
 }
 
 type StructType struct {
-	Name        string
-	MemberTypes []Type
-	MemberNames []string
-}
-
-func (f StructType) MemberType(memberName string) Type {
-	for i, member := range f.MemberTypes {
-		if f.MemberNames[i] == memberName {
-			return member
-		}
-	}
-
-	panic("Unknown member name: " + memberName)
-}
-
-func (f StructType) IsMember(name string) bool {
-	for _, member := range f.MemberNames {
-		if name == member {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (f StructType) Offset(offsetName string) int {
-	structOffset := -1
-	for i, memberName := range f.MemberNames {
-		if memberName == offsetName {
-			structOffset = i
-			break
-		}
-	}
-
-	return structOffset
+	Name string
 }
 
 func (f StructType) TypeString() string {
-	memberTypes := make([]string, 0)
-	for _, member := range f.MemberTypes {
-		memberTypes = append(memberTypes, member.TypeString())
-	}
-	return "struct{" + strings.Join(memberTypes, ", ") + "}#" + f.Name
+	return f.Name
 }
 
 type AnyType struct {

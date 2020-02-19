@@ -143,10 +143,6 @@ func (l *calcListener) PopStructDef() *ast.StructDef {
 	for _, member := range block.Lines {
 		newStruct.Members = append(newStruct.Members, member.(*ast.StructMember))
 	}
-	for _, member := range newStruct.Members {
-		newStruct.Type.MemberNames = append(newStruct.Type.MemberNames, member.Name.Value)
-		newStruct.Type.MemberTypes = append(newStruct.Type.MemberTypes, member.Type)
-	}
 
 	return newStruct
 }
@@ -168,8 +164,9 @@ func (l *calcListener) EnterBaseType(c *parser.BaseTypeContext) {
 
 func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 	DebugPrintln("Exiting base type")
+	text := c.GetText()
 	var t types.Type
-	switch c.GetText() {
+	switch text {
 	case "string":
 		t = types.StringType{}
 	case "int":
@@ -181,7 +178,7 @@ func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 	case "byte":
 		t = types.ByteType{}
 	default:
-		panic(fmt.Sprintf("Unknown type '%s'", c.GetText()))
+		t = types.StructType{text}
 	}
 
 	l.typeStack.Push(t)
