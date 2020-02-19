@@ -70,6 +70,7 @@ func (l *calcListener) ExitModExp(c *parser.ModExpContext) {
 }
 
 func (l *calcListener) EnterMulDiv(c *parser.MulDivContext) {
+	// l.nodeStack.Push(&MulDiv{})
 	DebugPrintln("Enter multdiv " + c.GetText())
 }
 
@@ -168,8 +169,7 @@ func (l *calcListener) EnterBaseType(c *parser.BaseTypeContext) {
 func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 	DebugPrintln("Exiting base type")
 	var t types.Type
-	text := c.GetText()
-	switch text {
+	switch c.GetText() {
 	case "string":
 		t = types.StringType{}
 	case "int":
@@ -181,7 +181,7 @@ func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 	case "byte":
 		t = types.ByteType{}
 	default:
-		t = types.TypeName{Name: text}
+		panic(fmt.Sprintf("Unknown type '%s'", c.GetText()))
 	}
 
 	l.typeStack.Push(t)

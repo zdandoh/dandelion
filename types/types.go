@@ -87,14 +87,6 @@ func (f FuncType) TypeString() string {
 	return fmt.Sprintf("f(%s) %s", argString, f.RetType.TypeString())
 }
 
-type TypeName struct {
-	Name string
-}
-
-func (f TypeName) TypeString() string {
-	return fmt.Sprintf("name('%s')", f.Name)
-}
-
 type StructType struct {
 	Name        string
 	MemberTypes []Type
