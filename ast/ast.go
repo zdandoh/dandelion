@@ -376,6 +376,23 @@ func (n *ArrayLiteral) String() string {
 	return arrStr
 }
 
+type SendExp struct {
+	Target Node
+	Value  Node
+}
+
+func (s *SendExp) String() string {
+	return fmt.Sprintf("send(%s, %s)", s.Target, s.Value)
+}
+
+type NextExp struct {
+	Target Node
+}
+
+func (s *NextExp) String() string {
+	return fmt.Sprintf("next(%s)", s.Target)
+}
+
 type TupleLiteral struct {
 	Exprs []Node
 }

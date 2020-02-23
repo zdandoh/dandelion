@@ -31,6 +31,8 @@ expr
    | 'f' '(' args=arglist? ')' '{' body '}'       # FunDef
    | 'f' '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
+   | 'next' '(' expr ')'                          # NextExp
+   | 'send' '(' expr ',' expr ')'                 # SendExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp

@@ -95,6 +95,15 @@ func (f StructType) TypeString() string {
 	return f.Name
 }
 
+type CoroutineType struct {
+	Yields Type
+	Reads  Type
+}
+
+func (f CoroutineType) TypeString() string {
+	return fmt.Sprintf("<coroutine %s -> %s>", f.Reads.TypeString(), f.Yields.TypeString())
+}
+
 type AnyType struct {
 }
 

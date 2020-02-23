@@ -238,6 +238,30 @@ func (l *calcListener) ExitStructAccess(c *parser.StructAccessContext) {
 	l.nodeStack.Push(access)
 }
 
+func (l *calcListener) EnterNextExp(c *parser.NextExpContext) {
+	DebugPrintln("Entering next exp")
+}
+
+func (l *calcListener) ExitNextExp(c *parser.NextExpContext) {
+	DebugPrintln("Exiting next exp")
+
+	nextExp := &ast.NextExp{l.nodeStack.Pop()}
+	l.nodeStack.Push(nextExp)
+}
+
+func (l *calcListener) EnterSendExp(c *parser.SendExpContext) {
+	DebugPrintln("Entering send exp")
+}
+
+func (l *calcListener) ExitSendExp(c *parser.SendExpContext) {
+	DebugPrintln("Exiting send exp")
+
+	val := l.nodeStack.Pop()
+	target := l.nodeStack.Pop()
+	nextExp := &ast.SendExp{target, val}
+	l.nodeStack.Push(nextExp)
+}
+
 func (l *calcListener) EnterLine(c *parser.LineContext) {
 	DebugPrintln("Entered line: " + c.GetText())
 }

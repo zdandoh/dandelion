@@ -80,6 +80,10 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &StructDef{node.Members, node.Methods, node.Type}
 	case *StructAccess:
 		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w)}
+	case *NextExp:
+		retVal = &NextExp{WalkAst(node.Target, w)}
+	case *SendExp:
+		retVal = &SendExp{WalkAst(node.Target, w), WalkAst(node.Value, w)}
 	case *If:
 		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
 	case *ReturnExp:

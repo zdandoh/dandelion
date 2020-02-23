@@ -851,6 +851,7 @@ co = fun();
 y = y + next(co);
 y = y + next(co);
 y = y + next(co);
+send(co, 32);
 
 return y;
 `

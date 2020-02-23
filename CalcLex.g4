@@ -38,6 +38,8 @@ YIELD: 'yield';
 TRUE: 'true';
 FALSE: 'false';
 STRUCT: 'struct';
+NEXT: 'next';
+SEND: 'send';
 
 // Conditional ops
 OR: '||';
