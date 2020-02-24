@@ -846,11 +846,9 @@ fun = f() {
 	};
 };
 
-y = 0;
 co = fun();
-y = y + next(co);
-y = y + next(co);
-y = y + next(co);
+y = next(co);
+send(co, "input");
 send(co, 32);
 
 return y;

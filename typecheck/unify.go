@@ -86,6 +86,12 @@ func Equals(c1 Constrainable, c2 Constrainable) bool {
 			return true
 		}
 		return false
+	case Coroutine:
+		other, same := c2.(Coroutine)
+		if same && Equals(cons.Reads, other.Reads) && Equals(cons.Yields, other.Yields) {
+			return true
+		}
+		return false
 	default:
 		panic("Unknown constrainable in Equals check")
 	}
@@ -116,6 +122,12 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 		}
 
 		return Tup{newSubs}
+	case Coroutine:
+		return Coroutine{ReplaceCons(cons.Yields, old, new), ReplaceCons(cons.Reads, old, new)}
+	case BaseType:
+		// Don't do anything with base types
+	default:
+		panic("Can't replace constraint: " + cons.ConsString())
 	}
 
 	return check
@@ -314,6 +326,24 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 
+	rightCoroutine, isRightCoroutine := currCons.Right.(Coroutine)
+	leftCoroutine, isLeftCoroutine := currCons.Left.(Coroutine)
+	if rightIsVar && isLeftCoroutine {
+		return u.Unify(Constraint{rightVar, leftCoroutine})
+	}
+	if leftIsVar && isRightCoroutine {
+		u.subs[leftVar] = rightCoroutine
+		u.ReplaceAllCons(leftVar, rightCoroutine)
+		return nil
+	}
+	if isLeftCoroutine && isRightCoroutine {
+		u.subs[leftCoroutine.Yields] = rightCoroutine.Yields
+		u.subs[leftCoroutine.Reads] = rightCoroutine.Reads
+		u.ReplaceAllCons(leftCoroutine, rightCoroutine)
+		return nil
+	}
+
+	// Unify struct options
 	if rightIsVar && isLeftStructOpt {
 		return u.Unify(Constraint{rightVar, leftStructOpt})
 	}

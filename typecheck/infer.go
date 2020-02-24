@@ -2,6 +2,7 @@ package typecheck
 
 import (
 	"ahead/ast"
+	"ahead/transform"
 	"ahead/types"
 	"fmt"
 	"os"
@@ -53,6 +54,15 @@ func (t Options) ConsString() string {
 	}
 
 	return fmt.Sprintf("option[%s]", strings.Join(typeStrings, ", "))
+}
+
+type Coroutine struct {
+	Yields Constrainable
+	Reads  Constrainable
+}
+
+func (c Coroutine) ConsString() string {
+	return fmt.Sprintf("<coroutine(%s) -> %s>", c.Reads.ConsString(), c.Yields.ConsString())
 }
 
 type StructOptions struct {
@@ -217,6 +227,7 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 }
 
 func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type {
+
 	switch cons := consItem.(type) {
 	case BaseType:
 		return cons.Type
@@ -264,6 +275,12 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		}
 
 		return tupType
+	case Coroutine:
+		coType := types.CoroutineType{}
+		coType.Yields = i.ResolveType(cons.Yields, subs)
+		coType.Reads = i.ResolveType(cons.Reads, subs)
+
+		return coType
 	default:
 		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
 	}
@@ -368,8 +385,9 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)
-		// Don't try to implicitly return from main
-		if lastLine != nil && !isReturn && fName != "main" {
+		hasYield := transform.HasYield(funDef)
+		// Don't try to implicitly return from main or coroutines
+		if lastLine != nil && !isReturn && fName != "main" && !hasYield {
 			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
 		}
 	}
@@ -434,6 +452,32 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		case *ast.ReturnExp:
 			sourceFun := i.FunLookup[node.SourceFunc]
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), sourceFun.Ret})
+		case *ast.YieldExp:
+			// If a function contains a yield, it automatically returns a coroutine object
+			currFun := i.FunLookup[i.currFun]
+
+			newCo := Coroutine{}
+			newCo.Yields = i.NewTypeVar()
+			newCo.Reads = i.NewTypeVar()
+
+			i.AddCons(Constraint{currFun.Ret, newCo})
+			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo.Yields})
+		case *ast.NextExp:
+			newCo := Coroutine{}
+			newCo.Yields = i.NewTypeVar()
+			newCo.Reads = i.NewTypeVar()
+
+			i.AddCons(Constraint{typeVar, newCo.Yields})
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
+		case *ast.SendExp:
+			newCo := Coroutine{}
+			newCo.Yields = i.NewTypeVar()
+			newCo.Reads = i.NewTypeVar()
+
+			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
+			i.AddCons(Constraint{i.GetTypeVar(node.Value), newCo.Reads})
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
