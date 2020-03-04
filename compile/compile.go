@@ -45,9 +45,15 @@ func (e PointerEnv) Get(fName string, vName string) (value.Value, bool) {
 	return val, stillOk
 }
 
+type CoroState struct {
+	Cleanup *ir.Block
+	Suspend *ir.Block
+}
+
 type Compiler struct {
 	currBlock *ir.Block
 	currFun   *ir.Func
+	currCoro  *CoroState
 	mod       *ir.Module
 	PEnv      PointerEnv
 	Types     map[ast.NodeHash]types.Type
@@ -71,10 +77,6 @@ var ByteType = lltypes.I8
 var BoolType = lltypes.I1
 var FloatType = lltypes.Float
 var Zero = constant.NewInt(IntType, 0)
-var InitTrampoline value.Value
-var AdjustTrampoline value.Value
-var AllocClo value.Value
-var Malloc value.Value
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -106,6 +108,8 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		subtype := c.typeToLLType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
 		return lltypes.NewPointer(lltypes.NewStruct(LenType, arrPtr))
+	case types.CoroutineType:
+		return lltypes.I8Ptr
 	case types.StructType:
 		typeDef, ok := c.TypeDefs[t.Name]
 		if ok {
@@ -146,23 +150,7 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 }
 
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
-	InitTrampoline = c.mod.NewFunc(
-		"llvm.init.trampoline",
-		lltypes.Void,
-		ir.NewParam("tramp", lltypes.I8Ptr),
-		ir.NewParam("func", lltypes.I8Ptr),
-		ir.NewParam("nval", lltypes.I8Ptr))
-	AdjustTrampoline = c.mod.NewFunc(
-		"llvm.adjust.trampoline",
-		lltypes.I8Ptr,
-		ir.NewParam("tramp", lltypes.I8Ptr))
-	AllocClo = c.mod.NewFunc(
-		"alloc_clo",
-		lltypes.I8Ptr)
-	Malloc = c.mod.NewFunc(
-		"malloc",
-		lltypes.I8Ptr,
-		ir.NewParam("size", lltypes.I64))
+	c.setupIntrinsics()
 
 	abs := c.mod.NewFunc("abs", lltypes.I32, ir.NewParam("x", lltypes.I32))
 	c.FEnv["abs"] = &CFunc{abs, nil, nil, nil}
@@ -192,7 +180,10 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		panic("Function " + name + " not defined")
 	}
 	c.currFun = cFun.Func
-	c.currBlock = c.currFun.NewBlock(c.getLabel(name + "_entry"))
+	c.currBlock = c.currFun.NewBlock("entry")
+	if *fun.IsCoro {
+		c.currBlock = c.SetupCoro(c.currBlock, c.currFun)
+	}
 
 	_, isVoid := c.GetType(fun).(types.FuncType).RetType.(types.NullType)
 
@@ -225,7 +216,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
 		// TODO support multiple returns & returns that aren't at the end of the block
-		if lineNo == len(fun.Body.Lines)-1 {
+		if lineNo == len(fun.Body.Lines)-1 && !*fun.IsCoro {
 			if lastVal != nil && name != "main" && !isVoid {
 				// Only auto-return when it's an expression
 				c.currBlock.NewStore(lastVal, cFun.RetPtr)
@@ -357,6 +348,23 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		cFun.RetBlocks[c.currBlock] = true
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
+	case *ast.YieldExp:
+		prevContinuation := c.currBlock.Term
+		resumeBlock := c.currFun.NewBlock(c.getLabel("resume"))
+		resumeBlock.Term = prevContinuation
+
+		c.currBlock.NewCall(Print, c.CompileNode(node.Target))
+		suspendRes := c.currBlock.NewCall(CoroSuspend, constant.None, constant.NewBool(false))
+
+		c.currBlock.NewSwitch(
+			suspendRes,
+			c.currCoro.Suspend,
+			ir.NewCase(constant.NewInt(lltypes.I8, 0), resumeBlock),
+			ir.NewCase(constant.NewInt(lltypes.I8, 1), c.currCoro.Cleanup))
+
+		c.currBlock = resumeBlock
+	case *ast.NextExp:
+		c.currBlock.NewCall(CoroResume, c.CompileNode(node.Target))
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
 		sourceFuncPtr := c.CompileNode(node.Target)
@@ -493,6 +501,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		method := structDef.Method(node.Field.(*ast.Ident).Value)
 		if method != nil {
+			// Method handling
 			targFun := c.FEnv[method.TargetName].Func
 			structPtr := c.CompileNode(node.Target)
 			finalFunType := c.typeToLLType(c.GetType(node))

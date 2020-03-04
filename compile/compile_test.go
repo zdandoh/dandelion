@@ -838,23 +838,30 @@ fun = f(x) {
 
 func TestCoroutine(t *testing.T) {
 	src := `
-fun = f() {
-	x = 0;
-	while x < 8 {
-		x = x + 1;
-		yield x;
-	};
+
+struct Box {
+	int num;
 };
 
-co = fun();
-y = next(co);
-send(co, "input");
-send(co, 32);
+b = Box(5);
 
-return y;
+fun = f() {
+	yield 1;
+	b.num = 3;
+	yield 3;
+};
+
+final = 0;
+co = fun();
+final = final + b.num;
+next(co);
+final = final + b.num;
+next(co);
+final = final + b.num;
+return final;
 `
 
-	if !CompileCheckExit(src, 6) {
+	if !CompileCheckExit(src, 13) {
 		t.Fail()
 	}
 }

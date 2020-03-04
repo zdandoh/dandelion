@@ -69,7 +69,7 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 			newArgs = append(newArgs, &ast.Ident{renamedArg})
 		}
 		newBlock := renameCopy.WalkBlock(node.Body)
-		retVal = &ast.FunDef{newBlock, newArgs, node.TypeHint}
+		retVal = &ast.FunDef{newBlock, newArgs, node.TypeHint, node.IsCoro}
 	case *ast.Ident:
 		newName := r.getName(node.Value)
 		retVal = &ast.Ident{newName}

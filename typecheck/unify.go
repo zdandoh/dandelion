@@ -125,7 +125,9 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 	case Coroutine:
 		return Coroutine{ReplaceCons(cons.Yields, old, new), ReplaceCons(cons.Reads, old, new)}
 	case BaseType:
-		// Don't do anything with base types
+	// Don't do anything with base types
+	case StructOptions:
+		// Don't do anything with struct options
 	default:
 		panic("Can't replace constraint: " + cons.ConsString())
 	}

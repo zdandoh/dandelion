@@ -114,6 +114,7 @@ type FunDef struct {
 	Body     *Block
 	Args     []Node
 	TypeHint *types.FuncType
+	IsCoro   *bool
 }
 
 func NewFunDef() *FunDef {

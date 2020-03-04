@@ -2,7 +2,6 @@ package typecheck
 
 import (
 	"ahead/ast"
-	"ahead/transform"
 	"ahead/types"
 	"fmt"
 	"os"
@@ -385,9 +384,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)
-		hasYield := transform.HasYield(funDef)
 		// Don't try to implicitly return from main or coroutines
-		if lastLine != nil && !isReturn && fName != "main" && !hasYield {
+		if lastLine != nil && !isReturn && fName != "main" && !*funDef.IsCoro {
 			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
 		}
 	}

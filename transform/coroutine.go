@@ -2,6 +2,14 @@ package transform
 
 import "ahead/ast"
 
+func MarkCoroutines(prog *ast.Program) {
+	for _, funDef := range prog.Funcs {
+		yieldFinder := &FindYield{}
+		ast.WalkAst(funDef, yieldFinder)
+		funDef.IsCoro = &yieldFinder.hasYield
+	}
+}
+
 type FindYield struct {
 	hasYield bool
 }
