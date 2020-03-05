@@ -1,12 +1,12 @@
 package compile
 
 import (
-	"ahead/ast"
-	"ahead/parser"
-	"ahead/transform"
-	"ahead/typecheck"
-	"ahead/types"
 	"bytes"
+	"dandelion/ast"
+	"dandelion/parser"
+	"dandelion/transform"
+	"dandelion/typecheck"
+	"dandelion/types"
 	"fmt"
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"

@@ -1,8 +1,8 @@
 package transform
 
 import (
-	"ahead/ast"
-	"ahead/types"
+	"dandelion/ast"
+	"dandelion/types"
 	"fmt"
 )
 

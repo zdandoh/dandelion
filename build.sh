@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-java -jar antlr.jar -Dlanguage=Go -o aparser Calc.g4 CalcLex.g4
+java -jar antlr.jar -Dlanguage=Go -o aparser Dandelion.g4 DandelionLex.g4
 go build

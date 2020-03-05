@@ -1,6 +1,6 @@
 package transform
 
-import "ahead/ast"
+import "dandelion/ast"
 
 type NameReplacer struct {
 	nameChecker func(string) bool

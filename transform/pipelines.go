@@ -1,7 +1,7 @@
 package transform
 
 import (
-	"ahead/ast"
+	"dandelion/ast"
 )
 
 type PipeRemover struct {

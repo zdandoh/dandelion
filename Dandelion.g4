@@ -1,6 +1,6 @@
-parser grammar Calc;
+parser grammar Dandelion;
 
-options { tokenVocab=CalcLex; }
+options { tokenVocab=DandelionLex; }
 
 start : line+ EOF;
 

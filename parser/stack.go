@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"ahead/ast"
-	"ahead/types"
+	"dandelion/ast"
+	"dandelion/types"
 )
 
 type NodeStack struct {

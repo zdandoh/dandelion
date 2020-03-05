@@ -1,6 +1,6 @@
 package transform
 
-import "ahead/ast"
+import "dandelion/ast"
 
 func MarkCoroutines(prog *ast.Program) {
 	for _, funDef := range prog.Funcs {

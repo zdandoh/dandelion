@@ -1,9 +1,9 @@
 package parser
 
 import (
-	parser "ahead/aparser"
-	"ahead/ast"
-	"ahead/types"
+	parser "dandelion/aparser"
+	"dandelion/ast"
+	"dandelion/types"
 	"fmt"
 	"math"
 	"strconv"
@@ -12,8 +12,8 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
 
-type calcListener struct {
-	*parser.BaseCalcListener
+type listener struct {
+	*parser.BaseDandelionListener
 	currNode   ast.Node
 	rootNode   ast.Node
 	nodeStack  NodeStack
@@ -32,21 +32,21 @@ func DebugPrintln(more ...interface{}) {
 	}
 }
 
-func (l *calcListener) EnterParenExp(c *parser.ParenExpContext) {
+func (l *listener) EnterParenExp(c *parser.ParenExpContext) {
 	DebugPrintln("Enter paren exp")
 }
 
-func (l *calcListener) ExitParenExp(c *parser.ParenExpContext) {
+func (l *listener) ExitParenExp(c *parser.ParenExpContext) {
 	DebugPrintln("Exiting paren exp")
 
 	l.nodeStack.Push(&ast.ParenExp{l.nodeStack.Pop()})
 }
 
-func (l *calcListener) EnterAddSub(c *parser.AddSubContext) {
+func (l *listener) EnterAddSub(c *parser.AddSubContext) {
 	DebugPrintln("Enter addsub " + c.GetText())
 }
 
-func (l *calcListener) ExitAddSub(c *parser.AddSubContext) {
+func (l *listener) ExitAddSub(c *parser.AddSubContext) {
 	DebugPrintln("Exit addsub " + c.GetText())
 
 	addNode := &ast.AddSub{}
@@ -57,11 +57,11 @@ func (l *calcListener) ExitAddSub(c *parser.AddSubContext) {
 	l.nodeStack.Push(addNode)
 }
 
-func (l *calcListener) EnterModExp(c *parser.ModExpContext) {
+func (l *listener) EnterModExp(c *parser.ModExpContext) {
 	DebugPrintln("Enter mod exp")
 }
 
-func (l *calcListener) ExitModExp(c *parser.ModExpContext) {
+func (l *listener) ExitModExp(c *parser.ModExpContext) {
 	modNode := &ast.Mod{}
 	modNode.Right = l.nodeStack.Pop()
 	modNode.Left = l.nodeStack.Pop()
@@ -69,12 +69,12 @@ func (l *calcListener) ExitModExp(c *parser.ModExpContext) {
 	l.nodeStack.Push(modNode)
 }
 
-func (l *calcListener) EnterMulDiv(c *parser.MulDivContext) {
+func (l *listener) EnterMulDiv(c *parser.MulDivContext) {
 	// l.nodeStack.Push(&MulDiv{})
 	DebugPrintln("Enter multdiv " + c.GetText())
 }
 
-func (l *calcListener) ExitMulDiv(c *parser.MulDivContext) {
+func (l *listener) ExitMulDiv(c *parser.MulDivContext) {
 	DebugPrintln("Exit muldiv " + c.GetText())
 	mulNode := &ast.MulDiv{}
 	mulNode.Op = c.GetOp().GetText()
@@ -84,7 +84,7 @@ func (l *calcListener) ExitMulDiv(c *parser.MulDivContext) {
 	l.nodeStack.Push(mulNode)
 }
 
-func (l *calcListener) EnterNumber(c *parser.NumberContext) {
+func (l *listener) EnterNumber(c *parser.NumberContext) {
 	DebugPrintln("enter numb " + c.GetText())
 
 	value, err := strconv.ParseInt(c.GetText(), 10, 64)
@@ -95,25 +95,25 @@ func (l *calcListener) EnterNumber(c *parser.NumberContext) {
 	l.nodeStack.Push(&ast.Num{value})
 }
 
-func (l *calcListener) ExitNumber(c *parser.NumberContext) {
+func (l *listener) ExitNumber(c *parser.NumberContext) {
 	DebugPrintln("exit numb " + c.GetText())
 }
 
-func (l *calcListener) EnterIdent(c *parser.IdentContext) {
+func (l *listener) EnterIdent(c *parser.IdentContext) {
 }
 
-func (l *calcListener) ExitIdent(c *parser.IdentContext) {
+func (l *listener) ExitIdent(c *parser.IdentContext) {
 	DebugPrintln("Exiting ident", c.GetText())
 	l.nodeStack.Push(&ast.Ident{c.GetText()})
 }
 
-func (l *calcListener) EnterStructDef(c *parser.StructDefContext) {
+func (l *listener) EnterStructDef(c *parser.StructDefContext) {
 	DebugPrintln("Entering struct def")
 
 	l.blockStack.Push(&ast.Block{})
 }
 
-func (l *calcListener) ExitStructDef(c *parser.StructDefContext) {
+func (l *listener) ExitStructDef(c *parser.StructDefContext) {
 	DebugPrintln("Exiting struct def")
 
 	structDef := l.PopStructDef()
@@ -122,13 +122,13 @@ func (l *calcListener) ExitStructDef(c *parser.StructDefContext) {
 	l.nodeStack.Push(structDef)
 }
 
-func (l *calcListener) EnterNamedStructDef(c *parser.NamedStructDefContext) {
+func (l *listener) EnterNamedStructDef(c *parser.NamedStructDefContext) {
 	DebugPrintln("Entering named struct def")
 
 	l.blockStack.Push(&ast.Block{})
 }
 
-func (l *calcListener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
+func (l *listener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
 	DebugPrintln("Exiting named struct def")
 
 	ident := fmt.Sprintf("%s", c.GetIdent().GetText())
@@ -137,7 +137,7 @@ func (l *calcListener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
 	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident}, structDef})
 }
 
-func (l *calcListener) PopStructDef() *ast.StructDef {
+func (l *listener) PopStructDef() *ast.StructDef {
 	block := l.blockStack.Pop()
 	newStruct := &ast.StructDef{}
 	for _, member := range block.Lines {
@@ -147,22 +147,22 @@ func (l *calcListener) PopStructDef() *ast.StructDef {
 	return newStruct
 }
 
-func (l *calcListener) EnterTypeline(c *parser.TypelineContext) {
+func (l *listener) EnterTypeline(c *parser.TypelineContext) {
 	DebugPrintln("Entering type line")
 }
 
-func (l *calcListener) ExitTypeline(c *parser.TypelineContext) {
+func (l *listener) ExitTypeline(c *parser.TypelineContext) {
 	DebugPrintln("Exiting type line")
 
 	memberName := fmt.Sprintf("%s", c.GetIdent().GetText())
 	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName}, l.typeStack.Pop()})
 }
 
-func (l *calcListener) EnterBaseType(c *parser.BaseTypeContext) {
+func (l *listener) EnterBaseType(c *parser.BaseTypeContext) {
 	DebugPrintln("Entering base type")
 }
 
-func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
+func (l *listener) ExitBaseType(c *parser.BaseTypeContext) {
 	DebugPrintln("Exiting base type")
 	text := c.GetText()
 	var t types.Type
@@ -184,11 +184,11 @@ func (l *calcListener) ExitBaseType(c *parser.BaseTypeContext) {
 	l.typeStack.Push(t)
 }
 
-func (l *calcListener) EnterTypedFun(c *parser.TypedFunContext) {
+func (l *listener) EnterTypedFun(c *parser.TypedFunContext) {
 	DebugPrintln("Entering typed fun")
 }
 
-func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
+func (l *listener) ExitTypedFun(c *parser.TypedFunContext) {
 	DebugPrintln("Exiting typed fun")
 	funType := types.FuncType{}
 
@@ -201,11 +201,11 @@ func (l *calcListener) ExitTypedFun(c *parser.TypedFunContext) {
 	l.typeStack.Push(funType)
 }
 
-func (l *calcListener) EnterTypedTup(c *parser.TypedTupContext) {
+func (l *listener) EnterTypedTup(c *parser.TypedTupContext) {
 	DebugPrintln("Entering typed tuple")
 }
 
-func (l *calcListener) ExitTypedTup(c *parser.TypedTupContext) {
+func (l *listener) ExitTypedTup(c *parser.TypedTupContext) {
 	DebugPrintln("Exiting typed tuple")
 
 	tupType := types.TupleType{}
@@ -216,20 +216,20 @@ func (l *calcListener) ExitTypedTup(c *parser.TypedTupContext) {
 	l.typeStack.Push(tupType)
 }
 
-func (l *calcListener) EnterTypedArr(c *parser.TypedArrContext) {
+func (l *listener) EnterTypedArr(c *parser.TypedArrContext) {
 	DebugPrintln("Entering typed arr")
 }
 
-func (l *calcListener) ExitTypedArr(c *parser.TypedArrContext) {
+func (l *listener) ExitTypedArr(c *parser.TypedArrContext) {
 	DebugPrintln("Exiting typed arr")
 	l.typeStack.Push(types.ArrayType{l.typeStack.Pop()})
 }
 
-func (l *calcListener) EnterStructAccess(c *parser.StructAccessContext) {
+func (l *listener) EnterStructAccess(c *parser.StructAccessContext) {
 	DebugPrintln("Entering struct access")
 }
 
-func (l *calcListener) ExitStructAccess(c *parser.StructAccessContext) {
+func (l *listener) ExitStructAccess(c *parser.StructAccessContext) {
 	DebugPrintln("Exiting struct access")
 
 	access := &ast.StructAccess{}
@@ -238,22 +238,22 @@ func (l *calcListener) ExitStructAccess(c *parser.StructAccessContext) {
 	l.nodeStack.Push(access)
 }
 
-func (l *calcListener) EnterNextExp(c *parser.NextExpContext) {
+func (l *listener) EnterNextExp(c *parser.NextExpContext) {
 	DebugPrintln("Entering next exp")
 }
 
-func (l *calcListener) ExitNextExp(c *parser.NextExpContext) {
+func (l *listener) ExitNextExp(c *parser.NextExpContext) {
 	DebugPrintln("Exiting next exp")
 
 	nextExp := &ast.NextExp{l.nodeStack.Pop()}
 	l.nodeStack.Push(nextExp)
 }
 
-func (l *calcListener) EnterSendExp(c *parser.SendExpContext) {
+func (l *listener) EnterSendExp(c *parser.SendExpContext) {
 	DebugPrintln("Entering send exp")
 }
 
-func (l *calcListener) ExitSendExp(c *parser.SendExpContext) {
+func (l *listener) ExitSendExp(c *parser.SendExpContext) {
 	DebugPrintln("Exiting send exp")
 
 	val := l.nodeStack.Pop()
@@ -262,22 +262,22 @@ func (l *calcListener) ExitSendExp(c *parser.SendExpContext) {
 	l.nodeStack.Push(nextExp)
 }
 
-func (l *calcListener) EnterLine(c *parser.LineContext) {
+func (l *listener) EnterLine(c *parser.LineContext) {
 	DebugPrintln("Entered line: " + c.GetText())
 }
 
-func (l *calcListener) ExitLine(c *parser.LineContext) {
+func (l *listener) ExitLine(c *parser.LineContext) {
 	DebugPrintln("Exit line: " + c.GetText())
 	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, l.nodeStack.Pop())
 }
 
-func (l *calcListener) EnterStart(c *parser.StartContext) {
+func (l *listener) EnterStart(c *parser.StartContext) {
 	// Setup, basically
 	mainBlock := &ast.Block{}
 	l.blockStack.Push(mainBlock)
 }
 
-func (l *calcListener) ExitStart(c *parser.StartContext) {
+func (l *listener) ExitStart(c *parser.StartContext) {
 	mainFunc := ast.NewFunDef()
 	mainFunc.Args = []ast.Node{}
 	mainFunc.TypeHint = &types.FuncType{[]types.Type{}, types.IntType{}}
@@ -285,11 +285,11 @@ func (l *calcListener) ExitStart(c *parser.StartContext) {
 	l.mainFunc = mainFunc
 }
 
-func (l *calcListener) EnterFunApp(c *parser.FunAppContext) {
+func (l *listener) EnterFunApp(c *parser.FunAppContext) {
 	DebugPrintln("Entering funapp")
 }
 
-func (l *calcListener) ExitFunApp(c *parser.FunAppContext) {
+func (l *listener) ExitFunApp(c *parser.FunAppContext) {
 	args := c.GetArgs()
 	var argCount int
 	if args != nil {
@@ -308,12 +308,12 @@ func (l *calcListener) ExitFunApp(c *parser.FunAppContext) {
 	DebugPrintln("Exiting funapp ", argCount)
 }
 
-func (l *calcListener) EnterFunDef(c *parser.FunDefContext) {
+func (l *listener) EnterFunDef(c *parser.FunDefContext) {
 	DebugPrintln("Entering fun def")
 	l.blockStack.Push(&ast.Block{})
 }
 
-func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
+func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 	DebugPrintln("Exiting fun def")
 
 	funDef := ast.NewFunDef()
@@ -360,13 +360,13 @@ func (l *calcListener) ExitFunDef(c *parser.FunDefContext) {
 	l.nodeStack.Push(funDef)
 }
 
-func (l *calcListener) EnterWhile(c *parser.WhileContext) {
+func (l *listener) EnterWhile(c *parser.WhileContext) {
 	DebugPrintln("Entering while")
 
 	l.blockStack.Push(&ast.Block{})
 }
 
-func (l *calcListener) ExitWhile(c *parser.WhileContext) {
+func (l *listener) ExitWhile(c *parser.WhileContext) {
 	DebugPrintln("Exiting while")
 
 	whileNode := &ast.While{}
@@ -376,13 +376,13 @@ func (l *calcListener) ExitWhile(c *parser.WhileContext) {
 	l.nodeStack.Push(whileNode)
 }
 
-func (l *calcListener) EnterIf(c *parser.IfContext) {
+func (l *listener) EnterIf(c *parser.IfContext) {
 	DebugPrintln("Entering if")
 
 	l.blockStack.Push(&ast.Block{})
 }
 
-func (l *calcListener) ExitIf(c *parser.IfContext) {
+func (l *listener) ExitIf(c *parser.IfContext) {
 	DebugPrintln("Exiting if")
 
 	ifNode := &ast.If{}
@@ -392,29 +392,29 @@ func (l *calcListener) ExitIf(c *parser.IfContext) {
 	l.nodeStack.Push(ifNode)
 }
 
-func (l *calcListener) EnterReturn(c *parser.ReturnContext) {
+func (l *listener) EnterReturn(c *parser.ReturnContext) {
 	DebugPrintln("Entering return")
 }
 
-func (l *calcListener) ExitReturn(c *parser.ReturnContext) {
+func (l *listener) ExitReturn(c *parser.ReturnContext) {
 	DebugPrintln("Exiting return")
 	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop(), ""})
 }
 
-func (l *calcListener) EnterYield(c *parser.YieldContext) {
+func (l *listener) EnterYield(c *parser.YieldContext) {
 	DebugPrintln("Entering yield")
 }
 
-func (l *calcListener) ExitYield(c *parser.YieldContext) {
+func (l *listener) ExitYield(c *parser.YieldContext) {
 	DebugPrintln("Exiting yield")
 	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop()})
 }
 
-func (l *calcListener) EnterAssign(c *parser.AssignContext) {
+func (l *listener) EnterAssign(c *parser.AssignContext) {
 	DebugPrintln("Enter assign")
 }
 
-func (l *calcListener) ExitAssign(c *parser.AssignContext) {
+func (l *listener) ExitAssign(c *parser.AssignContext) {
 	DebugPrintln("Exit assign")
 	assignNode := &ast.Assign{}
 	assignNode.Expr = l.nodeStack.Pop()
@@ -422,11 +422,11 @@ func (l *calcListener) ExitAssign(c *parser.AssignContext) {
 	l.nodeStack.Push(assignNode)
 }
 
-func (l *calcListener) EnterCompExp(c *parser.CompExpContext) {
+func (l *listener) EnterCompExp(c *parser.CompExpContext) {
 	DebugPrintln("Enter comp exp")
 }
 
-func (l *calcListener) ExitCompExp(c *parser.CompExpContext) {
+func (l *listener) ExitCompExp(c *parser.CompExpContext) {
 	DebugPrintln("exit comp exp")
 
 	compNode := &ast.CompNode{}
@@ -437,11 +437,11 @@ func (l *calcListener) ExitCompExp(c *parser.CompExpContext) {
 	l.nodeStack.Push(compNode)
 }
 
-func (l *calcListener) EnterBoolExp(c *parser.BoolExpContext) {
+func (l *listener) EnterBoolExp(c *parser.BoolExpContext) {
 	DebugPrintln("Entering bool literal")
 }
 
-func (l *calcListener) ExitBoolExp(c *parser.BoolExpContext) {
+func (l *listener) ExitBoolExp(c *parser.BoolExpContext) {
 	DebugPrintln("Exiting bool literal")
 
 	boolExp := &ast.BoolExp{}
@@ -450,11 +450,11 @@ func (l *calcListener) ExitBoolExp(c *parser.BoolExpContext) {
 	l.nodeStack.Push(boolExp)
 }
 
-func (l *calcListener) EnterByteExp(c *parser.ByteExpContext) {
+func (l *listener) EnterByteExp(c *parser.ByteExpContext) {
 	DebugPrintln("Entering byte literal")
 }
 
-func (l *calcListener) ExitByteExp(c *parser.ByteExpContext) {
+func (l *listener) ExitByteExp(c *parser.ByteExpContext) {
 	DebugPrintln("Exiting byte literal")
 
 	byteExp := &ast.ByteExp{}
@@ -464,11 +464,11 @@ func (l *calcListener) ExitByteExp(c *parser.ByteExpContext) {
 	l.nodeStack.Push(byteExp)
 }
 
-func (l *calcListener) EnterFloatExp(c *parser.FloatExpContext) {
+func (l *listener) EnterFloatExp(c *parser.FloatExpContext) {
 	DebugPrintln("Entering float literal")
 }
 
-func (l *calcListener) ExitFloatExp(c *parser.FloatExpContext) {
+func (l *listener) ExitFloatExp(c *parser.FloatExpContext) {
 	DebugPrintln("Exiting float literal")
 
 	var err error
@@ -481,11 +481,11 @@ func (l *calcListener) ExitFloatExp(c *parser.FloatExpContext) {
 	l.nodeStack.Push(floatExp)
 }
 
-func (l *calcListener) EnterArray(c *parser.ArrayContext) {
+func (l *listener) EnterArray(c *parser.ArrayContext) {
 	DebugPrintln("Entering array literal")
 }
 
-func (l *calcListener) ExitArray(c *parser.ArrayContext) {
+func (l *listener) ExitArray(c *parser.ArrayContext) {
 	DebugPrintln("Exiting array literal")
 
 	newArr := &ast.ArrayLiteral{}
@@ -505,11 +505,11 @@ func (l *calcListener) ExitArray(c *parser.ArrayContext) {
 	l.nodeStack.Push(newArr)
 }
 
-func (l *calcListener) EnterTuple(c *parser.TupleContext) {
+func (l *listener) EnterTuple(c *parser.TupleContext) {
 	DebugPrintln("Entering tuple")
 }
 
-func (l *calcListener) ExitTuple(c *parser.TupleContext) {
+func (l *listener) ExitTuple(c *parser.TupleContext) {
 	DebugPrintln("Exiting tuple")
 
 	newTup := &ast.TupleLiteral{}
@@ -522,11 +522,11 @@ func (l *calcListener) ExitTuple(c *parser.TupleContext) {
 	l.nodeStack.Push(newTup)
 }
 
-func (l *calcListener) EnterSliceExp(c *parser.SliceExpContext) {
+func (l *listener) EnterSliceExp(c *parser.SliceExpContext) {
 	DebugPrintln("Entering slice exp")
 }
 
-func (l *calcListener) ExitSliceExp(c *parser.SliceExpContext) {
+func (l *listener) ExitSliceExp(c *parser.SliceExpContext) {
 	DebugPrintln("Exiting slice exp")
 
 	sliceNode := &ast.SliceNode{}
@@ -536,11 +536,11 @@ func (l *calcListener) ExitSliceExp(c *parser.SliceExpContext) {
 	l.nodeStack.Push(sliceNode)
 }
 
-func (l *calcListener) EnterCommandExp(c *parser.CommandExpContext) {
+func (l *listener) EnterCommandExp(c *parser.CommandExpContext) {
 	DebugPrintln("Entering command exp")
 }
 
-func (l *calcListener) ExitCommandExp(c *parser.CommandExpContext) {
+func (l *listener) ExitCommandExp(c *parser.CommandExpContext) {
 	DebugPrintln("Exiting command exp")
 
 	command := &ast.CommandExp{}
@@ -555,11 +555,11 @@ func (l *calcListener) ExitCommandExp(c *parser.CommandExpContext) {
 	l.nodeStack.Push(command)
 }
 
-func (l *calcListener) EnterPipeExp(c *parser.PipeExpContext) {
+func (l *listener) EnterPipeExp(c *parser.PipeExpContext) {
 	DebugPrintln("Entering pipe exp")
 }
 
-func (l *calcListener) ExitPipeExp(c *parser.PipeExpContext) {
+func (l *listener) ExitPipeExp(c *parser.PipeExpContext) {
 	DebugPrintln("Exiting pipe exp")
 
 	pipeNode := &ast.PipeExp{}
@@ -569,11 +569,11 @@ func (l *calcListener) ExitPipeExp(c *parser.PipeExpContext) {
 	l.nodeStack.Push(pipeNode)
 }
 
-func (l *calcListener) EnterStrExp(c *parser.StrExpContext) {
+func (l *listener) EnterStrExp(c *parser.StrExpContext) {
 	DebugPrintln("Entering string")
 }
 
-func (l *calcListener) ExitStrExp(c *parser.StrExpContext) {
+func (l *listener) ExitStrExp(c *parser.StrExpContext) {
 	DebugPrintln("Exiting string", c.GetText())
 	text := c.GetText()[1 : len(c.GetText())-1]
 	l.nodeStack.Push(&ast.StrExp{text})
@@ -602,11 +602,11 @@ func NewProgram(mainFunc *ast.FunDef) *ast.Program {
 
 func ParseProgram(text string) *ast.Program {
 	is := antlr.NewInputStream(text)
-	lexer := parser.NewCalcLex(is)
+	lexer := parser.NewDandelionLex(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := parser.NewCalc(stream)
+	p := parser.NewDandelion(stream)
 
-	l := &calcListener{}
+	l := &listener{}
 	l.typeStack = &TypeStack{}
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 

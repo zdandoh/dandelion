@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ahead/compile"
+	"dandelion/compile"
 	"flag"
 	"fmt"
 	"io/ioutil"

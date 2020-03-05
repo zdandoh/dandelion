@@ -1,5 +1,5 @@
 // Calc.g4
-lexer grammar CalcLex;
+lexer grammar DandelionLex;
 
 // Tokens
 SEMICOLON: ';';

@@ -1,8 +1,8 @@
 package typecheck
 
 import (
-	"ahead/ast"
-	"ahead/types"
+	"dandelion/ast"
+	"dandelion/types"
 	"fmt"
 	"github.com/pkg/errors"
 	"reflect"

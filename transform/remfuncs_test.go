@@ -1,8 +1,8 @@
 package transform
 
 import (
-	"ahead/ast"
-	"ahead/parser"
+	"dandelion/ast"
+	"dandelion/parser"
 	"testing"
 )
 

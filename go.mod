@@ -1,4 +1,4 @@
-module ahead
+module dandelion
 
 go 1.12
 
