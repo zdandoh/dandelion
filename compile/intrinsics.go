@@ -22,6 +22,7 @@ var CoroSuspend value.Value
 var CoroSave value.Value
 var CoroResume value.Value
 var CoroDestroy value.Value
+var CoroPromise value.Value
 var Print value.Value
 
 func (c *Compiler) setupIntrinsics() {
@@ -92,4 +93,10 @@ func (c *Compiler) setupIntrinsics() {
 		"llvm.coro.destroy",
 		lltypes.Void,
 		ir.NewParam("handle", lltypes.I8Ptr))
+	CoroPromise = c.mod.NewFunc(
+		"llvm.coro.promise",
+		lltypes.I8Ptr,
+		ir.NewParam("ptr", lltypes.I8Ptr),
+		ir.NewParam("align", lltypes.I32),
+		ir.NewParam("from", lltypes.I1))
 }

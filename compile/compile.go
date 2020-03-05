@@ -48,6 +48,7 @@ func (e PointerEnv) Get(fName string, vName string) (value.Value, bool) {
 type CoroState struct {
 	Cleanup *ir.Block
 	Suspend *ir.Block
+	Promise value.Value
 }
 
 type Compiler struct {
@@ -134,6 +135,11 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 	}
 }
 
+func (c *Compiler) PromiseType(coroutineType types.CoroutineType) *lltypes.StructType {
+	return lltypes.NewStruct(
+		c.typeToLLType(coroutineType.Yields), lltypes.I32) // c.typeToLLType(coroutineType.Reads))
+}
+
 func (c *Compiler) GetType(node ast.Node) types.Type {
 	return c.Types[ast.HashNode(node)]
 }
@@ -181,11 +187,12 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 	c.currFun = cFun.Func
 	c.currBlock = c.currFun.NewBlock("entry")
+	funType := c.GetType(fun).(types.FuncType)
 	if *fun.IsCoro {
-		c.currBlock = c.SetupCoro(c.currBlock, c.currFun)
+		c.currBlock = c.SetupCoro(c.currBlock, c.currFun, funType.RetType.(types.CoroutineType))
 	}
 
-	_, isVoid := c.GetType(fun).(types.FuncType).RetType.(types.NullType)
+	_, isVoid := funType.RetType.(types.NullType)
 
 	// Bind function args
 	for i, arg := range fun.Args {
@@ -197,7 +204,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 	// Allocate space for return value & setup return block
 	// If the return value is null, return void
-	retType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
+	retType := c.typeToLLType(funType.RetType)
 	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
 	if !isVoid {
 		retPtr := c.currBlock.NewAlloca(retType)
@@ -245,6 +252,11 @@ func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {
 	// Compile function bodies
 	for name, fun := range prog.Funcs {
 		c.CompileFunc(name, fun)
+	}
+
+	// Reorder allocas
+	for _, fun := range c.mod.Funcs {
+		c.reorderAllocas(fun)
 	}
 	return c.mod.String()
 }
@@ -353,6 +365,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		resumeBlock := c.currFun.NewBlock(c.getLabel("resume"))
 		resumeBlock.Term = prevContinuation
 
+		yieldValPtr := NewGetElementPtr(c.currBlock, c.currCoro.Promise, Zero, Zero)
+		c.currBlock.NewStore(c.CompileNode(node.Target), yieldValPtr)
 		c.currBlock.NewCall(Print, c.CompileNode(node.Target))
 		suspendRes := c.currBlock.NewCall(CoroSuspend, constant.None, constant.NewBool(false))
 
@@ -364,7 +378,13 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		c.currBlock = resumeBlock
 	case *ast.NextExp:
-		c.currBlock.NewCall(CoroResume, c.CompileNode(node.Target))
+		coroType := c.GetType(node.Target).(types.CoroutineType)
+		targetCoro := c.CompileNode(node.Target)
+		c.currBlock.NewCall(CoroResume, targetCoro)
+		voidPromise := c.currBlock.NewCall(CoroPromise, targetCoro, constant.NewInt(lltypes.I32, 4), constant.False)
+		promiseStruct := c.currBlock.NewBitCast(voidPromise, lltypes.NewPointer(c.PromiseType(coroType)))
+		yieldPtr := NewGetElementPtr(c.currBlock, promiseStruct, Zero, Zero)
+		retVal = NewLoad(c.currBlock, yieldPtr)
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
 		sourceFuncPtr := c.CompileNode(node.Target)
@@ -552,6 +572,26 @@ func CallMalloc(block *ir.Block, typ lltypes.Type) value.Value {
 	mem := block.NewCall(Malloc, size)
 	castMem := block.NewBitCast(mem, lltypes.NewPointer(typ))
 	return castMem
+}
+
+func (c *Compiler) reorderAllocas(fun *ir.Func) {
+	allocas := make([]ir.Instruction, 0)
+	for _, block := range fun.Blocks {
+		newInsts := make([]ir.Instruction, 0)
+		for _, inst := range block.Insts {
+			_, isAlloca := inst.(*ir.InstAlloca)
+			if isAlloca {
+				allocas = append(allocas, inst)
+			} else {
+				newInsts = append(newInsts, inst)
+			}
+		}
+		block.Insts = newInsts
+	}
+
+	if len(fun.Blocks) > 0 {
+		fun.Blocks[0].Insts = append(allocas, fun.Blocks[0].Insts...)
+	}
 }
 
 func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
