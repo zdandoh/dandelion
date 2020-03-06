@@ -1,9 +1,25 @@
 package types
 
 import (
+	"encoding/gob"
 	"fmt"
 	"strings"
 )
+
+func init() {
+	gob.Register(StringType{})
+	gob.Register(IntType{})
+	gob.Register(BoolType{})
+	gob.Register(ByteType{})
+	gob.Register(FloatType{})
+	gob.Register(ArrayType{})
+	gob.Register(CoroutineType{})
+	gob.Register(TupleType{})
+	gob.Register(StructType{})
+	gob.Register(NullType{})
+	gob.Register(AnyType{})
+	gob.Register(FuncType{})
+}
 
 type Type interface {
 	TypeString() string

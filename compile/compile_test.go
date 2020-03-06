@@ -192,6 +192,18 @@ string = "Look ma, a string!";
 	}
 }
 
+func TestModulo(t *testing.T) {
+	src := `
+x = 12 % 3;
+y = 14 % 3;
+return x + y;
+`
+
+	if !CompileCheckExit(src, 2) {
+		t.Fail()
+	}
+}
+
 func TestNestedArray(t *testing.T) {
 	src := `
 [11, 12, 13][1];
@@ -804,8 +816,7 @@ func TestCoroLoop(t *testing.T) {
 	src := `
 gen = f() {
 	x = 1;
-	b = true;
-	while b {
+	while true {
 		yield x;
 		x = x + 1;
 	};

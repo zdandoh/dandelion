@@ -1,6 +1,6 @@
 module dandelion
 
-go 1.12
+go 1.14
 
 require (
 	github.com/antlr/antlr4 v0.0.0-20190914153429-06705edafd6b

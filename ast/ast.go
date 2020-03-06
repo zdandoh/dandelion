@@ -1,14 +1,46 @@
 package ast
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"dandelion/types"
+	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"github.com/llir/llvm/ir/enum"
+	"github.com/pkg/errors"
 	"strings"
 )
+
+func init() {
+	gob.Register(Ident{})
+	gob.Register(AddSub{})
+	gob.Register(MulDiv{})
+	gob.Register(Num{})
+	gob.Register(StructDef{})
+	gob.Register(BoolExp{})
+	gob.Register(StrExp{})
+	gob.Register(Assign{})
+	gob.Register(ReturnExp{})
+	gob.Register(YieldExp{})
+	gob.Register(FloatExp{})
+	gob.Register(FunApp{})
+	gob.Register(FunDef{})
+	gob.Register(NextExp{})
+	gob.Register(SendExp{})
+	gob.Register(While{})
+	gob.Register(If{})
+	gob.Register(Mod{})
+	gob.Register(CompNode{})
+	gob.Register(TupleLiteral{})
+	gob.Register(ArrayLiteral{})
+	gob.Register(SliceNode{})
+	gob.Register(StructDef{})
+	gob.Register(StructAccess{})
+	gob.Register(StructInstance{})
+	gob.Register(Closure{})
+	gob.Register(ParenExp{})
+}
 
 type Program struct {
 	Funcs   map[string]*FunDef
@@ -503,13 +535,14 @@ func (n *FloatExp) String() string {
 type NodeHash string
 
 func HashNode(node Node) NodeHash {
-	nodeBytes, err := json.Marshal(node)
+	b := bytes.NewBuffer(nil)
+	err := gob.NewEncoder(b).Encode(node)
 	if err != nil {
-		panic(err)
+		panic(errors.Wrap(err, "failed to hash ast node"))
 	}
 
 	hash := sha256.New()
-	return NodeHash(hex.EncodeToString(hash.Sum(nodeBytes)))
+	return NodeHash(hex.EncodeToString(hash.Sum(b.Bytes())))
 }
 
 func Statement(node Node) bool {
