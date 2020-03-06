@@ -8,7 +8,29 @@ import (
 	"reflect"
 )
 
-type Subs map[Constrainable]Constrainable
+type Subs map[ConsHash]*SubPair
+type SubPair struct {
+	Old Constrainable
+	New Constrainable
+}
+
+func (s Subs) Set(old Constrainable, new Constrainable) {
+	hash := HashCons(old)
+	s[hash] = &SubPair{old, new}
+}
+
+func (s Subs) Get(cons Constrainable) (Constrainable, bool) {
+	pair, ok := s[HashCons(cons)]
+	if !ok {
+		return nil, ok
+	}
+	return pair.New, ok
+}
+
+func (s Subs) GetPair(cons Constrainable) (Constrainable, Constrainable) {
+	pair := s[HashCons(cons)]
+	return pair.Old, pair.New
+}
 
 type Unifier struct {
 	cons  []Constraint
@@ -146,8 +168,8 @@ func (u *Unifier) ReplaceAllCons(old Constrainable, new Constrainable) {
 
 // TODO stop using this. Create a more advanced container for subs that allows holding unhashable types
 func (u *Unifier) ReplaceAllSubs(old Constrainable, new Constrainable) {
-	for con1, con2 := range u.subs {
-		u.subs[con1] = ReplaceCons(con2, old, new)
+	for _, pair := range u.subs {
+		u.subs.Set(pair.Old, ReplaceCons(pair.New, old, new))
 	}
 }
 
@@ -229,7 +251,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if isRightBase {
-		u.subs[currCons.Left] = rightBase
+		u.subs.Set(currCons.Left, rightBase)
 		u.ReplaceAllCons(currCons.Left, rightBase)
 		return nil
 	}
@@ -238,7 +260,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	rightVar, rightIsVar := currCons.Right.(TypeVar)
 	leftVar, leftIsVar := currCons.Left.(TypeVar)
 	if rightIsVar && leftIsVar {
-		u.subs[currCons.Left] = rightVar
+		u.subs.Set(currCons.Left, rightVar)
 		u.ReplaceAllCons(leftVar, rightVar)
 		return nil
 	}
@@ -259,7 +281,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if rightIsFun && !leftIsFun {
-		u.subs[currCons.Left] = rightFun
+		u.subs.Set(currCons.Left, rightFun)
 		u.ReplaceAllCons(currCons.Left, rightFun)
 		return nil
 	}
@@ -268,7 +290,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	rightContainer, isRightContainer := currCons.Right.(Container)
 	leftContainer, isLeftContainer := currCons.Left.(Container)
 	if leftIsVar && isRightContainer {
-		u.subs[currCons.Left] = rightContainer
+		u.subs.Set(currCons.Left, rightContainer)
 		u.ReplaceAllCons(leftVar, rightContainer)
 		return nil
 	}
@@ -289,7 +311,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 		// Only do a replacement if one of them had a more concrete type
 		if old != nil && newCon != nil {
-			u.subs[old] = newCon
+			u.subs.Set(old, newCon)
 		}
 
 		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightContainer.Subtype})
@@ -300,7 +322,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	rightTuple, isRightTuple := currCons.Right.(Tup)
 	leftTuple, isLeftTuple := currCons.Left.(Tup)
 	if leftIsVar && isRightTuple {
-		u.subs[currCons.Left] = rightTuple
+		u.subs.Set(currCons.Left, rightTuple)
 		u.ReplaceAllCons(leftVar, rightTuple)
 		return nil
 	}
@@ -313,7 +335,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		}
 
 		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightTuple.Subtypes[leftContainer.Index]})
-		u.subs[leftContainer] = rightTuple
+		u.subs.Set(leftContainer, rightTuple)
 		u.ReplaceAllCons(leftContainer, rightTuple)
 
 		return nil
@@ -334,13 +356,13 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return u.Unify(Constraint{rightVar, leftCoroutine})
 	}
 	if leftIsVar && isRightCoroutine {
-		u.subs[leftVar] = rightCoroutine
+		u.subs.Set(leftVar, rightCoroutine)
 		u.ReplaceAllCons(leftVar, rightCoroutine)
 		return nil
 	}
 	if isLeftCoroutine && isRightCoroutine {
-		u.subs[leftCoroutine.Yields] = rightCoroutine.Yields
-		u.subs[leftCoroutine.Reads] = rightCoroutine.Reads
+		u.subs.Set(leftCoroutine.Yields, rightCoroutine.Yields)
+		u.subs.Set(leftCoroutine.Reads, rightCoroutine.Reads)
 		u.ReplaceAllCons(leftCoroutine, rightCoroutine)
 		return nil
 	}
@@ -350,12 +372,12 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return u.Unify(Constraint{rightVar, leftStructOpt})
 	}
 	if leftIsVar && isRightStructOpt {
-		u.subs[leftVar] = rightStructOpt
+		u.subs.Set(leftVar, rightStructOpt)
 		newItem, err := u.resolveStructOpt(leftVar, rightStructOpt)
 		if err != nil {
 			return err
 		}
-		u.subs[leftVar] = newItem
+		u.subs.Set(leftVar, newItem)
 		return nil
 	}
 	if isLeftStructOpt && isRightStructOpt {

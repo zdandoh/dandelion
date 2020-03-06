@@ -6,120 +6,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 )
 
 const DebugTypeInf = true
-
-type Constrainable interface {
-	ConsString() string
-}
-
-type TypeVar int
-
-func (t TypeVar) String() string {
-	return fmt.Sprintf("t%d", t)
-}
-
-func (t TypeVar) ConsString() string {
-	return t.String()
-}
-
-type Constraint struct {
-	Left  Constrainable
-	Right Constrainable
-}
-
-func (c Constraint) String() string {
-	return fmt.Sprintf("%s = %s", c.Left.ConsString(), c.Right.ConsString())
-}
-
-type BaseType struct {
-	types.Type
-}
-
-func (t BaseType) ConsString() string {
-	return t.Type.TypeString()
-}
-
-type Options struct {
-	Types []types.Type
-}
-
-func (t Options) ConsString() string {
-	typeStrings := make([]string, 0)
-	for _, t := range t.Types {
-		typeStrings = append(typeStrings, t.TypeString())
-	}
-
-	return fmt.Sprintf("option[%s]", strings.Join(typeStrings, ", "))
-}
-
-type Coroutine struct {
-	Yields Constrainable
-	Reads  Constrainable
-}
-
-func (c Coroutine) ConsString() string {
-	return fmt.Sprintf("<coroutine(%s) -> %s>", c.Reads.ConsString(), c.Yields.ConsString())
-}
-
-type StructOptions struct {
-	Types      []types.Type
-	Dependants map[TypeVar]string
-}
-
-func (o StructOptions) ConsString() string {
-	typeStrings := make([]string, 0)
-	depStrings := make([]string, 0)
-
-	for _, t := range o.Types {
-		typeStrings = append(typeStrings, t.TypeString())
-	}
-	for k, v := range o.Dependants {
-		depStrings = append(depStrings, fmt.Sprintf("%v: %v", k, v))
-	}
-
-	return fmt.Sprintf("struct-options[%s]<%s>", strings.Join(typeStrings, ", "), strings.Join(depStrings, ", "))
-}
-
-var Addable = Options{[]types.Type{types.FloatType{}, types.IntType{}, types.StringType{}}}
-
-type Container struct {
-	Type    types.Type
-	Subtype Constrainable
-	Index   int
-}
-
-func (c Container) ConsString() string {
-	return fmt.Sprintf("container<%v>[%v]#%d", c.Type.TypeString(), c.Subtype.ConsString(), c.Index)
-}
-
-type Tup struct {
-	Subtypes []Constrainable
-}
-
-func (t Tup) ConsString() string {
-	subStrings := make([]string, 0)
-	for _, sub := range t.Subtypes {
-		subStrings = append(subStrings, sub.ConsString())
-	}
-	return fmt.Sprintf("(%s)", strings.Join(subStrings, ", "))
-}
-
-type Fun struct {
-	Args []Constrainable
-	Ret  Constrainable
-}
-
-func (t Fun) ConsString() string {
-	varStrings := make([]string, 0)
-	for _, tVar := range t.Args {
-		varStrings = append(varStrings, tVar.ConsString())
-	}
-
-	return fmt.Sprintf("(%s -> %s)", strings.Join(varStrings, ", "), t.Ret.ConsString())
-}
 
 func DebugInfer(more ...interface{}) {
 	if DebugTypeInf {
@@ -192,8 +81,8 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 
 func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 	DebugInfer("--- SUBS ---")
-	for k, v := range subs {
-		fmt.Println(k.ConsString(), "->", v.ConsString())
+	for _, pair := range subs {
+		fmt.Println(pair.Old.ConsString(), "->", pair.New.ConsString())
 	}
 
 	finalTypes := make(map[ast.NodeHash]types.Type)
@@ -231,7 +120,7 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 	case BaseType:
 		return cons.Type
 	case TypeVar:
-		nextCons, ok := subs[cons]
+		nextCons, ok := subs.Get(cons)
 		if !ok {
 			// Terminates at a type variable
 			return types.AnyType{}
@@ -252,13 +141,13 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 			listType.Subtype = i.ResolveType(cons.Subtype, subs)
 			return listType
 		case types.NullType:
-			nextCont, ok := subs[cons]
+			nextCont, ok := subs.Get(cons)
 			if !ok {
 				// TODO fix this bug in a way that actually makes sense. If a subtype gets replaced, it isn't updated in
 				// Subs, so that array can no longer math a path through subs.
 				subRes := i.ResolveType(cons.Subtype, subs)
 				cons.Subtype = BaseType{subRes}
-				nextCont, ok := subs[cons]
+				nextCont, ok := subs.Get(cons)
 				if ok {
 					return i.ResolveType(nextCont, subs)
 				}
