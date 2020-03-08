@@ -355,7 +355,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			currFun := i.FunLookup[i.currFun]
 
 			newCo := Coroutine{}
-			newCo.Yields = i.NewTypeVar()
+			newCo.Yields = i.GetTypeVar(node.Target)
 			newCo.Reads = i.NewTypeVar()
 
 			i.AddCons(Constraint{currFun.Ret, newCo})

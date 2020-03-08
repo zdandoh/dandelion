@@ -361,9 +361,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if isLeftCoroutine && isRightCoroutine {
-		u.subs.Set(leftCoroutine.Yields, rightCoroutine.Yields)
-		u.subs.Set(leftCoroutine.Reads, rightCoroutine.Reads)
-		u.ReplaceAllCons(leftCoroutine, rightCoroutine)
+		u.cons = append(u.cons, Constraint{leftCoroutine.Yields, rightCoroutine.Yields})
+		u.cons = append(u.cons, Constraint{leftCoroutine.Reads, rightCoroutine.Reads})
 		return nil
 	}
 

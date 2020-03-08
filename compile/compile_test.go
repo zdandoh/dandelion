@@ -861,6 +861,35 @@ return sum;
 	}
 }
 
+func TestCoroutine(t *testing.T) {
+	src := `
+struct Box {
+	int num;
+};
+
+b = Box(5);
+
+fun = f() {
+	yield 1;
+	b.num = 3;
+	yield 3;
+};
+
+final = 0;
+co = fun();
+final = final + b.num;
+next(co);
+final = final + b.num;
+next(co);
+final = final + b.num;
+return final;
+`
+
+	if !CompileCheckExit(src, 13) {
+		t.Fail()
+	}
+}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;
@@ -878,35 +907,6 @@ return sum;
 //	}
 //}
 
-//func TestCoroutine(t *testing.T) {
-//	src := `
-//
-//struct Box {
-//	int num;
-//};
-//
-//b = Box(5);
-//
-//fun = f() {
-//	yield 1;
-//	b.num = 3;
-//	yield 3;
-//};
-//
-//final = 0;
-//co = fun();
-//final = final + b.num;
-//next(co);
-//final = final + b.num;
-//next(co);
-//final = final + b.num;
-//return final;
-//`
-//
-//	if !CompileCheckExit(src, 13) {
-//		t.Fail()
-//	}
-//}
 //
 //// Doesn't work because the parser can't parse struct types. Also need a null to actually instantiate the struct
 //func TestRecursiveStruct(t *testing.T) {
