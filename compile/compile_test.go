@@ -243,6 +243,7 @@ struct Line {
 fun = f(x) {
 	x.num;
 };
+
 return fun(Line("some data", 7));
 `
 
@@ -404,6 +405,27 @@ cob = bob;
 return add(3, 4);
 `
 	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
+func TestNestedType(t *testing.T) {
+	src := `
+x = 5;
+fun = f() {
+	fun2 = f() {
+		fun3 = f() {
+			return x;
+		};
+		return fun3;
+	};
+	return fun2;
+};
+
+return fun()()();
+`
+
+	if !CompileCheckExit(src, 5) {
 		t.Fail()
 	}
 }

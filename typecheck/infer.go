@@ -18,6 +18,7 @@ func DebugInfer(more ...interface{}) {
 
 type TypeInferer struct {
 	TypeNo      TypeVar
+	ContainerNo int
 	Subexps     []ast.Node
 	HashToType  map[ast.NodeHash]TypeVar
 	TypeToNode  map[TypeVar]ast.Node
@@ -115,7 +116,6 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 }
 
 func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type {
-
 	switch cons := consItem.(type) {
 	case BaseType:
 		return cons.Type
@@ -151,6 +151,12 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 				if ok {
 					return i.ResolveType(nextCont, subs)
 				}
+
+				newCons, inSubs := subs.Get(cons)
+				if inSubs {
+					return i.ResolveType(newCons, subs)
+				}
+
 				return types.NullType{}
 			}
 
@@ -183,6 +189,11 @@ func (i *TypeInferer) AddCons(con Constraint) {
 func (i *TypeInferer) NewTypeVar() TypeVar {
 	i.TypeNo++
 	return i.TypeNo
+}
+
+func (i *TypeInferer) NewContainerID() int {
+	i.ContainerNo++
+	return i.ContainerNo
 }
 
 func (i *TypeInferer) NodeToTypeVar(astNode ast.Node) (TypeVar, bool) {
@@ -370,7 +381,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
 		case *ast.ArrayLiteral:
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0}})
+			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0, i.NewContainerID()}})
 			if len(node.Exprs) > 0 {
 				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
 			}
@@ -389,7 +400,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index}})
+			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index, i.NewContainerID()}})
 			i.AddCons(Constraint{typeVar, subtypeVar})
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}

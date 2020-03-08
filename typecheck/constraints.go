@@ -17,6 +17,7 @@ func init() {
 	gob.Register(StructOptions{})
 	gob.Register(Container{})
 	gob.Register(Fun{})
+	gob.Register(Tup{})
 }
 
 type Constrainable interface {
@@ -83,10 +84,11 @@ type Container struct {
 	Type    types.Type
 	Subtype Constrainable
 	Index   int
+	ID      int
 }
 
 func (c Container) ConsString() string {
-	return fmt.Sprintf("container<%v>[%v]#%d", c.Type.TypeString(), c.Subtype.ConsString(), c.Index)
+	return fmt.Sprintf("container<%v, id:%d>[%v]#%d", c.Type.TypeString(), c.ID, c.Subtype.ConsString(), c.Index)
 }
 
 type Tup struct {
@@ -116,6 +118,11 @@ func (t Fun) ConsString() string {
 }
 
 func HashCons(c Constrainable) ConsHash {
+	cont, isContainer := c.(Container)
+	if isContainer {
+		return ConsHash(fmt.Sprintf("container%d", cont.ID))
+	}
+
 	b := bytes.NewBuffer(nil)
 	err := gob.NewEncoder(b).Encode(c)
 	if err != nil {

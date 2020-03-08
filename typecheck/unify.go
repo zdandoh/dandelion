@@ -136,7 +136,7 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 		cons.Ret = ReplaceCons(cons.Ret, old, new)
 		return cons
 	case Container:
-		return Container{cons.Type, ReplaceCons(cons.Subtype, old, new), cons.Index}
+		return Container{cons.Type, ReplaceCons(cons.Subtype, old, new), cons.Index, cons.ID}
 	case Tup:
 		newSubs := make([]Constrainable, 0)
 		for _, sub := range cons.Subtypes {
