@@ -890,6 +890,29 @@ return final;
 	}
 }
 
+//func TestNestedCoro(t *testing.T) {
+//	src := `
+//getco = f(a, b) {
+//	gen2 = f() {
+//		while true {
+//			yield a + b;
+//		};
+//	};
+//
+//	return gen2;
+//};
+//
+//gen = getco(3, 4);
+//co1 = gen();
+//sum = next(co1) + next(co1);
+//return sum;
+//`
+//
+//	if !CompileCheckExit(src, 14) {
+//		t.Fail()
+//	}
+//}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;

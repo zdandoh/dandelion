@@ -407,7 +407,7 @@ func (l *listener) EnterYield(c *parser.YieldContext) {
 
 func (l *listener) ExitYield(c *parser.YieldContext) {
 	DebugPrintln("Exiting yield")
-	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop()})
+	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop(), ""})
 }
 
 func (l *listener) EnterAssign(c *parser.AssignContext) {

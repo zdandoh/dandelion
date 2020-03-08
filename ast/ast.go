@@ -501,7 +501,8 @@ func (n *ReturnExp) String() string {
 }
 
 type YieldExp struct {
-	Target Node
+	Target     Node
+	SourceFunc string
 }
 
 func (n *YieldExp) String() string {

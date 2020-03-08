@@ -234,6 +234,10 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 	if isRet {
 		ret.SourceFunc = i.currFun
 	}
+	yield, isYield := astNode.(*ast.YieldExp)
+	if isYield {
+		yield.SourceFunc = i.currFun
+	}
 
 	if !existed {
 		i.Subexps = append(i.Subexps, astNode)
@@ -352,7 +356,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), sourceFun.Ret})
 		case *ast.YieldExp:
 			// If a function contains a yield, it automatically returns a coroutine object
-			currFun := i.FunLookup[i.currFun]
+			currFun := i.FunLookup[node.SourceFunc]
 
 			newCo := Coroutine{}
 			newCo.Yields = i.GetTypeVar(node.Target)
@@ -360,13 +364,11 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 
 			i.AddCons(Constraint{currFun.Ret, newCo})
 			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo.Yields})
 		case *ast.NextExp:
 			newCo := Coroutine{}
-			newCo.Yields = i.NewTypeVar()
+			newCo.Yields = typeVar
 			newCo.Reads = i.NewTypeVar()
 
-			i.AddCons(Constraint{typeVar, newCo.Yields})
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
 		case *ast.SendExp:
 			newCo := Coroutine{}
