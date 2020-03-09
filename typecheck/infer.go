@@ -434,7 +434,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 func remFirstArg(baseFun Fun) Fun {
 	newFun := Fun{}
 	for i := 1; i < len(baseFun.Args); i++ {
-		newFun.Args = append(newFun.Args, baseFun.Args[0])
+		newFun.Args = append(newFun.Args, baseFun.Args[i])
 	}
 	newFun.Ret = baseFun.Ret
 

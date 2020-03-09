@@ -1,6 +1,9 @@
 package compile
 
 import (
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -46,24 +49,24 @@ return d;
 	}
 }
 
-//func TestCallGlobal(t *testing.T) {
-//	src := `
-//other = f(a) {
-//	a + 5;
-//};
-//
-//my_func = f(a, b) {
-//	other(a * b);
-//};
-//
-//d = my_func(3, 8);
-//return d;
-//`
-//
-//	if !CompileCheckExit(src, 29) {
-//		t.Fail()
-//	}
-//}
+func TestCallGlobal(t *testing.T) {
+	src := `
+other = f(a) {
+	a + 5;
+};
+
+my_func = f(a, b) {
+	other(a * b);
+};
+
+d = my_func(3, 8);
+return d;
+`
+
+	if !CompileCheckExit(src, 29) {
+		t.Fail()
+	}
+}
 
 func TestCompileFunc2(t *testing.T) {
 	src := `
@@ -887,6 +890,62 @@ return final;
 
 	if !CompileCheckExit(src, 13) {
 		t.Fail()
+	}
+}
+
+func TestCloArg(t *testing.T) {
+	src := `
+arr = [5, 7];
+arr_len = 2;
+
+clo = f(a) {
+	a[arr_len - 1] = 11;
+	return 0;
+};
+
+clo(arr);
+return arr[arr_len - 1];
+`
+
+	if !CompileCheckExit(src, 11) {
+		t.Fail()
+	}
+}
+
+func TestBubbleSort(t *testing.T) {
+	sortArr := []int{32, 12, 65, 2, 11}
+	strArr := make([]string, len(sortArr))
+	for i, elem := range sortArr {
+		strArr[i] = fmt.Sprintf("%d", elem)
+	}
+	formattedArr := fmt.Sprintf("[%s]", strings.Join(strArr, ", "))
+
+	src := `
+arr = %s;
+len = %d;
+i = 0;
+while i < len - 1 {
+	j = 0;
+	while j < len - i - 1 {
+		if arr[j] > arr[j + 1] {
+			tmp = arr[j];
+			arr[j] = arr[j + 1];
+			arr[j + 1] = tmp;
+		};
+		j = j + 1;
+	};
+	i = i + 1;
+};
+
+return arr[%d];
+`
+
+	sort.Ints(sortArr)
+	for i, elem := range sortArr {
+		newSrc := fmt.Sprintf(src, formattedArr, len(sortArr), i)
+		if !CompileCheckExit(newSrc, elem) {
+			t.Fail()
+		}
 	}
 }
 
