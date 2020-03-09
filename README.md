@@ -13,9 +13,9 @@ Below are some core language features that I want to implement, roughly in order
 - Lists
 - Structs
 - Functions
-- Struct methods (hopefully mostly syntactic sugar)
+- Struct methods
 - Pipelines
-- Type inference (mostly local with a dash of global)
+- Type inference
 - Type annotations for when type inference fails
 - Closures
 - Implicit return values
@@ -27,7 +27,7 @@ Below are some core language features that I want to implement, roughly in order
 - String interpolation
 - Automatic semi-colon insertion
 - Cross platform (Windows, Mac, & Linux)
-- No slower than 5x C (hopefully much better than that, will probably need escape analysis to do this)
+- No slower than 5x C (hopefully much better than that)
 
 Nice to Have Features
 ---
