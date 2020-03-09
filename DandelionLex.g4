@@ -40,6 +40,7 @@ FALSE: 'false';
 STRUCT: 'struct';
 NEXT: 'next';
 SEND: 'send';
+NULL: 'null';
 
 // Conditional ops
 OR: '||';

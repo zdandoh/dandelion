@@ -149,9 +149,12 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 	LenType = c.mod.NewTypeDef("len_t", lltypes.NewInt(32))
 
 	for _, structDef := range prog.Structs {
-		newDefPtr := c.typeToLLType(structDef.Type)
-		newDef := newDefPtr.(*lltypes.PointerType).ElemType
-		c.TypeDefs[structDef.Type.Name] = lltypes.NewPointer(c.mod.NewTypeDef(structDef.Type.Name, newDef))
+		structType := lltypes.NewStruct()
+		c.TypeDefs[structDef.Type.Name] = lltypes.NewPointer(c.mod.NewTypeDef(structDef.Type.Name, structType))
+
+		for _, member := range structDef.Members {
+			structType.Fields = append(structType.Fields, c.typeToLLType(member.Type))
+		}
 	}
 }
 
@@ -275,6 +278,9 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = constant.NewFloat(FloatType, node.Value)
 	case *ast.BoolExp:
 		retVal = constant.NewBool(node.Value)
+	case *ast.NullExp:
+		nullType := c.typeToLLType(c.GetType(node))
+		retVal = constant.NewNull(nullType.(*lltypes.PointerType))
 	case *ast.AddSub:
 		rightNode := c.CompileNode(node.Right)
 		leftNode := c.CompileNode(node.Left)
@@ -579,9 +585,9 @@ func (c *Compiler) reorderAllocas(fun *ir.Func) {
 	for _, block := range fun.Blocks {
 		newInsts := make([]ir.Instruction, 0)
 		for _, inst := range block.Insts {
-			_, isAlloca := inst.(*ir.InstAlloca)
+			alloca, isAlloca := inst.(*ir.InstAlloca)
 			if isAlloca {
-				allocas = append(allocas, inst)
+				allocas = append(allocas, alloca)
 			} else {
 				newInsts = append(newInsts, inst)
 			}

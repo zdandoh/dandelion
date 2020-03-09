@@ -40,6 +40,7 @@ func init() {
 	gob.Register(StructInstance{})
 	gob.Register(Closure{})
 	gob.Register(ParenExp{})
+	gob.Register(NullExp{})
 }
 
 type Program struct {
@@ -515,6 +516,14 @@ type BoolExp struct {
 
 func (n *BoolExp) String() string {
 	return fmt.Sprintf("%t", n.Value)
+}
+
+type NullExp struct {
+	NullID int
+}
+
+func (n *NullExp) String() string {
+	return fmt.Sprintf("null#%d", n.NullID)
 }
 
 type ByteExp struct {

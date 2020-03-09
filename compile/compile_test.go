@@ -949,6 +949,24 @@ return arr[%d];
 	}
 }
 
+func TestRecursiveStruct(t *testing.T) {
+	src := `
+struct Node {
+	int val;
+	Node left;
+	Node right;
+};
+
+n = Node(5, Node(7, null, null), null);
+
+return n.left.val;
+`
+
+	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
 //func TestNestedCoro(t *testing.T) {
 //	src := `
 //getco = f(a, b) {
@@ -989,23 +1007,6 @@ return arr[%d];
 //	}
 //}
 
-//
-//// Doesn't work because the parser can't parse struct types. Also need a null to actually instantiate the struct
-//func TestRecursiveStruct(t *testing.T) {
-//	src := `
-//struct Node {
-//	int val;
-//	Node left;
-//	Node right;
-//};
-//
-//return 5;
-//`
-//
-//	if !CompileCheckExit(src, 5) {
-//		t.Fail()
-//	}
-//}
 //
 //// Doesn't work because currently closures break recursion
 //func TestRecursion(t *testing.T) {

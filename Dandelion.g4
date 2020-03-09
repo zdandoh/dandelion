@@ -42,6 +42,7 @@ expr
    | STRING                                       # StrExp
    | BYTE                                         # ByteExp
    | (TRUE|FALSE)                                 # BoolExp
+   | NULL										  # NullExp
    | COMMAND                                      # CommandExp
    | IDENT                                        # Ident
    ;

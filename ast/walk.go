@@ -100,6 +100,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = node
 	case *BoolExp:
 		retVal = node
+	case *NullExp:
+		retVal = node
 	case *ByteExp:
 		retVal = node
 	case *FloatExp:

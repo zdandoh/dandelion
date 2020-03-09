@@ -22,6 +22,7 @@ type listener struct {
 	typeStack  *TypeStack
 	structNo   int
 	emptyArrNo int
+	nullNo     int
 }
 
 const Debug = true
@@ -448,6 +449,20 @@ func (l *listener) ExitBoolExp(c *parser.BoolExpContext) {
 	boolExp.Value = c.GetText() == "true"
 
 	l.nodeStack.Push(boolExp)
+}
+
+func (l *listener) EnterNullExp(c *parser.NullExpContext) {
+	DebugPrintln("Entering null literal")
+}
+
+func (l *listener) ExitNullExp(c *parser.NullExpContext) {
+	DebugPrintln("Exiting null literal")
+
+	l.nullNo++
+	nullExp := &ast.NullExp{}
+	nullExp.NullID = l.nullNo
+
+	l.nodeStack.Push(nullExp)
 }
 
 func (l *listener) EnterByteExp(c *parser.ByteExpContext) {
