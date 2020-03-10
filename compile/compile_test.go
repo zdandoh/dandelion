@@ -967,6 +967,50 @@ return n.left.val;
 	}
 }
 
+func TestMaxLinkedList(t *testing.T) {
+	src := `
+struct Node {
+	int val;
+	Node nex;
+};
+
+list = Node(5, Node(10, Node(1, Node(45, Node(9, null)))));
+
+max = f(l) {
+	curr = l;
+	max_val = 0;
+	while curr != null {
+		if curr.val > max_val {
+			max_val = curr.val;
+		};
+		curr = curr.nex;
+	};
+
+	max_val;
+};
+
+return max(list);
+`
+
+	if !CompileCheckExit(src, 45) {
+		t.Fail()
+	}
+}
+
+//func TestRecursion(t *testing.T) {
+//	src := `
+//fun = f(other) {
+//	other(other);
+//};
+//
+//fun(fun);
+//`
+//
+//	if !CompileCheckExit(src, 7) {
+//		t.Fail()
+//	}
+//}
+
 //func TestNestedCoro(t *testing.T) {
 //	src := `
 //getco = f(a, b) {

@@ -36,13 +36,13 @@ expr
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
-   | expr op=(LT|LTE|GT|GTE|EQ) expr              # CompExp
+   | expr op=(LT|LTE|GT|GTE|EQ|NEQ) expr          # CompExp
    | FLOAT                                        # FloatExp
    | NUMBER                                       # Number
    | STRING                                       # StrExp
    | BYTE                                         # ByteExp
    | (TRUE|FALSE)                                 # BoolExp
-   | NULL										  # NullExp
+   | NULL                                         # NullExp
    | COMMAND                                      # CommandExp
    | IDENT                                        # Ident
    ;
