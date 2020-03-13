@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-opt < llvm_ir.ll -O0 -enable-coroutines -S > out.ll &&
-llc -load ../lib/lib.so out.ll &&
-clang ../lib/lib.so out.s -Wall &&
->&2 ./a.out
+rm -f out.ll # silently remove any files left behind by a failed run
+opt < llvm_ir.ll -O0 -enable-coroutines -coro-early -coro-split -coro-elide -coro-cleanup -S > out.ll &&
+>&2 lli -load ../lib/lib.so out.ll
 echo $?
-rm out.s out.ll
+rm out.ll
