@@ -20,6 +20,7 @@ type listener struct {
 	blockStack BlockStack
 	mainFunc   *ast.FunDef
 	typeStack  *TypeStack
+	identHints map[string]types.Type
 	structNo   int
 	emptyArrNo int
 	nullNo     int
@@ -71,7 +72,6 @@ func (l *listener) ExitModExp(c *parser.ModExpContext) {
 }
 
 func (l *listener) EnterMulDiv(c *parser.MulDivContext) {
-	// l.nodeStack.Push(&MulDiv{})
 	DebugPrintln("Enter multdiv " + c.GetText())
 }
 
@@ -105,7 +105,17 @@ func (l *listener) EnterIdent(c *parser.IdentContext) {
 
 func (l *listener) ExitIdent(c *parser.IdentContext) {
 	DebugPrintln("Exiting ident", c.GetText())
-	l.nodeStack.Push(&ast.Ident{c.GetText()})
+
+	newIdent := &ast.Ident{}
+	newIdent.Value = c.GetId().GetText()
+
+	idType := c.GetIdtype()
+	if idType != nil {
+		newType := l.typeStack.Pop()
+		l.identHints[newIdent.Value] = newType
+	}
+
+	l.nodeStack.Push(newIdent)
 }
 
 func (l *listener) EnterStructDef(c *parser.StructDefContext) {
@@ -606,10 +616,11 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 	return notCommas
 }
 
-func NewProgram(mainFunc *ast.FunDef) *ast.Program {
+func NewProgram(mainFunc *ast.FunDef, identHints map[string]types.Type) *ast.Program {
 	newProg := &ast.Program{}
 	newProg.Funcs = make(map[string]*ast.FunDef)
 	newProg.Structs = make(map[string]*ast.StructDef)
+	newProg.IdentHints = identHints
 
 	newProg.Funcs["main"] = mainFunc
 	return newProg
@@ -623,8 +634,9 @@ func ParseProgram(text string) *ast.Program {
 
 	l := &listener{}
 	l.typeStack = &TypeStack{}
+	l.identHints = make(map[string]types.Type)
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 
-	prog := NewProgram(l.mainFunc)
+	prog := NewProgram(l.mainFunc, l.identHints)
 	return prog
 }

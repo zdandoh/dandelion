@@ -44,9 +44,10 @@ func init() {
 }
 
 type Program struct {
-	Funcs   map[string]*FunDef
-	Structs map[string]*StructDef
-	Output  string
+	Funcs      map[string]*FunDef
+	Structs    map[string]*StructDef
+	IdentHints map[string]types.Type
+	Output     string
 }
 
 func (p *Program) Struct(name string) *StructDef {

@@ -44,7 +44,8 @@ expr
    | (TRUE|FALSE)                                 # BoolExp
    | NULL                                         # NullExp
    | COMMAND                                      # CommandExp
-   | IDENT                                        # Ident
+   | idtype=typed id=IDENT                        # Ident
+   | id=IDENT                                     # Ident
    ;
 
 statement

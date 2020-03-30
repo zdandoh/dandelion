@@ -997,6 +997,16 @@ return max(list);
 	}
 }
 
+func TestTypeHint(t *testing.T) {
+	src := `
+int hello = 7;
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
 //func TestRecursion(t *testing.T) {
 //	src := `
 //fun = f(other) {
