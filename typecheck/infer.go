@@ -104,8 +104,8 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 	}
 
 	for fName, _ := range i.FunLookup {
-		fIdent := &ast.Ident{fName}
-		initialVar := i.GetTypeVar(&ast.Ident{fName})
+		fIdent := &ast.Ident{fName, ast.NoID}
+		initialVar := i.GetTypeVar(fIdent)
 		resolvedType := i.ResolveType(initialVar, subs)
 
 		finalTypes[ast.HashNode(fIdent)] = resolvedType
@@ -270,6 +270,8 @@ func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
 		subTypeVar := i.hintToCons(ty.Subtype, box)
 		cont := Container{types.ArrayType{types.NullType{}}, subTypeVar, 0, i.NewContainerID()}
 		varVal = cont
+	case types.StructType:
+		varVal = StructOptions{[]types.Type{ty}, make(map[TypeVar]string)}
 	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType:
 		varVal = BaseType{ty}
 	default:
@@ -289,7 +291,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 
 	// Create constraints for all globally defined functions
 	for fName, funDef := range prog.Funcs {
-		fIdent := &ast.Ident{fName}
+		fIdent := &ast.Ident{fName, ast.NoID}
 		baseFun := i.FunLookup[fName]
 
 		// Constraint to assign variable name to actual function def
@@ -299,7 +301,10 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
 			cons := make([]Constraint, 0)
-			i.AddCons(Constraint{i.GetTypeVar(fIdent), i.hintToCons(*funDef.TypeHint, &consBox{cons})})
+			box := &consBox{cons}
+			hintVar := i.hintToCons(*funDef.TypeHint, box)
+			i.AddCons(Constraint{i.GetTypeVar(fIdent), hintVar})
+			i.Constraints = append(i.Constraints, box.cons...)
 		}
 
 		// Check if function has a non-return last line. If so, setup inference for that line.
@@ -451,7 +456,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		identVal = identVal + "_1"
 		box := &consBox{make([]Constraint, 0)}
 		hintVar := i.hintToCons(hint, box)
-		i.AddCons(Constraint{i.GetTypeVar(&ast.Ident{identVal}), hintVar})
+		i.AddCons(Constraint{i.GetTypeVar(&ast.Ident{identVal, ast.NoID}), hintVar})
 		i.Constraints = append(i.Constraints, box.cons...)
 	}
 

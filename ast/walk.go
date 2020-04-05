@@ -37,65 +37,66 @@ func WalkAst(astNode Node, w AstWalker) Node {
 
 	switch node := astNode.(type) {
 	case *ParenExp:
-		retVal = &ParenExp{WalkAst(node.Exp, w)}
+		retVal = &ParenExp{WalkAst(node.Exp, w), node.NodeID}
 	case *Assign:
-		retVal = &Assign{WalkAst(node.Target, w), WalkAst(node.Expr, w)}
+		retVal = &Assign{WalkAst(node.Target, w), WalkAst(node.Expr, w), node.NodeID}
 	case *Num:
 		retVal = node
 	case *Ident:
 		retVal = node
 	case *AddSub:
-		retVal = &AddSub{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
+		retVal = &AddSub{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op, node.NodeID}
 	case *PipeExp:
-		retVal = &PipeExp{WalkAst(node.Left, w), WalkAst(node.Right, w)}
+		retVal = &PipeExp{WalkAst(node.Left, w), WalkAst(node.Right, w), node.NodeID}
 	case *Pipeline:
-		retVal = &Pipeline{WalkList(node.Ops, w)}
+		retVal = &Pipeline{WalkList(node.Ops, w), node.NodeID}
 	case *TupleLiteral:
-		retVal = &TupleLiteral{WalkList(node.Exprs, w)}
+		retVal = &TupleLiteral{WalkList(node.Exprs, w), node.NodeID}
 	case *CommandExp:
-		retVal = &CommandExp{node.Command, node.Args}
+		retVal = &CommandExp{node.Command, node.Args, node.NodeID}
 	case *MulDiv:
-		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op}
+		retVal = &MulDiv{WalkAst(node.Left, w), WalkAst(node.Right, w), node.Op, node.NodeID}
 	case *Mod:
-		retVal = &Mod{WalkAst(node.Left, w), WalkAst(node.Right, w)}
+		retVal = &Mod{WalkAst(node.Left, w), WalkAst(node.Right, w), node.NodeID}
 	case *FunDef:
 		walkedArgs := WalkList(node.Args, w)
 		newBlock := WalkBlock(node.Body, w)
-		retVal = &FunDef{newBlock, walkedArgs, node.TypeHint, node.IsCoro}
+		retVal = &FunDef{newBlock, walkedArgs, node.TypeHint, node.IsCoro, node.NodeID}
 	case *Closure:
-		retVal = &Closure{WalkAst(node.Target, w), WalkAst(node.ArgTup, w), WalkAst(node.NewFunc, w), node.Unbound}
+		retVal = &Closure{WalkAst(node.Target, w), WalkAst(node.ArgTup, w), WalkAst(node.NewFunc, w), node.Unbound, node.NodeID}
 	case *FunApp:
 		walkedArgs := WalkList(node.Args, w)
-		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs}
+		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs, node.NodeID}
 	case *While:
-		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
+		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w), node.NodeID}
 	case *StructInstance:
 		newDefaults := make([]Node, len(node.Values))
 		for i, value := range node.Values {
 			newDefaults[i] = WalkAst(value, w)
 		}
 
-		retVal = &StructInstance{newDefaults, node.DefRef}
+		retVal = &StructInstance{newDefaults, node.DefRef, node.NodeID}
 	case *StructDef:
-		retVal = &StructDef{node.Members, node.Methods, node.Type}
+		retVal = &StructDef{node.Members, node.Methods, node.Type, node.NodeID}
 	case *StructAccess:
-		retVal = &StructAccess{&Ident{node.Field.(*Ident).Value}, WalkAst(node.Target, w)}
+		field := node.Field.(*Ident)
+		retVal = &StructAccess{&Ident{field.Value, field.NodeID}, WalkAst(node.Target, w), node.NodeID}
 	case *NextExp:
-		retVal = &NextExp{WalkAst(node.Target, w)}
+		retVal = &NextExp{WalkAst(node.Target, w), node.NodeID}
 	case *SendExp:
-		retVal = &SendExp{WalkAst(node.Target, w), WalkAst(node.Value, w)}
+		retVal = &SendExp{WalkAst(node.Target, w), WalkAst(node.Value, w), node.NodeID}
 	case *If:
-		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w)}
+		retVal = &If{WalkAst(node.Cond, w), WalkBlock(node.Body, w), node.NodeID}
 	case *ReturnExp:
-		retVal = &ReturnExp{WalkAst(node.Target, w), node.SourceFunc}
+		retVal = &ReturnExp{WalkAst(node.Target, w), node.SourceFunc, node.NodeID}
 	case *YieldExp:
-		retVal = &YieldExp{WalkAst(node.Target, w), node.SourceFunc}
+		retVal = &YieldExp{WalkAst(node.Target, w), node.SourceFunc, node.NodeID}
 	case *CompNode:
-		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w)}
+		retVal = &CompNode{node.Op, WalkAst(node.Left, w), WalkAst(node.Right, w), node.NodeID}
 	case *ArrayLiteral:
-		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w), node.EmptyNo}
+		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w), node.EmptyNo, node.NodeID}
 	case *SliceNode:
-		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w)}
+		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w), node.NodeID}
 	case *StrExp:
 		retVal = node
 	case *BoolExp:

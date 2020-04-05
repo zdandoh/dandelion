@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/llir/llvm/ir/enum"
 	"github.com/pkg/errors"
+	"reflect"
 	"strings"
 )
 
@@ -43,6 +44,14 @@ func init() {
 	gob.Register(NullExp{})
 }
 
+type NodeID int
+
+var NoID NodeID = -1
+
+func (n NodeID) ID() NodeID {
+	return n
+}
+
 type Program struct {
 	Funcs      map[string]*FunDef
 	Structs    map[string]*StructDef
@@ -58,6 +67,10 @@ func (p *Program) Struct(name string) *StructDef {
 	}
 
 	return nil
+}
+
+type Meta struct {
+	LineNo int
 }
 
 type Block struct {
@@ -79,12 +92,14 @@ func (b *Block) String() string {
 
 type Node interface {
 	String() string
+	ID() NodeID
 }
 
 type AddSub struct {
 	Left  Node
 	Right Node
 	Op    string
+	NodeID
 }
 
 func (n *AddSub) String() string {
@@ -94,6 +109,7 @@ func (n *AddSub) String() string {
 type Mod struct {
 	Left  Node
 	Right Node
+	NodeID
 }
 
 func (n *Mod) String() string {
@@ -102,6 +118,7 @@ func (n *Mod) String() string {
 
 type ParenExp struct {
 	Exp Node
+	NodeID
 }
 
 func (n *ParenExp) String() string {
@@ -112,6 +129,7 @@ type MulDiv struct {
 	Left  Node
 	Right Node
 	Op    string
+	NodeID
 }
 
 func (n *MulDiv) String() string {
@@ -120,6 +138,7 @@ func (n *MulDiv) String() string {
 
 type Num struct {
 	Value int64
+	NodeID
 }
 
 func (n *Num) String() string {
@@ -130,6 +149,7 @@ func (n *Num) String() string {
 type Assign struct {
 	Target Node
 	Expr   Node
+	NodeID
 }
 
 func (n *Assign) String() string {
@@ -138,6 +158,7 @@ func (n *Assign) String() string {
 
 type Ident struct {
 	Value string
+	NodeID
 }
 
 func (n *Ident) String() string {
@@ -149,6 +170,7 @@ type FunDef struct {
 	Args     []Node
 	TypeHint *types.FuncType
 	IsCoro   *bool
+	NodeID
 }
 
 func NewFunDef() *FunDef {
@@ -187,6 +209,7 @@ func (n *FunDef) String() string {
 type StructMember struct {
 	Name *Ident
 	Type types.Type
+	NodeID
 }
 
 type StructMethod struct {
@@ -202,6 +225,7 @@ type StructDef struct {
 	Members []*StructMember
 	Methods []*StructMethod // Methods are discovered during function removal
 	Type    types.StructType
+	NodeID
 }
 
 func (d *StructDef) Method(name string) *StructMethod {
@@ -278,6 +302,7 @@ func (n *StructDef) Offset(offsetName string) int {
 
 type LineBundle struct {
 	Lines []Node
+	NodeID
 }
 
 func (n *LineBundle) String() string {
@@ -289,6 +314,7 @@ type Closure struct {
 	ArgTup  Node
 	NewFunc Node
 	Unbound []string
+	NodeID
 }
 
 func (n *Closure) String() string {
@@ -298,6 +324,7 @@ func (n *Closure) String() string {
 type StructInstance struct {
 	Values []Node
 	DefRef *StructDef
+	NodeID
 }
 
 func (n *StructInstance) String() string {
@@ -312,6 +339,7 @@ func (n *StructInstance) String() string {
 type StructAccess struct {
 	Field  Node // Must be ident
 	Target Node
+	NodeID
 }
 
 func (n *StructAccess) String() string {
@@ -321,6 +349,7 @@ func (n *StructAccess) String() string {
 type FunApp struct {
 	Fun  Node
 	Args []Node
+	NodeID
 }
 
 func (n *FunApp) String() string {
@@ -334,6 +363,7 @@ func (n *FunApp) String() string {
 type While struct {
 	Cond Node
 	Body *Block
+	NodeID
 }
 
 func (n *While) String() string {
@@ -347,6 +377,7 @@ func (n *While) String() string {
 type If struct {
 	Cond Node
 	Body *Block
+	NodeID
 }
 
 func (n *If) String() string {
@@ -361,6 +392,7 @@ type CompNode struct {
 	Op    string
 	Left  Node
 	Right Node
+	NodeID
 }
 
 func (n *CompNode) String() string {
@@ -392,6 +424,7 @@ type ArrayLiteral struct {
 	// Empty arrays are the only ast node that don't have a distinct type. We need to number each empty
 	// array to distinguish them for the type checker.
 	EmptyNo int
+	NodeID
 }
 
 func (n *ArrayLiteral) String() string {
@@ -414,6 +447,7 @@ func (n *ArrayLiteral) String() string {
 type SendExp struct {
 	Target Node
 	Value  Node
+	NodeID
 }
 
 func (s *SendExp) String() string {
@@ -422,6 +456,7 @@ func (s *SendExp) String() string {
 
 type NextExp struct {
 	Target Node
+	NodeID
 }
 
 func (s *NextExp) String() string {
@@ -430,6 +465,7 @@ func (s *NextExp) String() string {
 
 type TupleLiteral struct {
 	Exprs []Node
+	NodeID
 }
 
 func (n *TupleLiteral) String() string {
@@ -447,6 +483,7 @@ func (n *TupleLiteral) String() string {
 type SliceNode struct {
 	Index Node
 	Arr   Node
+	NodeID
 }
 
 func (n *SliceNode) String() string {
@@ -455,6 +492,7 @@ func (n *SliceNode) String() string {
 
 type StrExp struct {
 	Value string
+	NodeID
 }
 
 func (n *StrExp) String() string {
@@ -464,6 +502,7 @@ func (n *StrExp) String() string {
 type PipeExp struct {
 	Left  Node
 	Right Node
+	NodeID
 }
 
 func (n *PipeExp) String() string {
@@ -472,6 +511,7 @@ func (n *PipeExp) String() string {
 
 type Pipeline struct {
 	Ops []Node
+	NodeID
 }
 
 func (n *Pipeline) String() string {
@@ -487,6 +527,7 @@ func (n *Pipeline) String() string {
 type CommandExp struct {
 	Command string
 	Args    []string
+	NodeID
 }
 
 func (n *CommandExp) String() string {
@@ -496,6 +537,7 @@ func (n *CommandExp) String() string {
 type ReturnExp struct {
 	Target     Node
 	SourceFunc string
+	NodeID
 }
 
 func (n *ReturnExp) String() string {
@@ -505,6 +547,7 @@ func (n *ReturnExp) String() string {
 type YieldExp struct {
 	Target     Node
 	SourceFunc string
+	NodeID
 }
 
 func (n *YieldExp) String() string {
@@ -513,6 +556,7 @@ func (n *YieldExp) String() string {
 
 type BoolExp struct {
 	Value bool
+	NodeID
 }
 
 func (n *BoolExp) String() string {
@@ -521,6 +565,7 @@ func (n *BoolExp) String() string {
 
 type NullExp struct {
 	NullID int
+	NodeID
 }
 
 func (n *NullExp) String() string {
@@ -529,6 +574,7 @@ func (n *NullExp) String() string {
 
 type ByteExp struct {
 	Value byte
+	NodeID
 }
 
 func (n *ByteExp) String() string {
@@ -537,6 +583,7 @@ func (n *ByteExp) String() string {
 
 type FloatExp struct {
 	Value float64
+	NodeID
 }
 
 func (n *FloatExp) String() string {
@@ -546,6 +593,11 @@ func (n *FloatExp) String() string {
 type NodeHash string
 
 func HashNode(node Node) NodeHash {
+	// Zero the node id to prevent it from affecting the hash
+	nodeID := node.ID()
+	SetID(node, 0)
+	defer SetID(node, nodeID)
+
 	b := bytes.NewBuffer(nil)
 	err := gob.NewEncoder(b).Encode(node)
 	if err != nil {
@@ -571,4 +623,66 @@ func Statement(node Node) bool {
 	}
 
 	return false
+}
+
+// This is really dumb but I don't know of a better way
+func SetID(astNode Node, newID NodeID) {
+	switch node := astNode.(type) {
+	case *Ident:
+		node.NodeID = newID
+	case *AddSub:
+		node.NodeID = newID
+	case *MulDiv:
+		node.NodeID = newID
+	case *Num:
+		node.NodeID = newID
+	case *StructDef:
+		node.NodeID = newID
+	case *BoolExp:
+		node.NodeID = newID
+	case *StrExp:
+		node.NodeID = newID
+	case *Assign:
+		node.NodeID = newID
+	case *ReturnExp:
+		node.NodeID = newID
+	case *YieldExp:
+		node.NodeID = newID
+	case *FloatExp:
+		node.NodeID = newID
+	case *FunApp:
+		node.NodeID = newID
+	case *FunDef:
+		node.NodeID = newID
+	case *NextExp:
+		node.NodeID = newID
+	case *SendExp:
+		node.NodeID = newID
+	case *While:
+		node.NodeID = newID
+	case *If:
+		node.NodeID = newID
+	case *Mod:
+		node.NodeID = newID
+	case *CompNode:
+		node.NodeID = newID
+	case *TupleLiteral:
+		node.NodeID = newID
+	case *ArrayLiteral:
+		node.NodeID = newID
+	case *SliceNode:
+		node.NodeID = newID
+	case *StructAccess:
+		node.NodeID = newID
+	case *StructInstance:
+		node.NodeID = newID
+	case *Closure:
+		node.NodeID = newID
+	case *ParenExp:
+		node.NodeID = newID
+	case *NullExp:
+		node.NodeID = newID
+	default:
+		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())
+	}
 }

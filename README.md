@@ -1,6 +1,6 @@
 Dandelion
 ---
-[![Build status](https://ci.appveyor.com/api/projects/status/79b9d994jw1dme7n?svg=true)](https://ci.appveyor.com/project/zdandoh/ahead)
+[![Build status](https://ci.appveyor.com/api/projects/status/gw92mo0nl48cy3mm?svg=true)](https://ci.appveyor.com/project/zdandoh/dandelion)
 
 Dandelion is a small language that intends to be useful for quickly writing terse utility/text processing programs. The goal of the project is to serve as a replacement for arcane bash incantations and shorter Python scripts.
 

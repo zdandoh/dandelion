@@ -63,7 +63,7 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 		var newName string
 		if isExprFunc && isTargetIdent {
 			newName = targetIdent.Value + FunSuffix
-			retVal = &ast.Assign{targetIdent, &ast.Ident{newName}}
+			retVal = &ast.Assign{targetIdent, &ast.Ident{newName, targetIdent.NodeID}, node.NodeID}
 		} else if isExprFunc && isStructAccess {
 			accessTargetIdent, isAccessTargetIdent := structAccess.Target.(*ast.Ident)
 			if !isAccessTargetIdent {
@@ -109,7 +109,7 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.FunDef:
 		newName := r.newFunName()
 		r.funcs[newName] = node
-		retVal = &ast.Ident{newName}
+		retVal = &ast.Ident{newName, ast.NoID}
 
 		r.funDefLocs[r.nameStack.Peek()] = append(r.funDefLocs[r.nameStack.Peek()], newName)
 		r.nameStack.Push(newName)
@@ -127,7 +127,7 @@ func (r *FuncRemover) WalkBlock(block *ast.Block) *ast.Block {
 func rewriteMethod(origFun *ast.FunDef, destStruct *ast.StructDef) {
 	ThisCount++
 	thisName := fmt.Sprintf("__this_%d", ThisCount)
-	origFun.Args = append([]ast.Node{&ast.Ident{thisName}}, origFun.Args...)
+	origFun.Args = append([]ast.Node{&ast.Ident{thisName, ast.NoID}}, origFun.Args...)
 
 	nameChecker := func(name string) bool {
 		if destStruct.Has(BaseName(name)) {
@@ -137,7 +137,7 @@ func rewriteMethod(origFun *ast.FunDef, destStruct *ast.StructDef) {
 	}
 
 	nodeGen := func(origNode ast.Node) ast.Node {
-		return &ast.StructAccess{&ast.Ident{BaseName(origNode.(*ast.Ident).Value)}, &ast.Ident{thisName}}
+		return &ast.StructAccess{&ast.Ident{BaseName(origNode.(*ast.Ident).Value), ast.NoID}, &ast.Ident{thisName, ast.NoID}, ast.NoID}
 	}
 
 	for lno, line := range origFun.Body.Lines {

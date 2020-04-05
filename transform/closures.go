@@ -125,19 +125,25 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 		tupleName := fmt.Sprintf("%s.tup", cloName)
 		argName := fmt.Sprintf("%s.arg", cloName)
 
-		enclosedFunc.Args = append([]ast.Node{&ast.Ident{argName}}, enclosedFunc.Args...)
+		enclosedFunc.Args = append([]ast.Node{&ast.Ident{argName, ast.NoID}}, enclosedFunc.Args...)
 
 		unboundNames := make([]ast.Node, 0)
 		i := 0
 		// Rewrite function body to unpack all values
 		for unboundName, _ := range unboundVals {
-			unboundNames = append(unboundNames, &ast.Ident{unboundName})
-			unboundAssign := &ast.Assign{&ast.Ident{unboundName}, &ast.SliceNode{&ast.Num{int64(i)}, &ast.Ident{argName}}}
+			unboundNames = append(unboundNames, &ast.Ident{unboundName, ast.NoID})
+			unboundAssign := &ast.Assign{
+				&ast.Ident{unboundName, ast.NoID},
+				&ast.SliceNode{
+					&ast.Num{int64(i), ast.NoID},
+					&ast.Ident{argName, ast.NoID},
+					ast.NoID},
+				ast.NoID}
 			enclosedFunc.Body.Lines = append([]ast.Node{unboundAssign}, enclosedFunc.Body.Lines...)
 			i++
 		}
-		cloTuple := &ast.TupleLiteral{unboundNames}
-		tupAssign := &ast.Assign{&ast.Ident{tupleName}, cloTuple}
+		cloTuple := &ast.TupleLiteral{unboundNames, ast.NoID}
+		tupAssign := &ast.Assign{&ast.Ident{tupleName, ast.NoID}, cloTuple, ast.NoID}
 
 		enclosedFunc.Body.Lines = append(enclosedFunc.Body.Lines)
 
@@ -145,10 +151,10 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		closure := &ast.Closure{}
 		closure.Target = ident
-		closure.ArgTup = &ast.Ident{tupleName}
+		closure.ArgTup = &ast.Ident{tupleName, ast.NoID}
 		closure.NewFunc = node.Target
 
-		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, closure})
+		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, closure, ast.NoID})
 		retVal = retLines
 	}
 

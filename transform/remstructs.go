@@ -32,9 +32,9 @@ func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {
 		memberNames := make([]string, len(node.Members))
 		instanceValues := make([]ast.Node, len(node.Members))
 		for i, member := range node.Members {
-			args[i] = &ast.Ident{member.Name.Value}
+			args[i] = &ast.Ident{member.Name.Value, ast.NoID}
 			argTypes[i] = member.Type
-			instanceValues[i] = &ast.Ident{member.Name.Value}
+			instanceValues[i] = &ast.Ident{member.Name.Value, ast.NoID}
 			memberNames[i] = member.Name.Value
 		}
 
@@ -43,6 +43,7 @@ func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {
 				[]ast.Node{&ast.StructInstance{
 					instanceValues,
 					node,
+					ast.NoID,
 				}},
 			},
 			Args:     args,

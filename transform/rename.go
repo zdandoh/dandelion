@@ -64,15 +64,16 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 		renameCopy := r.LocalCopy()
 		newArgs := make([]ast.Node, 0)
 		for _, arg := range node.Args {
-			argName := arg.(*ast.Ident).Value
+			argIdent := arg.(*ast.Ident)
+			argName := argIdent.Value
 			renamedArg := renameCopy.getName(argName)
-			newArgs = append(newArgs, &ast.Ident{renamedArg})
+			newArgs = append(newArgs, &ast.Ident{renamedArg, argIdent.NodeID})
 		}
 		newBlock := renameCopy.WalkBlock(node.Body)
-		retVal = &ast.FunDef{newBlock, newArgs, node.TypeHint, node.IsCoro}
+		retVal = &ast.FunDef{newBlock, newArgs, node.TypeHint, node.IsCoro, node.NodeID}
 	case *ast.Ident:
 		newName := r.getName(node.Value)
-		retVal = &ast.Ident{newName}
+		retVal = &ast.Ident{newName, node.NodeID}
 	}
 
 	return retVal
