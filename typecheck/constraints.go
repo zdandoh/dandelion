@@ -24,6 +24,10 @@ type Constrainable interface {
 	ConsString() string
 }
 
+type consBox struct {
+	cons []Constraint
+}
+
 type ConsHash string
 type TypeVar int
 

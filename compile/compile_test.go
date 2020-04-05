@@ -999,7 +999,13 @@ return max(list);
 
 func TestTypeHint(t *testing.T) {
 	src := `
-int hello = 7;
+f(int)string splitter = null;
+
+snoo = f(nurn) {
+	return "bill";
+};
+splitter = snoo;
+return 0;
 `
 
 	if !CompileCheckExit(src, 0) {

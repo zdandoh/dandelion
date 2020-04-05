@@ -234,7 +234,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
-		return fmt.Errorf("type inference failed, base types not equal")
+		return fmt.Errorf("type inference failed, base types not equal: %s != %s", leftBase.TypeString(), rightBase.TypeString())
 	}
 	if isLeftBase {
 		return u.Unify(Constraint{currCons.Right, currCons.Left})
@@ -331,7 +331,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	}
 	if isRightTuple && isLeftContainer {
 		if leftContainer.Index < 0 || leftContainer.Index >= len(rightTuple.Subtypes) {
-			return fmt.Errorf("illegal index for tuple:", leftContainer.Index)
+			return fmt.Errorf("illegal index for tuple: %d", leftContainer.Index)
 		}
 
 		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightTuple.Subtypes[leftContainer.Index]})

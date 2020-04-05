@@ -245,19 +245,39 @@ func (i *TypeInferer) PostWalk(astNode ast.Node) {
 }
 
 // TODO complete implementation of this function, won't handle many cases
-func hintToCons(hintType types.Type) Constrainable {
+func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
+	newVar := i.NewTypeVar()
+	var varVal Constrainable
+
 	switch ty := hintType.(type) {
 	case types.FuncType:
 		fun := Fun{}
-		fun.Ret = hintToCons(ty.RetType)
+		fun.Ret = i.hintToCons(ty.RetType, box)
 		for _, argT := range ty.ArgTypes {
-			fun.Args = append(fun.Args, hintToCons(argT))
+			fun.Args = append(fun.Args, i.hintToCons(argT, box))
 		}
 
-		return fun
+		varVal = fun
+	case types.CoroutineType:
+		panic("Coroutine has undefined type hint syntax")
+	case types.TupleType:
+		tup := Tup{}
+		for _, subtype := range ty.Types {
+			tup.Subtypes = append(tup.Subtypes, i.hintToCons(subtype, box))
+		}
+		varVal = tup
+	case types.ArrayType:
+		subTypeVar := i.hintToCons(ty.Subtype, box)
+		cont := Container{types.ArrayType{types.NullType{}}, subTypeVar, 0, i.NewContainerID()}
+		varVal = cont
+	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType:
+		varVal = BaseType{ty}
 	default:
-		return BaseType{hintType}
+		panic("Unknown hint type: " + hintType.TypeString())
 	}
+
+	box.cons = append(box.cons, Constraint{newVar, varVal})
+	return newVar
 }
 
 func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
@@ -278,7 +298,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
-			i.AddCons(Constraint{i.GetTypeVar(fIdent), hintToCons(*funDef.TypeHint)})
+			cons := make([]Constraint, 0)
+			i.AddCons(Constraint{i.GetTypeVar(fIdent), i.hintToCons(*funDef.TypeHint, &consBox{cons})})
 		}
 
 		// Check if function has a non-return last line. If so, setup inference for that line.
@@ -423,6 +444,15 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			options.Dependants[typeVar] = fieldName
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), options})
 		}
+	}
+
+	// Create constraints for all identifier hints
+	for identVal, hint := range prog.IdentHints {
+		identVal = identVal + "_1"
+		box := &consBox{make([]Constraint, 0)}
+		hintVar := i.hintToCons(hint, box)
+		i.AddCons(Constraint{i.GetTypeVar(&ast.Ident{identVal}), hintVar})
+		i.Constraints = append(i.Constraints, box.cons...)
 	}
 
 	DebugInfer("------ CONSTRAINTS ------")
