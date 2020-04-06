@@ -1,6 +1,10 @@
 // Calc.g4
 lexer grammar DandelionLex;
 
+@lexer::members {
+var LineCounter = 0
+}
+
 // Tokens
 SEMICOLON: ';';
 COMMA: ',';
@@ -60,4 +64,5 @@ COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;
 STRING: STRING_UNTERM '"';
 STRING_UNTERM: '"' (~["\\\r\n] | '\\' (. | EOF))*;
-WHITESPACE: [ \r\n\t]+ -> skip;
+NEWLINE : '\r'? '\n' { { LineCounter++ } } -> skip;
+WHITESPACE: [ \t]+ -> skip;

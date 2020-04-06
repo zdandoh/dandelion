@@ -21,6 +21,7 @@ type listener struct {
 	mainFunc   *ast.FunDef
 	typeStack  *TypeStack
 	identHints map[string]types.Type
+	metadata   map[ast.NodeID]*ast.Meta
 	structNo   int
 	nodeID     ast.NodeID
 	emptyArrNo int
@@ -37,6 +38,10 @@ func DebugPrintln(more ...interface{}) {
 
 func (l *listener) NewNodeID() ast.NodeID {
 	l.nodeID++
+
+	newMeta := &ast.Meta{parser.LineCounter}
+	l.metadata[l.nodeID] = newMeta
+
 	return l.nodeID
 }
 
@@ -622,11 +627,12 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 	return notCommas
 }
 
-func NewProgram(mainFunc *ast.FunDef, identHints map[string]types.Type) *ast.Program {
+func NewProgram(mainFunc *ast.FunDef, identHints map[string]types.Type, metadata map[ast.NodeID]*ast.Meta) *ast.Program {
 	newProg := &ast.Program{}
 	newProg.Funcs = make(map[string]*ast.FunDef)
 	newProg.Structs = make(map[string]*ast.StructDef)
 	newProg.IdentHints = identHints
+	newProg.Metadata = metadata
 
 	newProg.Funcs["main"] = mainFunc
 	return newProg
@@ -641,8 +647,9 @@ func ParseProgram(text string) *ast.Program {
 	l := &listener{}
 	l.typeStack = &TypeStack{}
 	l.identHints = make(map[string]types.Type)
+	l.metadata = make(map[ast.NodeID]*ast.Meta)
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 
-	prog := NewProgram(l.mainFunc, l.identHints)
+	prog := NewProgram(l.mainFunc, l.identHints, l.metadata)
 	return prog
 }

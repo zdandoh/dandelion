@@ -56,6 +56,7 @@ type Program struct {
 	Funcs      map[string]*FunDef
 	Structs    map[string]*StructDef
 	IdentHints map[string]types.Type
+	Metadata   map[NodeID]*Meta
 	Output     string
 }
 
@@ -67,6 +68,10 @@ func (p *Program) Struct(name string) *StructDef {
 	}
 
 	return nil
+}
+
+func (p *Program) Meta(node Node) *Meta {
+	return p.Metadata[node.ID()]
 }
 
 type Meta struct {
