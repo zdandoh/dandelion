@@ -328,7 +328,12 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.Pipeline:
 		retVal = c.compilePipeline(node)
 	case *ast.FunApp:
-		callee := c.CompileNode(node.Fun)
+		var callee value.Value
+		if node.Extern {
+			callee = ir.NewGlobal(node.Fun.(*ast.Ident).Value, c.typeToLLType(c.GetType(node.Fun)).(*lltypes.PointerType).ElemType)
+		} else {
+			callee = c.CompileNode(node.Fun)
+		}
 
 		argVals := make([]value.Value, 0)
 		for _, arg := range node.Args {

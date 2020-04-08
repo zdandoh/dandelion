@@ -2,6 +2,7 @@ package transform
 
 import (
 	"dandelion/ast"
+	"dandelion/parser"
 	"fmt"
 	"strings"
 )
@@ -72,7 +73,12 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 		newBlock := renameCopy.WalkBlock(node.Body)
 		retVal = &ast.FunDef{newBlock, newArgs, node.TypeHint, node.IsCoro, node.NodeID}
 	case *ast.Ident:
-		newName := r.getName(node.Value)
+		var newName string
+		if strings.HasPrefix(node.Value, parser.ExternPrefix) {
+			newName = node.Value[len(parser.ExternPrefix):]
+		} else {
+			newName = r.getName(node.Value)
+		}
 		retVal = &ast.Ident{newName, node.NodeID}
 	}
 

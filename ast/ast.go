@@ -352,8 +352,9 @@ func (n *StructAccess) String() string {
 }
 
 type FunApp struct {
-	Fun  Node
-	Args []Node
+	Fun    Node
+	Args   []Node
+	Extern bool
 	NodeID
 }
 

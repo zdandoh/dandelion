@@ -27,6 +27,7 @@ type listener struct {
 }
 
 const Debug = true
+const ExternPrefix = "__extern_"
 
 func DebugPrintln(more ...interface{}) {
 	if Debug {
@@ -199,6 +200,8 @@ func (l *listener) ExitBaseType(c *parser.BaseTypeContext) {
 		t = types.FloatType{}
 	case "byte":
 		t = types.ByteType{}
+	case "void":
+		t = types.NullType{}
 	default:
 		t = types.StructType{text}
 	}
@@ -325,6 +328,11 @@ func (l *listener) ExitFunApp(c *parser.FunAppContext) {
 		funApp.Args = append([]ast.Node{l.nodeStack.Pop()}, funApp.Args...)
 	}
 	funApp.Fun = l.nodeStack.Pop()
+
+	appIdent, isIdent := funApp.Fun.(*ast.Ident)
+	if isIdent && strings.HasPrefix(appIdent.Value, ExternPrefix) {
+		funApp.Extern = true
+	}
 
 	l.nodeStack.Push(funApp)
 	DebugPrintln("Exiting funapp ", argCount)

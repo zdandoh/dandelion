@@ -1009,6 +1009,17 @@ splitter = f(n, n2) {
 	}
 }
 
+func TestExtern(t *testing.T) {
+	src := `
+f(int)void __extern_print(7);
+return 0;
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
 //func TestRecursion(t *testing.T) {
 //	src := `
 //fun = f(other) {

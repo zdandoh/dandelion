@@ -66,7 +66,7 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &Closure{WalkAst(node.Target, w), WalkAst(node.ArgTup, w), WalkAst(node.NewFunc, w), node.Unbound, node.NodeID}
 	case *FunApp:
 		walkedArgs := WalkList(node.Args, w)
-		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs, node.NodeID}
+		retVal = &FunApp{WalkAst(node.Fun, w), walkedArgs, node.Extern, node.NodeID}
 	case *While:
 		retVal = &While{WalkAst(node.Cond, w), WalkBlock(node.Body, w), node.NodeID}
 	case *StructInstance:
