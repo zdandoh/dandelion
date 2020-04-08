@@ -323,6 +323,15 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	for _, astNode := range i.Subexps {
 		typeVar, _ := i.NodeToTypeVar(astNode)
 
+		// Create constraints for type hint
+		meta := prog.Meta(astNode)
+		if meta != nil && meta.Hint != nil {
+			box := &consBox{make([]Constraint, 0)}
+			hintVar := i.hintToCons(*meta.Hint, box)
+			i.AddCons(Constraint{i.GetTypeVar(astNode), hintVar})
+			i.Constraints = append(i.Constraints, box.cons...)
+		}
+
 		switch node := astNode.(type) {
 		case *ast.Num:
 			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
@@ -449,15 +458,6 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			options.Dependants[typeVar] = fieldName
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), options})
 		}
-	}
-
-	// Create constraints for all identifier hints
-	for identVal, hint := range prog.IdentHints {
-		identVal = identVal + "_1"
-		box := &consBox{make([]Constraint, 0)}
-		hintVar := i.hintToCons(hint, box)
-		i.AddCons(Constraint{i.GetTypeVar(&ast.Ident{identVal, ast.NoID}), hintVar})
-		i.Constraints = append(i.Constraints, box.cons...)
 	}
 
 	DebugInfer("------ CONSTRAINTS ------")

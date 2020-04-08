@@ -18,14 +18,12 @@ type listener struct {
 	rootNode   ast.Node
 	nodeStack  NodeStack
 	blockStack BlockStack
-	mainFunc   *ast.FunDef
 	typeStack  *TypeStack
-	identHints map[string]types.Type
-	metadata   map[ast.NodeID]*ast.Meta
 	structNo   int
 	nodeID     ast.NodeID
 	emptyArrNo int
 	nullNo     int
+	prog       *ast.Program
 }
 
 const Debug = true
@@ -39,8 +37,8 @@ func DebugPrintln(more ...interface{}) {
 func (l *listener) NewNodeID() ast.NodeID {
 	l.nodeID++
 
-	newMeta := &ast.Meta{parser.LineCounter}
-	l.metadata[l.nodeID] = newMeta
+	newMeta := &ast.Meta{parser.LineCounter, nil}
+	l.prog.Metadata[l.nodeID] = newMeta
 
 	return l.nodeID
 }
@@ -119,11 +117,13 @@ func (l *listener) ExitIdent(c *parser.IdentContext) {
 
 	newIdent := &ast.Ident{}
 	newIdent.Value = c.GetId().GetText()
+	newIdent.NodeID = l.NewNodeID()
 
 	idType := c.GetIdtype()
 	if idType != nil {
 		newType := l.typeStack.Pop()
-		l.identHints[newIdent.Value] = newType
+		meta := l.prog.Meta(newIdent)
+		meta.Hint = &newType
 	}
 
 	l.nodeStack.Push(newIdent)
@@ -304,7 +304,7 @@ func (l *listener) ExitStart(c *parser.StartContext) {
 	mainFunc.Args = []ast.Node{}
 	mainFunc.TypeHint = &types.FuncType{[]types.Type{}, types.IntType{}}
 	mainFunc.Body = l.blockStack.Pop()
-	l.mainFunc = mainFunc
+	l.prog.Funcs["main"] = mainFunc
 }
 
 func (l *listener) EnterFunApp(c *parser.FunAppContext) {
@@ -627,14 +627,12 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 	return notCommas
 }
 
-func NewProgram(mainFunc *ast.FunDef, identHints map[string]types.Type, metadata map[ast.NodeID]*ast.Meta) *ast.Program {
+func NewProgram() *ast.Program {
 	newProg := &ast.Program{}
 	newProg.Funcs = make(map[string]*ast.FunDef)
 	newProg.Structs = make(map[string]*ast.StructDef)
-	newProg.IdentHints = identHints
-	newProg.Metadata = metadata
+	newProg.Metadata = make(map[ast.NodeID]*ast.Meta)
 
-	newProg.Funcs["main"] = mainFunc
 	return newProg
 }
 
@@ -646,10 +644,8 @@ func ParseProgram(text string) *ast.Program {
 
 	l := &listener{}
 	l.typeStack = &TypeStack{}
-	l.identHints = make(map[string]types.Type)
-	l.metadata = make(map[ast.NodeID]*ast.Meta)
+	l.prog = NewProgram()
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 
-	prog := NewProgram(l.mainFunc, l.identHints, l.metadata)
-	return prog
+	return l.prog
 }

@@ -13,7 +13,6 @@ a = 6;
 b = 7;
 d = a + b + 78;
 return d;
-
 `
 	if !CompileCheckExit(src, 91) {
 		t.Fail()

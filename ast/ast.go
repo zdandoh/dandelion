@@ -53,11 +53,10 @@ func (n NodeID) ID() NodeID {
 }
 
 type Program struct {
-	Funcs      map[string]*FunDef
-	Structs    map[string]*StructDef
-	IdentHints map[string]types.Type
-	Metadata   map[NodeID]*Meta
-	Output     string
+	Funcs    map[string]*FunDef
+	Structs  map[string]*StructDef
+	Metadata map[NodeID]*Meta
+	Output   string
 }
 
 func (p *Program) Struct(name string) *StructDef {
@@ -76,6 +75,7 @@ func (p *Program) Meta(node Node) *Meta {
 
 type Meta struct {
 	LineNo int
+	Hint   *types.Type
 }
 
 type Block struct {
