@@ -996,21 +996,18 @@ return max(list);
 	}
 }
 
-//func TestTypeHint(t *testing.T) {
-//	src := `
-//f(int)string splitter = null;
-//
-//snoo = f(nurn) {
-//	return "bill";
-//};
-//splitter = snoo;
-//return 0;
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+func TestTypeHint(t *testing.T) {
+	src := `
+f(int, byte)[]string splitter = null;
+splitter = f(n, n2) {
+	return ["hello", "world"];
+};
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
 
 //func TestRecursion(t *testing.T) {
 //	src := `

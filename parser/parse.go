@@ -216,10 +216,10 @@ func (l *listener) ExitTypedFun(c *parser.TypedFunContext) {
 
 	// TODO figure out how to do this properly
 	typeCount := int(math.Ceil(float64(c.GetFtypelist().GetChildCount()) / 2.0))
-	for i := 0; i < typeCount; i++ {
-		funType.ArgTypes = append(funType.ArgTypes, l.typeStack.Pop())
-	}
 	funType.RetType = l.typeStack.Pop()
+	for i := 0; i < typeCount; i++ {
+		funType.ArgTypes = append([]types.Type{l.typeStack.Pop()}, funType.ArgTypes...)
+	}
 	l.typeStack.Push(funType)
 }
 
