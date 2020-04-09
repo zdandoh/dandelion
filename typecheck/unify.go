@@ -194,7 +194,8 @@ func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Con
 		structType := newOpt.Types[0].(types.StructType)
 
 		var structDef *ast.StructDef
-		for _, s := range u.prog.Structs {
+		for i := 0; i < u.prog.StructCount(); i++ {
+			s := u.prog.StructNo(i)
 			if s.Type.Name == structType.Name {
 				structDef = s
 				break

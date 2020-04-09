@@ -74,7 +74,8 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 
 			// TODO future optimization, remove linear runtime
 			var foundStruct *ast.StructDef
-			for _, structDef := range r.prog.Structs {
+			for i := 0; i < r.prog.StructCount(); i++ {
+				structDef := r.prog.StructNo(i)
 				if structDef.Type.Name == structName {
 					foundStruct = structDef
 					break

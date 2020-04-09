@@ -1011,7 +1011,7 @@ splitter = f(n, n2) {
 
 func TestExtern(t *testing.T) {
 	src := `
-f(int)void __extern_print(7);
+f(int)void __extern_print(5);
 return 0;
 `
 

@@ -442,7 +442,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
 			fieldName := node.Field.(*ast.Ident).Value
-			for _, structDef := range prog.Structs {
+			for i := 0; i < prog.StructCount(); i++ {
+				structDef := prog.StructNo(i)
 				for _, member := range structDef.Members {
 					if member.Name.Value == fieldName {
 						options.Types = append(options.Types, structDef.Type)

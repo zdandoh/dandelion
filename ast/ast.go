@@ -53,20 +53,43 @@ func (n NodeID) ID() NodeID {
 }
 
 type Program struct {
-	Funcs    map[string]*FunDef
-	Structs  map[string]*StructDef
-	Metadata map[NodeID]*Meta
-	Output   string
+	Funcs       map[string]*FunDef
+	structs     map[string]*StructDef
+	structOrder []*StructDef
+	Metadata    map[NodeID]*Meta
+	Output      string
+}
+
+func NewProgram() *Program {
+	newProg := &Program{}
+	newProg.Funcs = make(map[string]*FunDef)
+	newProg.structs = make(map[string]*StructDef)
+	newProg.Metadata = make(map[NodeID]*Meta)
+
+	return newProg
 }
 
 func (p *Program) Struct(name string) *StructDef {
-	for _, sDef := range p.Structs {
+	for _, sDef := range p.structs {
 		if sDef.Type.Name == name {
 			return sDef
 		}
 	}
 
 	return nil
+}
+
+func (p *Program) StructNo(index int) *StructDef {
+	return p.structOrder[index]
+}
+
+func (p *Program) StructCount() int {
+	return len(p.structs)
+}
+
+func (p *Program) AddStruct(name string, newStruct *StructDef) {
+	p.structs[name] = newStruct
+	p.structOrder = append(p.structOrder, newStruct)
 }
 
 func (p *Program) Meta(node Node) *Meta {

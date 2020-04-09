@@ -635,15 +635,6 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 	return notCommas
 }
 
-func NewProgram() *ast.Program {
-	newProg := &ast.Program{}
-	newProg.Funcs = make(map[string]*ast.FunDef)
-	newProg.Structs = make(map[string]*ast.StructDef)
-	newProg.Metadata = make(map[ast.NodeID]*ast.Meta)
-
-	return newProg
-}
-
 func ParseProgram(text string) *ast.Program {
 	is := antlr.NewInputStream(text)
 	lexer := parser.NewDandelionLex(is)
@@ -652,7 +643,7 @@ func ParseProgram(text string) *ast.Program {
 
 	l := &listener{}
 	l.typeStack = &TypeStack{}
-	l.prog = NewProgram()
+	l.prog = ast.NewProgram()
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
 
 	return l.prog

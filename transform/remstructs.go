@@ -25,7 +25,7 @@ func (r *StructRemover) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.StructDef:
 		r.structNo++
 		newName := fmt.Sprintf("s_%d", r.structNo)
-		r.prog.Structs[newName] = node
+		r.prog.AddStruct(newName, node)
 
 		args := make([]ast.Node, len(node.Members))
 		argTypes := make([]types.Type, len(node.Members))

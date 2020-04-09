@@ -148,7 +148,8 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 	StrType = c.mod.NewTypeDef("str", StrType)
 	LenType = c.mod.NewTypeDef("len_t", lltypes.NewInt(32))
 
-	for _, structDef := range prog.Structs {
+	for i := 0; i < prog.StructCount(); i++ {
+		structDef := prog.StructNo(i)
 		structType := lltypes.NewStruct()
 		c.TypeDefs[structDef.Type.Name] = lltypes.NewPointer(c.mod.NewTypeDef(structDef.Type.Name, structType))
 
@@ -523,7 +524,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		structType := c.GetType(node.Target).(types.StructType)
 
 		var structDef *ast.StructDef
-		for _, s := range c.prog.Structs {
+		for i := 0; i < c.prog.StructCount(); i++ {
+			s := c.prog.StructNo(i)
 			if s.Type.Name == structType.Name {
 				structDef = s
 				break
