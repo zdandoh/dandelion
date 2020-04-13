@@ -83,7 +83,7 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 	DebugInfer("--- SUBS ---")
 	for _, pair := range subs {
-		fmt.Println(pair.Old.ConsString(), "->", pair.New.ConsString())
+		DebugInfer(pair.Old.ConsString(), "->", pair.New.ConsString())
 	}
 
 	finalTypes := make(map[ast.NodeHash]types.Type)
@@ -96,7 +96,7 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 		}
 
 		initialVar := i.GetTypeVar(subExp)
-		fmt.Println("Resolving", subExp)
+		DebugInfer("Resolving", subExp)
 		resolvedType := i.ResolveType(initialVar, subs)
 
 		finalTypes[ast.HashNode(subExp)] = resolvedType

@@ -379,7 +379,6 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		yieldValPtr := NewGetElementPtr(c.currBlock, c.currCoro.Promise, Zero, Zero)
 		c.currBlock.NewStore(c.CompileNode(node.Target), yieldValPtr)
-		c.currBlock.NewCall(Print, c.CompileNode(node.Target))
 		suspendRes := c.currBlock.NewCall(CoroSuspend, constant.None, constant.NewBool(false))
 
 		c.currBlock.NewSwitch(
@@ -499,7 +498,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 	case *ast.TupleLiteral:
 		tupleType := c.typeToLLType(c.GetType(node)).(*lltypes.PointerType).ElemType
-		tuplePtr := c.currBlock.NewAlloca(tupleType)
+		tuplePtr := CallMalloc(c.currBlock, tupleType)
 
 		for i, elem := range node.Exprs {
 			elemPtr := c.CompileNode(elem)

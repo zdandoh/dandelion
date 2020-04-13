@@ -203,7 +203,7 @@ func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Con
 		}
 
 		for depVar, dep := range newOpt.Dependants {
-			fmt.Println(structType.Name, structDef)
+			DebugInfer(structType.Name, structDef)
 			if structDef.HasMethod(dep) {
 				// We need to treat struct methods differently than members
 				method := structDef.Method(dep)

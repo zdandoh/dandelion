@@ -411,6 +411,8 @@ return add(3, 4);
 	}
 }
 
+// This breaks every now and again, one of the closure arguments is
+// type inferred as null, which is bad. Figure out how to fix that.
 func TestNestedType(t *testing.T) {
 	src := `
 x = 5;
@@ -1020,6 +1022,29 @@ return 0;
 	}
 }
 
+func TestNestedCoro(t *testing.T) {
+	src := `
+getco = f(a, b) {
+	gen2 = f() {
+		while true {
+			yield a + b;
+		};
+	};
+
+	return gen2;
+};
+
+gen = getco(3, 4);
+co1 = gen();
+sum = next(co1) + next(co1);
+return sum;
+`
+
+	if !CompileCheckExit(src, 14) {
+		t.Fail()
+	}
+}
+
 //func TestRecursion(t *testing.T) {
 //	src := `
 //fun = f(other) {
@@ -1030,29 +1055,6 @@ return 0;
 //`
 //
 //	if !CompileCheckExit(src, 7) {
-//		t.Fail()
-//	}
-//}
-
-//func TestNestedCoro(t *testing.T) {
-//	src := `
-//getco = f(a, b) {
-//	gen2 = f() {
-//		while true {
-//			yield a + b;
-//		};
-//	};
-//
-//	return gen2;
-//};
-//
-//gen = getco(3, 4);
-//co1 = gen();
-//sum = next(co1) + next(co1);
-//return sum;
-//`
-//
-//	if !CompileCheckExit(src, 14) {
 //		t.Fail()
 //	}
 //}
