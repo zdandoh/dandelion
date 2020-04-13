@@ -1045,6 +1045,24 @@ return sum;
 	}
 }
 
+func TestStructWithFunc(t *testing.T) {
+	src := `
+struct Point {
+	int x;
+	int y;
+	f()int thing;
+};
+
+p = Point(4, 5, f(){5;});
+val = p.thing();
+return val;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
 //func TestRecursion(t *testing.T) {
 //	src := `
 //fun = f(other) {
@@ -1090,25 +1108,6 @@ return sum;
 //`
 //
 //	if !CompileCheckExit(src, 5) {
-//		t.Fail()
-//	}
-//}
-//
-//// Doesn't work type inferer can't deconstruct type hints well yet.
-//func TestStructWithFunc(t *testing.T) {
-//	src := `
-//struct Point {
-//	int x;
-//	int y;
-//	f()int thing;
-//};
-//
-//p = Point(4, 5, f(){5;});
-//lol = p.thing();
-//return lol;
-//`
-//
-//	if !CompileCheckExit(src, 20) {
 //		t.Fail()
 //	}
 //}
