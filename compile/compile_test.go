@@ -411,8 +411,6 @@ return add(3, 4);
 	}
 }
 
-// This breaks every now and again, one of the closure arguments is
-// type inferred as null, which is bad. Figure out how to fix that.
 func TestNestedType(t *testing.T) {
 	src := `
 x = 5;
@@ -1063,19 +1061,34 @@ return val;
 	}
 }
 
-//func TestRecursion(t *testing.T) {
-//	src := `
-//fun = f(other) {
-//	other(other);
-//};
-//
-//fun(fun);
-//`
-//
-//	if !CompileCheckExit(src, 7) {
-//		t.Fail()
-//	}
-//}
+func TestAssignTup(t *testing.T) {
+	src := `
+t = (1, 2, 3);
+t[1] = 1;
+return t[1];
+`
+
+	if !CompileCheckExit(src, 1) {
+		t.Fail()
+	}
+}
+
+func TestRecursion(t *testing.T) {
+	src := `
+fun = f(num) {
+	if num == 0 {
+		return 0;
+	};
+	return num + fun(num - 1);
+};
+
+return fun(10);
+`
+
+	if !CompileCheckExit(src, 55) {
+		t.Fail()
+	}
+}
 
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
@@ -1090,24 +1103,6 @@ return val;
 //`
 //
 //	if !CompileCheckExit(src, 33) {
-//		t.Fail()
-//	}
-//}
-
-//
-//// Doesn't work because currently closures break recursion
-//func TestRecursion(t *testing.T) {
-//	src := `
-//fun = f(x) {
-//	if x == 0 {
-//		return 5;
-//	};
-//
-//	return fun(x - 1);
-//};
-//`
-//
-//	if !CompileCheckExit(src, 5) {
 //		t.Fail()
 //	}
 //}

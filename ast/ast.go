@@ -57,6 +57,7 @@ type Program struct {
 	structs     map[string]*StructDef
 	structOrder []*StructDef
 	Metadata    map[NodeID]*Meta
+	CurrNodeID  NodeID
 	Output      string
 }
 
@@ -96,9 +97,18 @@ func (p *Program) Meta(node Node) *Meta {
 	return p.Metadata[node.ID()]
 }
 
+func (p *Program) NewNodeID() NodeID {
+	p.CurrNodeID++
+
+	newMeta := &Meta{}
+	p.Metadata[p.CurrNodeID] = newMeta
+
+	return p.CurrNodeID
+}
+
 type Meta struct {
 	LineNo int
-	Hint   *types.Type
+	Hint   types.Type
 }
 
 type Block struct {

@@ -16,6 +16,12 @@ func DebugInfer(more ...interface{}) {
 	}
 }
 
+func DebugInferf(format string, more ...interface{}) {
+	if DebugTypeInf {
+		fmt.Printf(format, more...)
+	}
+}
+
 type TypeInferer struct {
 	TypeNo      TypeVar
 	ContainerNo int
@@ -42,7 +48,7 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 	infer := NewTypeInferer()
 
 	DebugInfer("--- Program ast before inference ---")
-	DebugInfer(prog)
+	DebugInferf("%+v\n", prog)
 	// Setup all function defs
 	for fName, funDef := range prog.Funcs {
 		funCons := Fun{}
@@ -253,6 +259,7 @@ func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
 	case types.FuncType:
 		fun := Fun{}
 		fun.Ret = i.hintToCons(ty.RetType, box)
+
 		for _, argT := range ty.ArgTypes {
 			fun.Args = append(fun.Args, i.hintToCons(argT, box))
 		}
@@ -327,7 +334,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		meta := prog.Meta(astNode)
 		if meta != nil && meta.Hint != nil {
 			box := &consBox{make([]Constraint, 0)}
-			hintVar := i.hintToCons(*meta.Hint, box)
+			hintVar := i.hintToCons(meta.Hint, box)
 			i.AddCons(Constraint{i.GetTypeVar(astNode), hintVar})
 			i.Constraints = append(i.Constraints, box.cons...)
 		}
@@ -359,7 +366,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			cloFun := remFirstArg(baseFun)
 
 			i.AddCons(Constraint{typeVar, cloFun})
-			i.AddCons(Constraint{baseFun.Args[0], i.GetTypeVar(node.ArgTup)})
+			i.AddCons(Constraint{baseFun.Args[0], BaseType{types.NullType{}}})
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {

@@ -124,7 +124,7 @@ func (l *listener) ExitIdent(c *parser.IdentContext) {
 	if idType != nil {
 		newType := l.typeStack.Pop()
 		meta := l.prog.Meta(newIdent)
-		meta.Hint = &newType
+		meta.Hint = newType
 	}
 
 	l.nodeStack.Push(newIdent)
@@ -645,6 +645,7 @@ func ParseProgram(text string) *ast.Program {
 	l.typeStack = &TypeStack{}
 	l.prog = ast.NewProgram()
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
+	l.prog.CurrNodeID = l.nodeID + 1
 
 	return l.prog
 }

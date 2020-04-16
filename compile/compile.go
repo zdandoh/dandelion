@@ -173,8 +173,11 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 			argType := c.typeToLLType(c.GetType(fun.Args[i]))
 			newParam := ir.NewParam(argName, argType)
 			// TODO do a better job of detecting the closure argument
-			if strings.HasSuffix(argName, ".arg") || strings.HasPrefix(argName, "__this") {
+			if transform.IsCloArg(fun.Args[i]) || strings.HasPrefix(argName, "__this") {
 				newParam.Attrs = append(newParam.Attrs, enum.ParamAttrNest)
+			}
+			if transform.IsCloArg(fun.Args[i]) {
+				newParam.Typ = lltypes.I8Ptr
 			}
 			params = append(params, newParam)
 		}
@@ -201,9 +204,23 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	// Bind function args
 	for i, arg := range fun.Args {
 		argName := arg.(*ast.Ident).Value
-		argType := c.typeToLLType(c.GetType(arg))
+
+		var storePtr value.Value = c.currBlock.Parent.Params[i]
+		var argType lltypes.Type
+		if transform.IsCloArg(arg) {
+			// If the arg is the closure value, get the type for the related tuple and cast it to that type
+			cloTupIdent := &ast.Ident{transform.CloArgToTupName(arg.(*ast.Ident).Value), ast.NoID}
+			cloTupType := c.typeToLLType(c.GetType(cloTupIdent))
+			castTupPtr := c.currBlock.NewBitCast(c.currBlock.Parent.Params[i], cloTupType)
+			argType = c.typeToLLType(c.GetType(cloTupIdent))
+			storePtr = castTupPtr
+		} else {
+			argType = c.typeToLLType(c.GetType(arg))
+		}
+
 		argPtr := c.currBlock.NewAlloca(argType)
-		c.currBlock.NewStore(c.currBlock.Parent.Params[i], argPtr)
+		c.currBlock.NewStore(storePtr, argPtr)
+
 		c.PEnv.Set(c.currFun.Name(), argName, argPtr)
 	}
 	// Allocate space for return value & setup return block
@@ -641,7 +658,16 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		index := c.CompileNode(target.Index)
 		list := c.CompileNode(target.Arr)
 
-		elemPtr := c.getListElemPtr(list, index)
+		var elemPtr value.Value
+		arrType := c.GetType(target.Arr)
+		_, isTup := arrType.(types.TupleType)
+		if isTup {
+			elemPtr = NewGetElementPtr(c.currBlock, list, Zero, index)
+			retVal = NewLoad(c.currBlock, elemPtr)
+		} else {
+			elemPtr = c.getListElemPtr(list, index)
+		}
+
 		c.currBlock.NewStore(c.CompileNode(node.Expr), elemPtr)
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(target.Target)

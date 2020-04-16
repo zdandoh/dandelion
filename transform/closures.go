@@ -3,7 +3,11 @@ package transform
 import (
 	"dandelion/ast"
 	"fmt"
+	"strings"
 )
+
+const CloArgSuffix = ".arg"
+const CloTupSuffix = ".tup"
 
 type UnboundVars map[string]bool
 type DefinedVars map[string]bool
@@ -122,8 +126,13 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		retLines := &ast.LineBundle{}
 		cloName := fmt.Sprintf("clo.%s", ident)
-		tupleName := fmt.Sprintf("%s.tup", cloName)
-		argName := fmt.Sprintf("%s.arg", cloName)
+		tupName := cloName + CloTupSuffix
+		argName := cloName + CloArgSuffix
+
+		structMemberNodes := make([]ast.Node, 0)
+		for unboundName, _ := range unboundVals {
+			structMemberNodes = append(structMemberNodes, &ast.Ident{unboundName, ast.NoID})
+		}
 
 		enclosedFunc.Args = append([]ast.Node{&ast.Ident{argName, ast.NoID}}, enclosedFunc.Args...)
 
@@ -143,18 +152,27 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 			i++
 		}
 		cloTuple := &ast.TupleLiteral{unboundNames, ast.NoID}
-		tupAssign := &ast.Assign{&ast.Ident{tupleName, ast.NoID}, cloTuple, ast.NoID}
+		tupIdent := &ast.Ident{tupName, ast.NoID}
+		tupAssign := &ast.Assign{tupIdent, cloTuple, ast.NoID}
 
 		enclosedFunc.Body.Lines = append(enclosedFunc.Body.Lines)
 
+		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, &ast.NullExp{int(c.Prog.NewNodeID()), ast.NoID}, ast.NoID})
 		retLines.Lines = append(retLines.Lines, tupAssign)
 
 		closure := &ast.Closure{}
 		closure.Target = ident
-		closure.ArgTup = &ast.Ident{tupleName, ast.NoID}
+		closure.ArgTup = &ast.Ident{tupName, ast.NoID}
 		closure.NewFunc = node.Target
 
 		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, closure, ast.NoID})
+
+		for i, tupExpr := range cloTuple.Exprs {
+			if tupExpr.(*ast.Ident).Value == node.Target.(*ast.Ident).Value {
+				retLines.Lines = append(retLines.Lines, &ast.Assign{&ast.SliceNode{&ast.Num{int64(i), ast.NoID}, tupIdent, ast.NoID}, node.Target, ast.NoID})
+			}
+		}
+
 		retVal = retLines
 	}
 
@@ -163,4 +181,18 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 func (c *ClosureExtractor) WalkBlock(block *ast.Block) *ast.Block {
 	return nil
+}
+
+func IsCloArg(node ast.Node) bool {
+	ident, isIdent := node.(*ast.Ident)
+	if isIdent && strings.HasSuffix(ident.Value, ".arg") {
+		return true
+	}
+
+	return false
+}
+
+func CloArgToTupName(argName string) string {
+	baseClo := strings.TrimSuffix(argName, CloArgSuffix)
+	return baseClo + CloTupSuffix
 }
