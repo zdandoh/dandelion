@@ -455,6 +455,34 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.CompileBlock(node.Body)
 
 		c.currBlock = postWhile
+	case *ast.For:
+		prevContinuation := c.currBlock.Term
+
+		c.CompileNode(node.Init)
+
+		forCondBlock := c.currFun.NewBlock(c.getLabel("forcond"))
+		c.currBlock.NewBr(forCondBlock)
+
+		c.currBlock = forCondBlock
+		cond := c.CompileNode(node.Cond)
+
+		forStep := c.currFun.NewBlock(c.getLabel("forstep"))
+		c.currBlock = forStep
+		c.CompileNode(node.Step)
+		c.currBlock.NewBr(forCondBlock)
+
+		forBody := c.currFun.NewBlock(c.getLabel("forbody"))
+		forBody.NewBr(forStep)
+
+		postFor := c.currFun.NewBlock(c.getLabel("postfor"))
+		postFor.Term = prevContinuation
+
+		forCondBlock.NewCondBr(cond, forBody, postFor)
+
+		c.currBlock = forBody
+		c.CompileBlock(node.Body)
+
+		c.currBlock = postFor
 	case *ast.BlockExp:
 		prevContinuation := c.currBlock.Term
 		block := c.currFun.NewBlock(c.getLabel("newblock"))

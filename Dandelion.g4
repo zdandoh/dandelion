@@ -5,6 +5,7 @@ options { tokenVocab=DandelionLex; }
 start : line+ EOF;
 
 line: (expr|statement) ';';
+code: (expr|statement);
 typeline: typed ident=IDENT ';';
 arglist: IDENT (',' IDENT)* (',')?;
 typelist: typed? (',' typed)*;
@@ -34,7 +35,6 @@ expr
    | 'next' '(' expr ')'                          # NextExp
    | 'send' '(' expr ',' expr ')'                 # SendExp
    | expr '(' args=explist  ')'                   # FunApp
-   | '{' body '}'                                 # BlockExp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
    | expr op=(LT|LTE|GT|GTE|EQ|NEQ) expr          # CompExp
@@ -53,8 +53,9 @@ statement
    : expr '=' expr                           # Assign
    | IF expr '{' lines=line* '}'             # If
    | 'struct' ident=IDENT '{' structbody '}' # NamedStructDef
-   | FOR expr ';' expr ';' expr '{' body '}' # For
+   | FOR code ';' expr ';' code '{' body '}' # For
    | WHILE expr '{' body '}'                 # While
+   | '{' body '}'                            # BlockExp
    | RETURN expr                             # Return
    | YIELD expr                              # Yield
    ;

@@ -432,6 +432,27 @@ func (l *listener) ExitIf(c *parser.IfContext) {
 	l.nodeStack.Push(ifNode)
 }
 
+func (l *listener) EnterFor(c *parser.ForContext) {
+	DebugPrintln("Entering for")
+
+	l.blockStack.Push(&ast.Block{})
+}
+
+func (l *listener) ExitFor(c *parser.ForContext) {
+	DebugPrintln("Exiting for")
+
+	forNode := &ast.For{}
+	forNode.Step = l.nodeStack.Pop()
+	forNode.Cond = l.nodeStack.Pop()
+	forNode.Init = l.nodeStack.Pop()
+	forNode.Body = l.blockStack.Pop()
+	forNode.NodeID = l.NewNodeID()
+
+	wrappedFor := &ast.BlockExp{&ast.Block{[]ast.Node{forNode}}, l.NewNodeID()}
+
+	l.nodeStack.Push(wrappedFor)
+}
+
 func (l *listener) EnterReturn(c *parser.ReturnContext) {
 	DebugPrintln("Entering return")
 }

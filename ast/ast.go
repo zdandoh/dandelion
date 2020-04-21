@@ -44,6 +44,7 @@ func init() {
 	gob.Register(NullExp{})
 	gob.Register(Pipeline{})
 	gob.Register(BlockExp{})
+	gob.Register(For{})
 }
 
 type NodeID int
@@ -429,6 +430,22 @@ func (n *If) String() string {
 	return lines
 }
 
+type For struct {
+	Init Node
+	Cond Node
+	Step Node
+	Body *Block
+	NodeID
+}
+
+func (n *For) String() string {
+	lines := fmt.Sprintf("for %v; %v; %v {\n", n.Init, n.Cond, n.Step)
+	lines += n.Body.String()
+	lines += "}"
+
+	return lines
+}
+
 type CompNode struct {
 	Op    string
 	Left  Node
@@ -675,6 +692,10 @@ func Statement(node Node) bool {
 		return true
 	case *While:
 		return true
+	case *For:
+		return true
+	case *BlockExp:
+		return true
 	}
 
 	return false
@@ -740,6 +761,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *Pipeline:
 		node.NodeID = newID
 	case *BlockExp:
+		node.NodeID = newID
+	case *For:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

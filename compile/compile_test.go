@@ -1090,7 +1090,7 @@ return fun(10);
 	}
 }
 
-func TestBlockScope(t *testing.T) {
+func TestNakedBlock(t *testing.T) {
 	src := `
 i = 5;
 {
@@ -1102,6 +1102,21 @@ return i;
 `
 
 	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
+func TestFor(t *testing.T) {
+	src := `
+sum = 0;
+for i = 0; i < 5; i = i + 1 {
+	sum = sum + i;
+};
+
+return sum;
+`
+
+	if !CompileCheckExit(src, 10) {
 		t.Fail()
 	}
 }
