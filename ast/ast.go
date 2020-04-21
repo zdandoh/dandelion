@@ -42,6 +42,8 @@ func init() {
 	gob.Register(Closure{})
 	gob.Register(ParenExp{})
 	gob.Register(NullExp{})
+	gob.Register(Pipeline{})
+	gob.Register(BlockExp{})
 }
 
 type NodeID int
@@ -538,6 +540,20 @@ func (n *StrExp) String() string {
 	return fmt.Sprintf("\"%s\"", n.Value)
 }
 
+type BlockExp struct {
+	Block *Block
+	NodeID
+}
+
+func (n *BlockExp) String() string {
+	block := "{\n"
+	for _, line := range n.Block.Lines {
+		block += "    " + line.String() + "\n"
+	}
+	block += "}"
+	return block
+}
+
 type PipeExp struct {
 	Left  Node
 	Right Node
@@ -720,6 +736,10 @@ func SetID(astNode Node, newID NodeID) {
 	case *ParenExp:
 		node.NodeID = newID
 	case *NullExp:
+		node.NodeID = newID
+	case *Pipeline:
+		node.NodeID = newID
+	case *BlockExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

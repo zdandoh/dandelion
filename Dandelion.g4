@@ -34,6 +34,7 @@ expr
    | 'next' '(' expr ')'                          # NextExp
    | 'send' '(' expr ',' expr ')'                 # SendExp
    | expr '(' args=explist  ')'                   # FunApp
+   | '{' body '}'                                 # BlockExp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
    | expr op=(LT|LTE|GT|GTE|EQ|NEQ) expr          # CompExp

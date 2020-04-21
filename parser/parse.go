@@ -406,6 +406,16 @@ func (l *listener) ExitWhile(c *parser.WhileContext) {
 	l.nodeStack.Push(whileNode)
 }
 
+func (l *listener) EnterBlockExp(c *parser.BlockExpContext) {
+	DebugPrintln("Entering block exp")
+
+	l.blockStack.Push(&ast.Block{})
+}
+
+func (l *listener) ExitBlockExp(c *parser.BlockExpContext) {
+	l.nodeStack.Push(&ast.BlockExp{l.blockStack.Pop(), l.NewNodeID()})
+}
+
 func (l *listener) EnterIf(c *parser.IfContext) {
 	DebugPrintln("Entering if")
 

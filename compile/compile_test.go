@@ -1090,6 +1090,22 @@ return fun(10);
 	}
 }
 
+func TestBlockScope(t *testing.T) {
+	src := `
+i = 5;
+{
+	b = 7;
+	return b;
+};
+
+return i;
+`
+
+	if !CompileCheckExit(src, 7) {
+		t.Fail()
+	}
+}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;

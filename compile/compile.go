@@ -455,6 +455,14 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.CompileBlock(node.Body)
 
 		c.currBlock = postWhile
+	case *ast.BlockExp:
+		prevContinuation := c.currBlock.Term
+		block := c.currFun.NewBlock(c.getLabel("newblock"))
+		block.Term = prevContinuation
+		c.currBlock.NewBr(block)
+		c.currBlock = block
+
+		c.CompileBlock(node.Block)
 	case *ast.StrExp:
 		strPtr := c.currBlock.NewAlloca(StrType)
 
