@@ -595,6 +595,23 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 
 		retVal = tuplePtr
+	case *ast.LenExp:
+		targetType := c.GetType(node.Target)
+		switch ty := targetType.(type) {
+		case types.ArrayType:
+			targetArr := c.CompileNode(node.Target)
+			lenPtr := NewGetElementPtr(c.currBlock, targetArr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+			retVal = c.currBlock.NewLoad(IntType, lenPtr)
+		case types.TupleType:
+			retVal = constant.NewInt(IntType, int64(len(ty.Types)))
+		case types.StringType:
+			targetString := c.CompileNode(node.Target)
+			lenPtr := NewGetElementPtr(c.currBlock, targetString, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+			sizeVal := c.currBlock.NewLoad(lltypes.I64, lenPtr)
+			retVal = c.currBlock.NewTrunc(sizeVal, lltypes.I32)
+		default:
+			panic("builtin function len not applicable to type " + reflect.TypeOf(targetType).String())
+		}
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := CallMalloc(c.currBlock, structType)

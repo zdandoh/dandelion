@@ -34,6 +34,7 @@ expr
    | 'struct' '{' structbody '}'                  # StructDef
    | 'next' '(' expr ')'                          # NextExp
    | 'send' '(' expr ',' expr ')'                 # SendExp
+   | 'len' '(' expr ')'                           # LenExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp

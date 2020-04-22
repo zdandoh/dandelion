@@ -48,6 +48,9 @@ NULL: 'null';
 BREAK: 'break';
 CONTINUE: 'continue';
 
+// Builtins
+LEN: 'len';
+
 // Conditional ops
 OR: '||';
 AND: '&&';

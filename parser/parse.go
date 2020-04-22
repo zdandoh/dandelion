@@ -287,6 +287,14 @@ func (l *listener) ExitSendExp(c *parser.SendExpContext) {
 	l.nodeStack.Push(nextExp)
 }
 
+func (l *listener) EnterLenExp(c *parser.LenExpContext) {
+	DebugPrintln("Entering len exp")
+}
+
+func (l *listener) ExitLenExp(c *parser.LenExpContext) {
+	l.nodeStack.Push(&ast.LenExp{l.nodeStack.Pop(), l.NewNodeID()})
+}
+
 func (l *listener) EnterLine(c *parser.LineContext) {
 	DebugPrintln("Entered line: " + c.GetText())
 }
@@ -497,7 +505,7 @@ func (l *listener) EnterCompExp(c *parser.CompExpContext) {
 }
 
 func (l *listener) ExitCompExp(c *parser.CompExpContext) {
-	DebugPrintln("exit comp exp")
+	DebugPrintln("Exit comp exp")
 
 	compNode := &ast.CompNode{}
 	compNode.Op = c.GetOp().GetText()

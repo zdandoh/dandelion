@@ -921,11 +921,11 @@ func TestBubbleSort(t *testing.T) {
 
 	src := `
 arr = %s;
-len = %d;
+leng = %d;
 i = 0;
-while i < len - 1 {
+while i < leng - 1 {
 	j = 0;
-	while j < len - i - 1 {
+	while j < leng - i - 1 {
 		if arr[j] > arr[j + 1] {
 			tmp = arr[j];
 			arr[j] = arr[j + 1];
@@ -1183,6 +1183,39 @@ fun = f() {
 return fun();
 `
 	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestArrayLen(t *testing.T) {
+	src := `
+arr = [1, 2, 3, 2];
+return len(arr);
+`
+
+	if !CompileCheckExit(src, 4) {
+		t.Fail()
+	}
+}
+
+func TestTupleLen(t *testing.T) {
+	src := `
+tup = (1, "hello", 2, "world");
+return len(tup);
+`
+
+	if !CompileCheckExit(src, 4) {
+		t.Fail()
+	}
+}
+
+func TestStringLen(t *testing.T) {
+	src := `
+str = "hello, world!";
+return len(str);
+`
+
+	if !CompileCheckExit(src, 13) {
 		t.Fail()
 	}
 }

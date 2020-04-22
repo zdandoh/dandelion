@@ -420,6 +420,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
 			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
 			i.AddCons(Constraint{i.GetTypeVar(node.Value), newCo.Reads})
+		case *ast.LenExp:
+			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})

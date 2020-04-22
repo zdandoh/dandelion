@@ -46,6 +46,7 @@ func init() {
 	gob.Register(BlockExp{})
 	gob.Register(For{})
 	gob.Register(FlowControl{})
+	gob.Register(LenExp{})
 }
 
 type NodeID int
@@ -522,6 +523,15 @@ func (s *NextExp) String() string {
 	return fmt.Sprintf("next(%s)", s.Target)
 }
 
+type LenExp struct {
+	Target Node
+	NodeID
+}
+
+func (s *LenExp) String() string {
+	return fmt.Sprintf("len(%s)", s.Target)
+}
+
 type TupleLiteral struct {
 	Exprs []Node
 	NodeID
@@ -782,6 +792,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *For:
 		node.NodeID = newID
 	case *FlowControl:
+		node.NodeID = newID
+	case *LenExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())
