@@ -45,6 +45,7 @@ func init() {
 	gob.Register(Pipeline{})
 	gob.Register(BlockExp{})
 	gob.Register(For{})
+	gob.Register(FlowControl{})
 }
 
 type NodeID int
@@ -626,6 +627,20 @@ func (n *YieldExp) String() string {
 	return fmt.Sprintf("yield %s", n.Target)
 }
 
+type FlowStatement string
+
+const FlowContinue = "continue"
+const FlowBreak = "break"
+
+type FlowControl struct {
+	Type FlowStatement
+	NodeID
+}
+
+func (n *FlowControl) String() string {
+	return string(n.Type)
+}
+
 type BoolExp struct {
 	Value bool
 	NodeID
@@ -696,6 +711,8 @@ func Statement(node Node) bool {
 		return true
 	case *BlockExp:
 		return true
+	case *FlowControl:
+		return true
 	}
 
 	return false
@@ -763,6 +780,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *BlockExp:
 		node.NodeID = newID
 	case *For:
+		node.NodeID = newID
+	case *FlowControl:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

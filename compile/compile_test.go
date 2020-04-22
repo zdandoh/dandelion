@@ -1121,6 +1121,72 @@ return sum;
 	}
 }
 
+func TestWhileBreak(t *testing.T) {
+	src := `
+c = 0;
+while true {
+	if c >= 5 {
+		break;
+	};
+	c = c + 1;
+};
+
+return 5;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestWhileContinue(t *testing.T) {
+	src := `
+c = 0;
+while c < 5 {
+	c = c + 1;
+	continue;
+	c = c + 30;
+};
+
+return c;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestForContinue(t *testing.T) {
+	src := `
+sum = 0;
+for i = 0; i < 10; i = i + 1 {
+	continue;
+	sum = sum + i;
+};
+
+return sum;
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
+func TestPostReturn(t *testing.T) {
+	src := `
+fun = f() {
+	c = 5;
+	return c;
+	c + 1;
+};
+
+return fun();
+`
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;

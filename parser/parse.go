@@ -453,6 +453,15 @@ func (l *listener) ExitFor(c *parser.ForContext) {
 	l.nodeStack.Push(wrappedFor)
 }
 
+func (l *listener) EnterFlowControl(c *parser.FlowControlContext) {
+	DebugPrintln("Entering flow control")
+}
+
+func (l *listener) ExitFlowControl(c *parser.FlowControlContext) {
+	DebugPrintln("Exiting flow control")
+	l.nodeStack.Push(&ast.FlowControl{ast.FlowStatement(c.GetText()), l.NewNodeID()})
+}
+
 func (l *listener) EnterReturn(c *parser.ReturnContext) {
 	DebugPrintln("Entering return")
 }

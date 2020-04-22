@@ -52,16 +52,19 @@ type CoroState struct {
 }
 
 type Compiler struct {
-	currBlock *ir.Block
-	currFun   *ir.Func
-	currCoro  *CoroState
-	mod       *ir.Module
-	PEnv      PointerEnv
-	Types     map[ast.NodeHash]types.Type
-	FEnv      map[string]*CFunc
-	TypeDefs  map[string]lltypes.Type
-	LabelNo   int
-	prog      *ast.Program
+	currBlock  *ir.Block
+	currFun    *ir.Func
+	currCoro   *CoroState
+	mod        *ir.Module
+	PEnv       PointerEnv
+	Types      map[ast.NodeHash]types.Type
+	FEnv       map[string]*CFunc
+	TypeDefs   map[string]lltypes.Type
+	LabelNo    int
+	prog       *ast.Program
+	onBreak    *ir.Block
+	onContinue *ir.Block
+	bailBlock  bool
 }
 
 type CFunc struct {
@@ -159,6 +162,18 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 	}
 }
 
+func (c *Compiler) CompileLoopBody(block *ast.Block, onBreak *ir.Block, onContinue *ir.Block) {
+	currBreak := c.onBreak
+	currContinue := c.onContinue
+	c.onBreak = onBreak
+	c.onContinue = onContinue
+
+	c.CompileBlock(block)
+
+	c.onBreak = currBreak
+	c.onContinue = currContinue
+}
+
 func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	c.setupIntrinsics()
 
@@ -235,14 +250,18 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		cFun.RetBlock.NewRet(nil)
 	}
 
+	if name == "main" {
+		c.currBlock.NewStore(constant.NewInt(IntType, 0), cFun.RetPtr)
+	}
 	for lineNo, line := range fun.Body.Lines {
-		if lineNo == 0 && name == "main" {
-			// Store 0 in the main return by default
-			c.currBlock.NewStore(constant.NewInt(IntType, 0), cFun.RetPtr)
-		}
-
 		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
+		if c.bailBlock {
+			c.bailBlock = false
+			c.currBlock.NewBr(cFun.RetBlock)
+			break
+		}
+
 		// TODO support multiple returns & returns that aren't at the end of the block
 		if lineNo == len(fun.Body.Lines)-1 && !*fun.IsCoro {
 			if lastVal != nil && name != "main" && !isVoid {
@@ -389,6 +408,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		cFun.RetBlocks[c.currBlock] = true
 		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
+		c.bailBlock = true
 	case *ast.YieldExp:
 		prevContinuation := c.currBlock.Term
 		resumeBlock := c.currFun.NewBlock(c.getLabel("resume"))
@@ -452,7 +472,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		whileCondBlock.NewCondBr(cond, whileBody, postWhile)
 
 		c.currBlock = whileBody
-		c.CompileBlock(node.Body)
+		c.CompileLoopBody(node.Body, postWhile, whileCondBlock)
 
 		c.currBlock = postWhile
 	case *ast.For:
@@ -480,9 +500,24 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		forCondBlock.NewCondBr(cond, forBody, postFor)
 
 		c.currBlock = forBody
-		c.CompileBlock(node.Body)
+		c.CompileLoopBody(node.Body, postFor, forStep)
 
 		c.currBlock = postFor
+	case *ast.FlowControl:
+		cFun := c.FEnv[c.currFun.Name()]
+
+		_, returned := cFun.RetBlocks[c.currBlock]
+		if returned {
+			break
+		}
+
+		cFun.RetBlocks[c.currBlock] = true
+		if node.Type == ast.FlowBreak {
+			c.currBlock.NewBr(c.onBreak)
+		} else if node.Type == ast.FlowContinue {
+			c.currBlock.NewBr(c.onContinue)
+		}
+		c.bailBlock = true
 	case *ast.BlockExp:
 		prevContinuation := c.currBlock.Term
 		block := c.currFun.NewBlock(c.getLabel("newblock"))
@@ -734,6 +769,10 @@ func (c *Compiler) CompileBlock(block *ast.Block) {
 	for lineNo, line := range block.Lines {
 		fmt.Printf("Compiling line %d of block\n", lineNo)
 		c.CompileNode(line)
+		if c.bailBlock {
+			c.bailBlock = false
+			break
+		}
 	}
 }
 

@@ -45,6 +45,8 @@ STRUCT: 'struct';
 NEXT: 'next';
 SEND: 'send';
 NULL: 'null';
+BREAK: 'break';
+CONTINUE: 'continue';
 
 // Conditional ops
 OR: '||';

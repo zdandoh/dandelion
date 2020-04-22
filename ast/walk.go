@@ -111,6 +111,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = node
 	case *FloatExp:
 		retVal = node
+	case *FlowControl:
+		retVal = node
 	default:
 		panic("WalkAst not defined for type: " + reflect.TypeOf(astNode).String())
 	}

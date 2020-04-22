@@ -55,6 +55,7 @@ statement
    | 'struct' ident=IDENT '{' structbody '}' # NamedStructDef
    | FOR code ';' expr ';' code '{' body '}' # For
    | WHILE expr '{' body '}'                 # While
+   | ('break' | 'continue')                  # FlowControl
    | '{' body '}'                            # BlockExp
    | RETURN expr                             # Return
    | YIELD expr                              # Yield
