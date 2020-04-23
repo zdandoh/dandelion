@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"dandelion/ast"
 	"fmt"
 	"testing"
 )
@@ -35,4 +36,8 @@ func TestParsePipeline(t *testing.T) {
 `
 
 	fmt.Println(ParseProgram(src))
+}
+
+func TestDesugarIterFor(t *testing.T) {
+	fmt.Println(ForIterToFor(&ast.Block{[]ast.Node{&ast.Ident{"line", 0}}}, &ast.Ident{"iter()", 0}, &ast.Ident{"item", 0}))
 }

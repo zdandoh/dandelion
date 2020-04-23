@@ -28,3 +28,14 @@ void* alloc_clo() {
 void print(int d) {
 	printf("%d\n", d);
 }
+
+void printb(char b) {
+	if(b == 1) {
+		printf("true\n");
+	}
+	else if(b == 0) {
+		printf("false\n");
+	} else {
+		printf("BADVAL\n");
+	}
+}

@@ -47,6 +47,7 @@ func init() {
 	gob.Register(For{})
 	gob.Register(FlowControl{})
 	gob.Register(LenExp{})
+	gob.Register(DoneExp{})
 }
 
 type NodeID int
@@ -442,8 +443,8 @@ type For struct {
 
 func (n *For) String() string {
 	lines := fmt.Sprintf("for %v; %v; %v {\n", n.Init, n.Cond, n.Step)
-	lines += n.Body.String()
-	lines += "}"
+	lines += "    " + n.Body.String()
+	lines += "    }"
 
 	return lines
 }
@@ -521,6 +522,15 @@ type NextExp struct {
 
 func (s *NextExp) String() string {
 	return fmt.Sprintf("next(%s)", s.Target)
+}
+
+type DoneExp struct {
+	Target Node
+	NodeID
+}
+
+func (s *DoneExp) String() string {
+	return fmt.Sprintf("done(%s)", s.Target)
 }
 
 type LenExp struct {
@@ -794,6 +804,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *FlowControl:
 		node.NodeID = newID
 	case *LenExp:
+		node.NodeID = newID
+	case *DoneExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

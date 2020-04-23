@@ -20,16 +20,22 @@ var CoroFree value.Value
 var CoroEnd value.Value
 var CoroSuspend value.Value
 var CoroSave value.Value
+var CoroDone value.Value
 var CoroResume value.Value
 var CoroDestroy value.Value
 var CoroPromise value.Value
 var Print value.Value
+var PrintB value.Value
 
 func (c *Compiler) setupIntrinsics() {
 	Print = c.mod.NewFunc(
 		"print",
 		lltypes.Void,
 		ir.NewParam("d", lltypes.I32))
+	PrintB = c.mod.NewFunc(
+		"printb",
+		lltypes.Void,
+		ir.NewParam("b", lltypes.I1))
 	InitTrampoline = c.mod.NewFunc(
 		"llvm.init.trampoline",
 		lltypes.Void,
@@ -99,4 +105,9 @@ func (c *Compiler) setupIntrinsics() {
 		ir.NewParam("ptr", lltypes.I8Ptr),
 		ir.NewParam("align", lltypes.I32),
 		ir.NewParam("from", lltypes.I1))
+	CoroDone = c.mod.NewFunc(
+		"llvm.coro.done",
+		lltypes.I1,
+		ir.NewParam("handle", lltypes.I8Ptr),
+	)
 }

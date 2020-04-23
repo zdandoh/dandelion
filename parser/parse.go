@@ -202,6 +202,8 @@ func (l *listener) ExitBaseType(c *parser.BaseTypeContext) {
 		t = types.ByteType{}
 	case "void":
 		t = types.NullType{}
+	case "any":
+		t = types.AnyType{}
 	default:
 		t = types.StructType{text}
 	}
@@ -293,6 +295,14 @@ func (l *listener) EnterLenExp(c *parser.LenExpContext) {
 
 func (l *listener) ExitLenExp(c *parser.LenExpContext) {
 	l.nodeStack.Push(&ast.LenExp{l.nodeStack.Pop(), l.NewNodeID()})
+}
+
+func (l *listener) EnterDoneExp(c *parser.DoneExpContext) {
+	DebugPrintln("Entering done exp")
+}
+
+func (l *listener) ExitDoneExp(c *parser.DoneExpContext) {
+	l.nodeStack.Push(&ast.DoneExp{l.nodeStack.Pop(), l.NewNodeID()})
 }
 
 func (l *listener) EnterLine(c *parser.LineContext) {
@@ -459,6 +469,23 @@ func (l *listener) ExitFor(c *parser.ForContext) {
 	wrappedFor := &ast.BlockExp{&ast.Block{[]ast.Node{forNode}}, l.NewNodeID()}
 
 	l.nodeStack.Push(wrappedFor)
+}
+
+func (l *listener) EnterForIter(c *parser.ForIterContext) {
+	DebugPrintln("Entering for iter")
+
+	l.blockStack.Push(&ast.Block{})
+}
+
+func (l *listener) ExitForIter(c *parser.ForIterContext) {
+	DebugPrintln("Exiting for iter")
+
+	itemName := c.GetIname().GetText()
+	iterInit := l.nodeStack.Pop()
+	body := l.blockStack.Pop()
+
+	newNode := ForIterToFor(body, iterInit, &ast.Ident{itemName, l.NewNodeID()})
+	l.nodeStack.Push(newNode)
 }
 
 func (l *listener) EnterFlowControl(c *parser.FlowControlContext) {

@@ -1220,6 +1220,83 @@ return len(str);
 	}
 }
 
+func TestDone(t *testing.T) {
+	src := `
+iter = f() {
+	for i = 0; i < 10; i = i + 1 {
+		yield i;
+	};
+};
+
+count = iter();
+sum = 0;
+
+while true {
+	n = next(count);
+	if done(count) == true {
+		break;
+	};
+	sum = sum + n;
+};
+
+return sum;
+`
+
+	if !CompileCheckExit(src, 45) {
+		t.Fail()
+	}
+}
+
+func TestForGen(t *testing.T) {
+	src := `
+iter = f() {
+	for i = 0; i < 10; i = i + 1 {
+		yield i;
+	};
+};
+
+sum = 0;
+for item in iter() {
+	sum = sum + item;
+};
+return sum;
+`
+	if !CompileCheckExit(src, 45) {
+		t.Fail()
+	}
+}
+
+//func TestAnyType(t *testing.T) {
+//	src := `
+//fun = f(a) {
+//	a;
+//};
+//
+//any x = 5;
+//
+//return 0;
+//`
+//
+//	if !CompileCheckExit(src, 0) {
+//		t.Fail()
+//	}
+//}
+
+//func TestPipeline(t *testing.T) {
+//	src := `
+//fun = f{
+//	e + 1;
+//};
+//
+//new = [1, 2, 3] -> fun;
+//return new[2];
+//`
+//
+//	if !CompileCheckExit(src, 4) {
+//		t.Fail()
+//	}
+//}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;

@@ -75,6 +75,8 @@ type CFunc struct {
 }
 
 var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
+var AnyType lltypes.Type = lltypes.NewStruct(lltypes.I32, lltypes.I8Ptr)
+var CoroType lltypes.Type = lltypes.NewStruct(lltypes.I1, lltypes.I8Ptr)
 var LenType lltypes.Type
 var IntType = lltypes.I32
 var ByteType = lltypes.I8
@@ -133,6 +135,8 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		}
 
 		return lltypes.NewPointer(lltypes.NewStruct(elemTypes...))
+	case types.AnyType:
+		return lltypes.NewPointer(AnyType)
 	default:
 		panic(fmt.Sprintf("Unknown type: %v", reflect.TypeOf(myType)))
 	}
@@ -433,6 +437,9 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		promiseStruct := c.currBlock.NewBitCast(voidPromise, lltypes.NewPointer(c.PromiseType(coroType)))
 		yieldPtr := NewGetElementPtr(c.currBlock, promiseStruct, Zero, Zero)
 		retVal = NewLoad(c.currBlock, yieldPtr)
+	case *ast.DoneExp:
+		handle := c.CompileNode(node.Target)
+		retVal = c.currBlock.NewCall(CoroDone, handle)
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
 		sourceFuncPtr := c.CompileNode(node.Target)
@@ -683,9 +690,14 @@ func NewGetElementPtr(block *ir.Block, src value.Value, indicies ...value.Value)
 	return block.NewGetElementPtr(src.Type().(*lltypes.PointerType).ElemType, src, indicies...)
 }
 
-func CallMalloc(block *ir.Block, typ lltypes.Type) value.Value {
+func GetSize(block *ir.Block, typ lltypes.Type) value.Value {
 	sizePtr := NewGetElementPtr(block, constant.NewNull(lltypes.NewPointer(typ)), constant.NewInt(lltypes.I32, 1))
 	size := block.NewPtrToInt(sizePtr, lltypes.I64)
+	return size
+}
+
+func CallMalloc(block *ir.Block, typ lltypes.Type) value.Value {
+	size := GetSize(block, typ)
 	mem := block.NewCall(Malloc, size)
 	castMem := block.NewBitCast(mem, lltypes.NewPointer(typ))
 	return castMem

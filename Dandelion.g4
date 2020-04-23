@@ -22,6 +22,7 @@ structbody: lines=typeline*;
 
 expr
    : '(' expr ')'                                 # ParenExp
+   | '.' '(' typed ')'                            # AssertType
    | '[' elems=explist ']'                        # Array
    | '(' elems=explist ')'                        # Tuple
    | expr '.' IDENT                               # StructAccess
@@ -35,6 +36,7 @@ expr
    | 'next' '(' expr ')'                          # NextExp
    | 'send' '(' expr ',' expr ')'                 # SendExp
    | 'len' '(' expr ')'                           # LenExp
+   | 'done' '(' expr ')'                          # DoneExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
@@ -54,6 +56,7 @@ statement
    : expr '=' expr                           # Assign
    | IF expr '{' lines=line* '}'             # If
    | 'struct' ident=IDENT '{' structbody '}' # NamedStructDef
+   | FOR iname=IDENT 'in' expr '{' body '}'  # ForIter
    | FOR code ';' expr ';' code '{' body '}' # For
    | WHILE expr '{' body '}'                 # While
    | ('break' | 'continue')                  # FlowControl

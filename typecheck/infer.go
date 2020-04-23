@@ -279,7 +279,7 @@ func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
 		varVal = cont
 	case types.StructType:
 		varVal = StructOptions{[]types.Type{ty}, make(map[TypeVar]string)}
-	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType, types.NullType:
+	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType, types.NullType, types.AnyType:
 		varVal = BaseType{ty}
 	default:
 		panic("Unknown hint type: " + hintType.TypeString())

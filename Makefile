@@ -6,7 +6,7 @@ build: runtime
 
 runtime: lib/alloc.c
 ifeq ($(UNAME), Linux)
-	clang -shared -fPIC -o lib/lib.so lib/alloc.c
+	clang -shared -Wall -fPIC -o lib/lib.so lib/alloc.c
 endif
 
 ifeq ($(UNAME), windows32)
