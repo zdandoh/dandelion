@@ -30,7 +30,6 @@ func (c *Compiler) SetupCoro(entryBlock *ir.Block, coro *ir.Func, coroType types
 	suspendBlock.NewRet(coroHandle)
 
 	cleanupBlock := coro.NewBlock("cleanup")
-	cleanupBlock.NewCall(CoroSuspend, constant.None, constant.True)
 	coroMem := cleanupBlock.NewCall(CoroFree, coroID, coroHandle)
 	cleanupBlock.NewCall(Free, coroMem)
 	cleanupBlock.NewBr(suspendBlock)

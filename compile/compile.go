@@ -275,6 +275,13 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 			c.currBlock.NewBr(cFun.RetBlock)
 		}
 	}
+	if *fun.IsCoro {
+		suspendRes := c.currBlock.NewCall(CoroSuspend, constant.None, constant.True)
+		c.currBlock.NewSwitch(
+			suspendRes,
+			c.currCoro.Suspend,
+			ir.NewCase(constant.NewInt(lltypes.I8, 1), c.currCoro.Cleanup))
+	}
 }
 
 func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {

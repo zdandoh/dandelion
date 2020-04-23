@@ -1,6 +1,8 @@
 #ifndef ALLOC
 #define ALLOC
 
+#include <stdlib.h>
+
 #define MEM_SIZE 72
 
 #ifdef _WIN32
@@ -38,4 +40,8 @@ void printb(char b) {
 	} else {
 		printf("BADVAL\n");
 	}
+}
+
+void printp(void* p) {
+	printf("%p\n", p);
 }

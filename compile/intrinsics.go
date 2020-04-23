@@ -26,6 +26,7 @@ var CoroDestroy value.Value
 var CoroPromise value.Value
 var Print value.Value
 var PrintB value.Value
+var PrintP value.Value
 
 func (c *Compiler) setupIntrinsics() {
 	Print = c.mod.NewFunc(
@@ -36,6 +37,10 @@ func (c *Compiler) setupIntrinsics() {
 		"printb",
 		lltypes.Void,
 		ir.NewParam("b", lltypes.I1))
+	PrintP = c.mod.NewFunc(
+		"printp",
+		lltypes.Void,
+		ir.NewParam("p", lltypes.I8Ptr))
 	InitTrampoline = c.mod.NewFunc(
 		"llvm.init.trampoline",
 		lltypes.Void,
