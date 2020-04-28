@@ -14,7 +14,6 @@ LBRACE: '{';
 RBRACE: '}';
 LBRACKET: '[';
 RBRACKET: ']';
-FSTART: 'f';
 ASSIGN: '=';
 QUOTE: '"';
 ACCESS: '.';
@@ -35,6 +34,7 @@ FOR: 'for';
 ELIF: 'elif';
 ELSE: 'else';
 PIPE: '->';
+UNROLL: '->>';
 RETURN: 'return';
 YIELD: 'yield';
 
@@ -46,6 +46,7 @@ IN: 'in';
 NULL: 'null';
 BREAK: 'break';
 CONTINUE: 'continue';
+FSTART: 'f';
 
 // Builtins
 LEN: 'len';
@@ -56,6 +57,9 @@ SEND: 'send';
 // Conditional ops
 OR: '||';
 AND: '&&';
+NOT: '!';
+LSHIFT: '<<';
+RSHIFT: '>>';
 LT: '<';
 LTE: '<=';
 GT: '>';
@@ -66,6 +70,7 @@ NEQ: '!=';
 BYTE: '\'' . '\'';
 NUMBER: '-'?[0-9]+;
 FLOAT: '-'?[0-9]+ '.' [0-9]+;
+FMODS: 'f' ('i'|'m')? 'a'?;
 IDENT: [a-zA-Z_0-9]+;
 COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;

@@ -29,9 +29,9 @@ expr
    | expr '[' index=expr ']'                      # SliceExp
    | left=expr PIPE right=expr                    # PipeExp
    | expr op=(MUL|DIV) expr                       # MulDiv
-   | 'f' '{' body '}'                             # FunDef
-   | 'f' '(' args=arglist? ')' '{' body '}'       # FunDef
-   | 'f' '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
+   | FMODS '{' body '}'                           # FunDef
+   | FSTART '(' args=arglist? ')' '{' body '}'    # FunDef
+   | FSTART '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
    | 'next' '(' expr ')'                          # NextExp
    | 'send' '(' expr ',' expr ')'                 # SendExp

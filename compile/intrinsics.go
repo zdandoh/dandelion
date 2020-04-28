@@ -11,6 +11,7 @@ var AdjustTrampoline value.Value
 var AllocClo value.Value
 var Malloc value.Value
 var Free value.Value
+var OpenF value.Value
 
 // Coroutine intrinsics
 var CoroID value.Value
@@ -62,6 +63,11 @@ func (c *Compiler) setupIntrinsics() {
 		"free",
 		lltypes.Void,
 		ir.NewParam("ptr", lltypes.I8Ptr))
+	OpenF = c.mod.NewFunc(
+		"d_open",
+		lltypes.I32,
+		ir.NewParam("ptr", lltypes.NewPointer(StrType)),
+		ir.NewParam("ptr2", lltypes.NewPointer(StrType)))
 	CoroID = c.mod.NewFunc(
 		"llvm.coro.id",
 		lltypes.Token,

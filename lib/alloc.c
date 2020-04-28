@@ -2,6 +2,7 @@
 #define ALLOC
 
 #include <stdlib.h>
+#include <fcntl.h>
 
 #define MEM_SIZE 72
 
@@ -45,3 +46,9 @@ void printb(char b) {
 void printp(void* p) {
 	printf("%p\n", p);
 }
+
+int d_open(void* fname, void* mode) {
+	open(fname, O_CREAT);
+	printf("%p %p\n", fname, mode);
+	return 5;
+};
