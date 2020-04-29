@@ -436,17 +436,6 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			ir.NewCase(constant.NewInt(lltypes.I8, 1), c.currCoro.Cleanup))
 
 		c.currBlock = resumeBlock
-	case *ast.NextExp:
-		coroType := c.GetType(node.Target).(types.CoroutineType)
-		targetCoro := c.CompileNode(node.Target)
-		c.currBlock.NewCall(CoroResume, targetCoro)
-		voidPromise := c.currBlock.NewCall(CoroPromise, targetCoro, constant.NewInt(lltypes.I32, 4), constant.False)
-		promiseStruct := c.currBlock.NewBitCast(voidPromise, lltypes.NewPointer(c.PromiseType(coroType)))
-		yieldPtr := NewGetElementPtr(c.currBlock, promiseStruct, Zero, Zero)
-		retVal = NewLoad(c.currBlock, yieldPtr)
-	case *ast.DoneExp:
-		handle := c.CompileNode(node.Target)
-		retVal = c.currBlock.NewCall(CoroDone, handle)
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
 		sourceFuncPtr := c.CompileNode(node.Target)
@@ -609,23 +598,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 
 		retVal = tuplePtr
-	case *ast.LenExp:
-		targetType := c.GetType(node.Target)
-		switch ty := targetType.(type) {
-		case types.ArrayType:
-			targetArr := c.CompileNode(node.Target)
-			lenPtr := NewGetElementPtr(c.currBlock, targetArr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
-			retVal = c.currBlock.NewLoad(IntType, lenPtr)
-		case types.TupleType:
-			retVal = constant.NewInt(IntType, int64(len(ty.Types)))
-		case types.StringType:
-			targetString := c.CompileNode(node.Target)
-			lenPtr := NewGetElementPtr(c.currBlock, targetString, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
-			sizeVal := c.currBlock.NewLoad(lltypes.I64, lenPtr)
-			retVal = c.currBlock.NewTrunc(sizeVal, lltypes.I32)
-		default:
-			panic("builtin function len not applicable to type " + reflect.TypeOf(targetType).String())
-		}
+	case *ast.BuiltinExp:
+		retVal = c.compileBuiltin(node)
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := CallMalloc(c.currBlock, structType)
@@ -665,6 +639,53 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
+	}
+
+	return retVal
+}
+
+func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
+	var retVal value.Value
+
+	switch node.Type {
+	case ast.BuiltinLen:
+		retVal = c.compileLen(node)
+	case ast.BuiltinNext:
+		coroType := c.GetType(node.Args[0]).(types.CoroutineType)
+		targetCoro := c.CompileNode(node.Args[0])
+		c.currBlock.NewCall(CoroResume, targetCoro)
+		voidPromise := c.currBlock.NewCall(CoroPromise, targetCoro, constant.NewInt(lltypes.I32, 4), constant.False)
+		promiseStruct := c.currBlock.NewBitCast(voidPromise, lltypes.NewPointer(c.PromiseType(coroType)))
+		yieldPtr := NewGetElementPtr(c.currBlock, promiseStruct, Zero, Zero)
+		retVal = NewLoad(c.currBlock, yieldPtr)
+	case ast.BuiltinSend:
+	case ast.BuiltinAny:
+	case ast.BuiltinDone:
+		handle := c.CompileNode(node.Args[0])
+		retVal = c.currBlock.NewCall(CoroDone, handle)
+	}
+
+	return retVal
+}
+
+func (c *Compiler) compileLen(node *ast.BuiltinExp) value.Value {
+	var retVal value.Value
+
+	targetType := c.GetType(node.Args[0])
+	switch ty := targetType.(type) {
+	case types.ArrayType:
+		targetArr := c.CompileNode(node.Args[0])
+		lenPtr := NewGetElementPtr(c.currBlock, targetArr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		retVal = c.currBlock.NewLoad(IntType, lenPtr)
+	case types.TupleType:
+		retVal = constant.NewInt(IntType, int64(len(ty.Types)))
+	case types.StringType:
+		targetString := c.CompileNode(node.Args[0])
+		lenPtr := NewGetElementPtr(c.currBlock, targetString, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		sizeVal := c.currBlock.NewLoad(lltypes.I64, lenPtr)
+		retVal = c.currBlock.NewTrunc(sizeVal, lltypes.I32)
+	default:
+		panic("builtin function len not applicable to type " + reflect.TypeOf(targetType).String())
 	}
 
 	return retVal

@@ -33,10 +33,7 @@ expr
    | FSTART '(' args=arglist? ')' '{' body '}'    # FunDef
    | FSTART '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
-   | 'next' '(' expr ')'                          # NextExp
-   | 'send' '(' expr ',' expr ')'                 # SendExp
-   | 'len' '(' expr ')'                           # LenExp
-   | 'done' '(' expr ')'                          # DoneExp
+   | bname=(LEN|DONE|NEXT|SEND|ANY) '(' args=explist ')' # BuiltinExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp

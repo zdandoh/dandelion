@@ -53,6 +53,7 @@ LEN: 'len';
 DONE: 'done';
 NEXT: 'next';
 SEND: 'send';
+ANY: 'any';
 
 // Conditional ops
 OR: '||';

@@ -406,22 +406,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 
 			i.AddCons(Constraint{currFun.Ret, newCo})
 			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
-		case *ast.NextExp:
-			newCo := Coroutine{}
-			newCo.Yields = typeVar
-			newCo.Reads = i.NewTypeVar()
-
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
-		case *ast.SendExp:
-			newCo := Coroutine{}
-			newCo.Yields = i.NewTypeVar()
-			newCo.Reads = i.NewTypeVar()
-
-			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), newCo})
-			i.AddCons(Constraint{i.GetTypeVar(node.Value), newCo.Reads})
-		case *ast.LenExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
+		case *ast.BuiltinExp:
+			i.getBuiltinConstraints(node, typeVar)
 		case *ast.CompNode:
 			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
@@ -473,6 +459,30 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 	DebugInfer("------ CONSTRAINTS ------")
 	for _, c := range i.Constraints {
 		DebugInfer(c.Left.ConsString(), "=", c.Right.ConsString())
+	}
+}
+
+func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVar) {
+	switch node.Type {
+	case ast.BuiltinDone:
+		i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+	case ast.BuiltinAny:
+	case ast.BuiltinSend:
+		newCo := Coroutine{}
+		newCo.Yields = i.NewTypeVar()
+		newCo.Reads = i.NewTypeVar()
+
+		i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+		i.AddCons(Constraint{i.GetTypeVar(node.Args[0]), newCo})
+		i.AddCons(Constraint{i.GetTypeVar(node.Args[1]), newCo.Reads})
+	case ast.BuiltinNext:
+		newCo := Coroutine{}
+		newCo.Yields = typeVar
+		newCo.Reads = i.NewTypeVar()
+
+		i.AddCons(Constraint{i.GetTypeVar(node.Args[0]), newCo})
+	case ast.BuiltinLen:
+		i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
 	}
 }
 

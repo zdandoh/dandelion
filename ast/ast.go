@@ -27,8 +27,6 @@ func init() {
 	gob.Register(FloatExp{})
 	gob.Register(FunApp{})
 	gob.Register(FunDef{})
-	gob.Register(NextExp{})
-	gob.Register(SendExp{})
 	gob.Register(While{})
 	gob.Register(If{})
 	gob.Register(Mod{})
@@ -46,8 +44,7 @@ func init() {
 	gob.Register(BlockExp{})
 	gob.Register(For{})
 	gob.Register(FlowControl{})
-	gob.Register(LenExp{})
-	gob.Register(DoneExp{})
+	gob.Register(BuiltinExp{})
 }
 
 type NodeID int
@@ -56,6 +53,24 @@ var NoID NodeID = -1
 
 func (n NodeID) ID() NodeID {
 	return n
+}
+
+type BuiltinType string
+
+const (
+	BuiltinLen  BuiltinType = "len"
+	BuiltinNext BuiltinType = "next"
+	BuiltinSend BuiltinType = "send"
+	BuiltinAny  BuiltinType = "any"
+	BuiltinDone BuiltinType = "done"
+)
+
+var BuiltinArgs = map[BuiltinType]int{
+	BuiltinLen:  1,
+	BuiltinNext: 1,
+	BuiltinSend: 2,
+	BuiltinAny:  1,
+	BuiltinDone: 1,
 }
 
 type Program struct {
@@ -505,41 +520,19 @@ func (n *ArrayLiteral) String() string {
 	return arrStr
 }
 
-type SendExp struct {
-	Target Node
-	Value  Node
+type BuiltinExp struct {
+	Args []Node
+	Type BuiltinType
 	NodeID
 }
 
-func (s *SendExp) String() string {
-	return fmt.Sprintf("send(%s, %s)", s.Target, s.Value)
-}
+func (s *BuiltinExp) String() string {
+	argStrings := make([]string, 0)
+	for _, arg := range s.Args {
+		argStrings = append(argStrings, arg.String())
+	}
 
-type NextExp struct {
-	Target Node
-	NodeID
-}
-
-func (s *NextExp) String() string {
-	return fmt.Sprintf("next(%s)", s.Target)
-}
-
-type DoneExp struct {
-	Target Node
-	NodeID
-}
-
-func (s *DoneExp) String() string {
-	return fmt.Sprintf("done(%s)", s.Target)
-}
-
-type LenExp struct {
-	Target Node
-	NodeID
-}
-
-func (s *LenExp) String() string {
-	return fmt.Sprintf("len(%s)", s.Target)
+	return fmt.Sprintf("%s(%s)", s.Type, strings.Join(argStrings, ", "))
 }
 
 type TupleLiteral struct {
@@ -767,10 +760,6 @@ func SetID(astNode Node, newID NodeID) {
 		node.NodeID = newID
 	case *FunDef:
 		node.NodeID = newID
-	case *NextExp:
-		node.NodeID = newID
-	case *SendExp:
-		node.NodeID = newID
 	case *While:
 		node.NodeID = newID
 	case *If:
@@ -803,9 +792,7 @@ func SetID(astNode Node, newID NodeID) {
 		node.NodeID = newID
 	case *FlowControl:
 		node.NodeID = newID
-	case *LenExp:
-		node.NodeID = newID
-	case *DoneExp:
+	case *BuiltinExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

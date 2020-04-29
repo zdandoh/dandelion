@@ -265,44 +265,23 @@ func (l *listener) ExitStructAccess(c *parser.StructAccessContext) {
 	l.nodeStack.Push(access)
 }
 
-func (l *listener) EnterNextExp(c *parser.NextExpContext) {
-	DebugPrintln("Entering next exp")
+func (l *listener) EnterBuiltinExp(c *parser.BuiltinExpContext) {
+	DebugPrintln("Entering builtin exp")
 }
 
-func (l *listener) ExitNextExp(c *parser.NextExpContext) {
-	DebugPrintln("Exiting next exp")
+func (l *listener) ExitBuiltinExp(c *parser.BuiltinExpContext) {
+	DebugPrintln("Exiting builtin exp")
 
-	nextExp := &ast.NextExp{l.nodeStack.Pop(), l.NewNodeID()}
-	l.nodeStack.Push(nextExp)
-}
+	builtinType := ast.BuiltinType(c.GetBname().GetText())
+	argCount := ast.BuiltinArgs[builtinType]
+	args := make([]ast.Node, 0)
 
-func (l *listener) EnterSendExp(c *parser.SendExpContext) {
-	DebugPrintln("Entering send exp")
-}
+	for i := 0; i < argCount; i++ {
+		args = append([]ast.Node{l.nodeStack.Pop()}, args...)
+	}
 
-func (l *listener) ExitSendExp(c *parser.SendExpContext) {
-	DebugPrintln("Exiting send exp")
-
-	val := l.nodeStack.Pop()
-	target := l.nodeStack.Pop()
-	nextExp := &ast.SendExp{target, val, l.NewNodeID()}
-	l.nodeStack.Push(nextExp)
-}
-
-func (l *listener) EnterLenExp(c *parser.LenExpContext) {
-	DebugPrintln("Entering len exp")
-}
-
-func (l *listener) ExitLenExp(c *parser.LenExpContext) {
-	l.nodeStack.Push(&ast.LenExp{l.nodeStack.Pop(), l.NewNodeID()})
-}
-
-func (l *listener) EnterDoneExp(c *parser.DoneExpContext) {
-	DebugPrintln("Entering done exp")
-}
-
-func (l *listener) ExitDoneExp(c *parser.DoneExpContext) {
-	l.nodeStack.Push(&ast.DoneExp{l.nodeStack.Pop(), l.NewNodeID()})
+	builtin := &ast.BuiltinExp{args, builtinType, l.NewNodeID()}
+	l.nodeStack.Push(builtin)
 }
 
 func (l *listener) EnterLine(c *parser.LineContext) {
