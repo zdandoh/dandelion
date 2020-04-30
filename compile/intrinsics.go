@@ -28,6 +28,7 @@ var CoroPromise value.Value
 var Print value.Value
 var PrintB value.Value
 var PrintP value.Value
+var ThrowEx value.Value
 
 func (c *Compiler) setupIntrinsics() {
 	Print = c.mod.NewFunc(
@@ -55,6 +56,7 @@ func (c *Compiler) setupIntrinsics() {
 	AllocClo = c.mod.NewFunc(
 		"alloc_clo",
 		lltypes.I8Ptr)
+	ThrowEx = c.mod.NewFunc("throwex", lltypes.Void, ir.NewParam("exno", lltypes.I32))
 	Malloc = c.mod.NewFunc(
 		"malloc",
 		lltypes.I8Ptr,

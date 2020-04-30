@@ -272,7 +272,7 @@ func (l *listener) EnterBuiltinExp(c *parser.BuiltinExpContext) {
 func (l *listener) ExitBuiltinExp(c *parser.BuiltinExpContext) {
 	DebugPrintln("Exiting builtin exp")
 
-	builtinType := ast.BuiltinType(c.GetBname().GetText())
+	builtinType := ast.BuiltinName(c.GetBname().GetText())
 	argCount := ast.BuiltinArgs[builtinType]
 	args := make([]ast.Node, 0)
 
@@ -665,6 +665,21 @@ func (l *listener) ExitPipeExp(c *parser.PipeExpContext) {
 	pipeNode.Left = l.nodeStack.Pop()
 
 	l.nodeStack.Push(pipeNode)
+}
+
+func (l *listener) EnterTypeAssert(c *parser.TypeAssertContext) {
+	DebugPrintln("Entering type assert")
+}
+
+func (l *listener) ExitTypeAssert(c *parser.TypeAssertContext) {
+	DebugPrintln("Exiting type assert")
+
+	assert := &ast.TypeAssert{}
+	assert.NodeID = l.NewNodeID()
+	assert.Target = l.nodeStack.Pop()
+	assert.TargetType = l.typeStack.Pop()
+
+	l.nodeStack.Push(assert)
 }
 
 func (l *listener) EnterStrExp(c *parser.StrExpContext) {

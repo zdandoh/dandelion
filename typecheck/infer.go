@@ -434,6 +434,12 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			subtypeVar := i.NewTypeVar()
 			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index, i.NewContainerID()}})
 			i.AddCons(Constraint{typeVar, subtypeVar})
+		case *ast.TypeAssert:
+			cons := make([]Constraint, 0)
+			box := &consBox{cons}
+			hintVar := i.hintToCons(node.TargetType, box)
+			i.AddCons(Constraint{typeVar, hintVar})
+			i.Constraints = append(i.Constraints, box.cons...)
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
 			fieldName := node.Field.(*ast.Ident).Value
@@ -467,6 +473,7 @@ func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVa
 	case ast.BuiltinDone:
 		i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
 	case ast.BuiltinAny:
+		i.AddCons(Constraint{typeVar, BaseType{types.AnyType{}}})
 	case ast.BuiltinSend:
 		newCo := Coroutine{}
 		newCo.Yields = i.NewTypeVar()

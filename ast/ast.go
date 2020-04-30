@@ -45,6 +45,7 @@ func init() {
 	gob.Register(For{})
 	gob.Register(FlowControl{})
 	gob.Register(BuiltinExp{})
+	gob.Register(TypeAssert{})
 }
 
 type NodeID int
@@ -55,22 +56,24 @@ func (n NodeID) ID() NodeID {
 	return n
 }
 
-type BuiltinType string
+type BuiltinName string
 
 const (
-	BuiltinLen  BuiltinType = "len"
-	BuiltinNext BuiltinType = "next"
-	BuiltinSend BuiltinType = "send"
-	BuiltinAny  BuiltinType = "any"
-	BuiltinDone BuiltinType = "done"
+	BuiltinLen  BuiltinName = "len"
+	BuiltinNext BuiltinName = "next"
+	BuiltinSend BuiltinName = "send"
+	BuiltinAny  BuiltinName = "any"
+	BuiltinDone BuiltinName = "done"
+	BuiltinType BuiltinName = "type"
 )
 
-var BuiltinArgs = map[BuiltinType]int{
+var BuiltinArgs = map[BuiltinName]int{
 	BuiltinLen:  1,
 	BuiltinNext: 1,
 	BuiltinSend: 2,
 	BuiltinAny:  1,
 	BuiltinDone: 1,
+	BuiltinType: 1,
 }
 
 type Program struct {
@@ -368,6 +371,16 @@ func (n *LineBundle) String() string {
 	return "__UNRESOLVED_LINE_BUNDLE__"
 }
 
+type TypeAssert struct {
+	Target     Node
+	TargetType types.Type
+	NodeID
+}
+
+func (n *TypeAssert) String() string {
+	return fmt.Sprintf("%s.(%s)", n.Target, n.TargetType.TypeString())
+}
+
 type Closure struct {
 	Target  Node
 	ArgTup  Node
@@ -522,7 +535,7 @@ func (n *ArrayLiteral) String() string {
 
 type BuiltinExp struct {
 	Args []Node
-	Type BuiltinType
+	Type BuiltinName
 	NodeID
 }
 
@@ -793,6 +806,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *FlowControl:
 		node.NodeID = newID
 	case *BuiltinExp:
+		node.NodeID = newID
+	case *TypeAssert:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

@@ -54,6 +54,7 @@ DONE: 'done';
 NEXT: 'next';
 SEND: 'send';
 ANY: 'any';
+TYPE: 'type';
 
 // Conditional ops
 OR: '||';

@@ -64,6 +64,7 @@ type Compiler struct {
 	prog       *ast.Program
 	onBreak    *ir.Block
 	onContinue *ir.Block
+	typeTable  TypeTable
 	bailBlock  bool
 }
 
@@ -75,7 +76,9 @@ type CFunc struct {
 }
 
 var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
-var AnyType lltypes.Type = lltypes.NewStruct(lltypes.I32, lltypes.I8Ptr)
+
+// AnyType is type tag, pointer to data (if reference), int data (if int)
+var AnyType lltypes.Type = lltypes.NewStruct(lltypes.I32, lltypes.I8Ptr, IntType)
 var CoroType lltypes.Type = lltypes.NewStruct(lltypes.I1, lltypes.I8Ptr)
 var LenType lltypes.Type
 var IntType = lltypes.I32
@@ -144,7 +147,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 
 func (c *Compiler) PromiseType(coroutineType types.CoroutineType) *lltypes.StructType {
 	return lltypes.NewStruct(
-		c.typeToLLType(coroutineType.Yields), lltypes.I32) // c.typeToLLType(coroutineType.Reads))
+		c.typeToLLType(coroutineType.Yields), lltypes.I32)
 }
 
 func (c *Compiler) GetType(node ast.Node) types.Type {
@@ -297,6 +300,9 @@ func Compile(prog *ast.Program, Types map[ast.NodeHash]types.Type) string {
 	// Create type defs
 	c.SetupTypes(prog)
 
+	// Init compiler type table
+	c.SetupTypeTable()
+
 	// Initialize all function pointers ahead of time
 	c.SetupFuncs(prog)
 
@@ -370,7 +376,9 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			}
 		}
 	case *ast.Mod:
-		retVal = c.currBlock.NewSRem(c.CompileNode(node.Left), c.CompileNode(node.Right))
+		compLeft := c.CompileNode(node.Left)
+		compRight := c.CompileNode(node.Right)
+		retVal = c.currBlock.NewSRem(compLeft, compRight)
 	case *ast.Assign:
 		retVal = c.compileAssign(node)
 	case *ast.Pipeline:
@@ -407,7 +415,9 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			retVal = NewLoad(c.currBlock, ptr)
 		}
 	case *ast.CompNode:
-		retVal = c.currBlock.NewICmp(node.LLPred(), c.CompileNode(node.Left), c.CompileNode(node.Right))
+		compLeft := c.CompileNode(node.Left)
+		compRight := c.CompileNode(node.Right)
+		retVal = c.currBlock.NewICmp(node.LLPred(), compLeft, compRight)
 	case *ast.ReturnExp:
 		cFun := c.FEnv[c.currFun.Name()]
 
@@ -417,7 +427,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 
 		cFun.RetBlocks[c.currBlock] = true
-		c.currBlock.NewStore(c.CompileNode(node.Target), cFun.RetPtr)
+		storeVal := c.CompileNode(node.Target)
+		c.currBlock.NewStore(storeVal, cFun.RetPtr)
 		c.currBlock.NewBr(cFun.RetBlock)
 		c.bailBlock = true
 	case *ast.YieldExp:
@@ -426,7 +437,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		resumeBlock.Term = prevContinuation
 
 		yieldValPtr := NewGetElementPtr(c.currBlock, c.currCoro.Promise, Zero, Zero)
-		c.currBlock.NewStore(c.CompileNode(node.Target), yieldValPtr)
+		srcPtr := c.CompileNode(node.Target)
+		c.currBlock.NewStore(srcPtr, yieldValPtr)
 		suspendRes := c.currBlock.NewCall(CoroSuspend, constant.None, constant.NewBool(false))
 
 		c.currBlock.NewSwitch(
@@ -600,6 +612,42 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = tuplePtr
 	case *ast.BuiltinExp:
 		retVal = c.compileBuiltin(node)
+	case *ast.TypeAssert:
+		compTarg := c.CompileNode(node.Target)
+
+		sourceType := c.GetType(node.Target)
+		_, isAny := sourceType.(types.AnyType)
+		if !isAny {
+			panic("Can only use type assertion on 'any' type")
+		}
+
+		typeTagPtr := NewGetElementPtr(c.currBlock, compTarg, Zero, Zero)
+		typeTag := NewLoad(c.currBlock, typeTagPtr)
+		targetTypeNo := constant.NewInt(lltypes.I32, int64(c.typeTable.GetNo(node.TargetType)))
+		areEq := c.currBlock.NewICmp(enum.IPredEQ, typeTag, targetTypeNo)
+
+		contBlock := c.currFun.NewBlock(c.getLabel("assertcont"))
+		failBlock := c.currFun.NewBlock(c.getLabel("assertfail"))
+		failBlock.NewCall(ThrowEx, constant.NewInt(lltypes.I32, 1))
+		failBlock.NewRet(constant.NewInt(lltypes.I32, 0))
+
+		contBlock.Term = c.currBlock.Term
+		c.currBlock.NewCondBr(areEq, contBlock, failBlock)
+
+		c.currBlock = contBlock
+
+		// Actually convert the value to the correct type
+		var valPtr value.Value
+		targetLLType := c.typeToLLType(node.TargetType)
+		_, isPtr := targetLLType.(*lltypes.PointerType)
+		if isPtr {
+			valPtr = NewGetElementPtr(c.currBlock, compTarg, Zero, constant.NewInt(lltypes.I32, 1))
+		} else {
+			valPtr = NewGetElementPtr(c.currBlock, compTarg, Zero, constant.NewInt(lltypes.I32, 2))
+		}
+
+		sourcePtr := c.currBlock.NewBitCast(valPtr, lltypes.NewPointer(targetLLType))
+		retVal = c.currBlock.NewLoad(targetLLType, sourcePtr)
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := CallMalloc(c.currBlock, structType)
@@ -658,11 +706,40 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 		promiseStruct := c.currBlock.NewBitCast(voidPromise, lltypes.NewPointer(c.PromiseType(coroType)))
 		yieldPtr := NewGetElementPtr(c.currBlock, promiseStruct, Zero, Zero)
 		retVal = NewLoad(c.currBlock, yieldPtr)
-	case ast.BuiltinSend:
 	case ast.BuiltinAny:
+		target := node.Args[0]
+		compTarget := c.CompileNode(target)
+		targType := c.GetType(target)
+		_, isTargAny := targType.(types.AnyType)
+		if isTargAny {
+			retVal = compTarget
+			break
+		}
+
+		anyPtr := CallMalloc(c.currBlock, AnyType)
+
+		tagPtr := NewGetElementPtr(c.currBlock, anyPtr, Zero, Zero)
+		typeNo := constant.NewInt(lltypes.I32, int64(c.typeTable.GetNo(targType)))
+		c.currBlock.NewStore(typeNo, tagPtr)
+
+		_, targetIsPtr := c.typeToLLType(targType).(*lltypes.PointerType)
+		var valStorePtr value.Value
+		if targetIsPtr {
+			valStorePtr = NewGetElementPtr(c.currBlock, anyPtr, Zero, constant.NewInt(lltypes.I32, 1))
+			compTarget = c.currBlock.NewBitCast(compTarget, lltypes.I8Ptr)
+		} else {
+			valStorePtr = NewGetElementPtr(c.currBlock, anyPtr, Zero, constant.NewInt(lltypes.I32, 2))
+		}
+		c.currBlock.NewStore(compTarget, valStorePtr)
+
+		retVal = anyPtr
+	case ast.BuiltinType:
+		retVal = constant.NewInt(IntType, int64(c.typeTable.GetNo(c.GetType(node))))
 	case ast.BuiltinDone:
 		handle := c.CompileNode(node.Args[0])
 		retVal = c.currBlock.NewCall(CoroDone, handle)
+	default:
+		panic("No compilation step defined for builtin " + node.Type)
 	}
 
 	return retVal
@@ -796,7 +873,8 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			elemPtr = c.getListElemPtr(list, index)
 		}
 
-		c.currBlock.NewStore(c.CompileNode(node.Expr), elemPtr)
+		srcPtr := c.CompileNode(node.Expr)
+		c.currBlock.NewStore(srcPtr, elemPtr)
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(target.Target)
 		expPtr := c.CompileNode(node.Expr)

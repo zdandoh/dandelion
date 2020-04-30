@@ -1,8 +1,12 @@
 package types
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
+	"encoding/hex"
 	"fmt"
+	"github.com/pkg/errors"
 	"strings"
 )
 
@@ -170,4 +174,17 @@ func Equals(t1 Type, t2 Type) bool {
 	}
 
 	return false
+}
+
+type TypeHash string
+
+func HashType(t Type) TypeHash {
+	b := bytes.NewBuffer(nil)
+	err := gob.NewEncoder(b).Encode(t)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to hash type"))
+	}
+
+	hash := sha256.New()
+	return TypeHash(hex.EncodeToString(hash.Sum(b.Bytes())))
 }

@@ -1266,21 +1266,42 @@ return sum;
 	}
 }
 
-//func TestAnyType(t *testing.T) {
-//	src := `
-//fun = f(a) {
-//	a;
-//};
-//
-//any x = 5;
-//
-//return 0;
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+func TestTypeBuiltin(t *testing.T) {
+	src := `
+x = 5;
+y = 23;
+
+if type(x) == type(y) {
+	return 5;
+};
+return 3;
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestAnyType(t *testing.T) {
+	src := `
+y = any(5);
+
+struct Box {
+	int num;
+};
+
+b = Box(7);
+
+anybox = any(b);
+box2 = anybox.(Box);
+
+return box2.num + y.(int);
+`
+
+	if !CompileCheckExit(src, 12) {
+		t.Fail()
+	}
+}
 
 //func TestPipeline(t *testing.T) {
 //	src := `

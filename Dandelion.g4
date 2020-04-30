@@ -22,18 +22,18 @@ structbody: lines=typeline*;
 
 expr
    : '(' expr ')'                                 # ParenExp
-   | '.' '(' typed ')'                            # AssertType
    | '[' elems=explist ']'                        # Array
    | '(' elems=explist ')'                        # Tuple
    | expr '.' IDENT                               # StructAccess
    | expr '[' index=expr ']'                      # SliceExp
+   | expr '.' '(' typed ')'                       # TypeAssert
    | left=expr PIPE right=expr                    # PipeExp
    | expr op=(MUL|DIV) expr                       # MulDiv
    | FMODS '{' body '}'                           # FunDef
    | FSTART '(' args=arglist? ')' '{' body '}'    # FunDef
    | FSTART '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
-   | bname=(LEN|DONE|NEXT|SEND|ANY) '(' args=explist ')' # BuiltinExp
+   | bname=(LEN|DONE|NEXT|SEND|ANY|TYPE) '(' args=explist ')' # BuiltinExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp
