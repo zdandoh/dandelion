@@ -46,6 +46,7 @@ func init() {
 	gob.Register(FlowControl{})
 	gob.Register(BuiltinExp{})
 	gob.Register(TypeAssert{})
+	gob.Register(IsExp{})
 }
 
 type NodeID int
@@ -81,6 +82,7 @@ type Program struct {
 	structs     map[string]*StructDef
 	structOrder []*StructDef
 	Metadata    map[NodeID]*Meta
+	RefTypes    map[types.TypeHash]types.Type // Types that are referenced in the program, even if no expression has that type
 	CurrNodeID  NodeID
 	Output      string
 }
@@ -90,6 +92,7 @@ func NewProgram() *Program {
 	newProg.Funcs = make(map[string]*FunDef)
 	newProg.structs = make(map[string]*StructDef)
 	newProg.Metadata = make(map[NodeID]*Meta)
+	newProg.RefTypes = make(map[types.TypeHash]types.Type)
 
 	return newProg
 }
@@ -216,6 +219,16 @@ type Assign struct {
 
 func (n *Assign) String() string {
 	return fmt.Sprintf("%v = %v", n.Target, n.Expr)
+}
+
+type IsExp struct {
+	CheckNode Node
+	CheckType types.Type
+	NodeID
+}
+
+func (n *IsExp) String() string {
+	return fmt.Sprintf("%s is %s", n.CheckNode, n.CheckType.TypeString())
 }
 
 type Ident struct {
@@ -808,6 +821,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *BuiltinExp:
 		node.NodeID = newID
 	case *TypeAssert:
+		node.NodeID = newID
+	case *IsExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

@@ -27,6 +27,7 @@ expr
    | expr '.' IDENT                               # StructAccess
    | expr '[' index=expr ']'                      # SliceExp
    | expr '.' '(' typed ')'                       # TypeAssert
+   | expr 'is' typed                              # IsExp
    | left=expr PIPE right=expr                    # PipeExp
    | expr op=(MUL|DIV) expr                       # MulDiv
    | FMODS '{' body '}'                           # FunDef

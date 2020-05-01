@@ -1303,6 +1303,38 @@ return box2.num + y.(int);
 	}
 }
 
+func TestIsExp(t *testing.T) {
+	src := `
+sum = 0;
+
+x = 5;
+if x is int {
+	sum = sum + 1;
+};
+
+y = any(5);
+if x is string {
+	sum = sum + 2;
+};
+
+z = "string";
+if z is int {
+	sum = sum + 4;
+};
+
+foo = any(8);
+if foo is int {
+	sum = sum + foo.(int);
+};
+
+return sum;
+`
+
+	if !CompileCheckExit(src, 9) {
+		t.Fail()
+	}
+}
+
 //func TestPipeline(t *testing.T) {
 //	src := `
 //fun = f{

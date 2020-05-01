@@ -47,6 +47,7 @@ NULL: 'null';
 BREAK: 'break';
 CONTINUE: 'continue';
 FSTART: 'f';
+IS: 'is';
 
 // Builtins
 LEN: 'len';

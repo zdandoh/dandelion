@@ -682,6 +682,21 @@ func (l *listener) ExitTypeAssert(c *parser.TypeAssertContext) {
 	l.nodeStack.Push(assert)
 }
 
+func (l *listener) EnterIsExp(c *parser.IsExpContext) {
+	DebugPrintln("Entering is exp")
+}
+
+func (l *listener) ExitIsExp(c *parser.IsExpContext) {
+	DebugPrintln("Exiting is exp")
+
+	isExp := &ast.IsExp{}
+	isExp.NodeID = l.NewNodeID()
+	isExp.CheckType = l.typeStack.Pop()
+	isExp.CheckNode = l.nodeStack.Pop()
+
+	l.nodeStack.Push(isExp)
+}
+
 func (l *listener) EnterStrExp(c *parser.StrExpContext) {
 	DebugPrintln("Entering string")
 }

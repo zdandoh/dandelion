@@ -2,39 +2,39 @@ package compile
 
 import (
 	"dandelion/types"
-	lltypes "github.com/llir/llvm/ir/types"
 )
 
-type TypeTable map[types.TypeHash]*TypePair
-
-type TypePair struct {
-	TypeNo int
-	Type   lltypes.Type
-}
+type TypeTable map[types.TypeHash]int
 
 func (t TypeTable) GetNo(ty types.Type) int {
 	hash := types.HashType(ty)
-	pair := t[hash]
-	return pair.TypeNo
+	tno := t[hash]
+	return tno
+}
+
+func (t TypeTable) Add(ty types.Type) {
+	_, isAny := ty.(types.AnyType)
+	if isAny {
+		// Don't add the any type to the table
+		return
+	}
+
+	hash := types.HashType(ty)
+	_, exists := t[hash]
+	if !exists {
+		t[hash] = len(t) + 1
+	}
 }
 
 func (c *Compiler) SetupTypeTable() {
 	typeTable := make(TypeTable)
 
-	typeNo := 0
 	for _, progType := range c.Types {
-		_, isAny := progType.(*types.AnyType)
-		if isAny {
-			// Don't add the any type to the table
-			continue
-		}
+		typeTable.Add(progType)
+	}
 
-		hash := types.HashType(progType)
-		_, exists := typeTable[hash]
-		if !exists {
-			typeNo++
-			typeTable[hash] = &TypePair{typeNo, c.typeToLLType(progType)}
-		}
+	for _, refType := range c.prog.RefTypes {
+		typeTable.Add(refType)
 	}
 
 	c.typeTable = typeTable

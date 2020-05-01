@@ -11,4 +11,5 @@ func TransformAst(prog *ast.Program) {
 	MarkCoroutines(prog)
 	RemovePipes(prog)
 	ExtractClosures(prog, sources)
+	FindTypeRefs(prog)
 }

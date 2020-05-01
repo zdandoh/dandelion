@@ -648,6 +648,25 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		sourcePtr := c.currBlock.NewBitCast(valPtr, lltypes.NewPointer(targetLLType))
 		retVal = c.currBlock.NewLoad(targetLLType, sourcePtr)
+	case *ast.IsExp:
+		checkTypeNo := c.typeTable.GetNo(node.CheckType)
+		checkNodeType := c.GetType(node.CheckNode)
+
+		_, isCheckNodeAny := checkNodeType.(types.AnyType)
+		if !isCheckNodeAny {
+			checkNodeTypeNo := c.typeTable.GetNo(checkNodeType)
+			if checkTypeNo == checkNodeTypeNo {
+				return constant.True
+			} else {
+				return constant.False
+			}
+		}
+
+		targetAny := c.CompileNode(node.CheckNode)
+		tagPtr := NewGetElementPtr(c.currBlock, targetAny, Zero, Zero)
+		tagVal := NewLoad(c.currBlock, tagPtr)
+		return c.currBlock.NewICmp(enum.IPredEQ, tagVal, constant.NewInt(lltypes.I32, int64(checkTypeNo)))
+
 	case *ast.StructInstance:
 		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := CallMalloc(c.currBlock, structType)
