@@ -366,6 +366,15 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		u.cons = append(u.cons, Constraint{leftCoroutine.Reads, rightCoroutine.Reads})
 		return nil
 	}
+	if isLeftCoroutine && isRightContainer {
+		return u.Unify(Constraint{currCons.Right, currCons.Left})
+	}
+	if isLeftContainer && isRightCoroutine {
+		u.ReplaceAllCons(leftContainer, rightCoroutine)
+		u.ReplaceAllSubs(leftContainer, rightCoroutine)
+		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightCoroutine.Yields})
+		return nil
+	}
 
 	// Unify struct options
 	if rightIsVar && isLeftStructOpt {
@@ -411,5 +420,5 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return err
 	}
 
-	return errors.Errorf("unable to unify '%v' and '%v'", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right))
+	return errors.Errorf("unable to unify '%v' and '%v' (%s)", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right), currCons.String())
 }

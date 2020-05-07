@@ -47,6 +47,7 @@ func init() {
 	gob.Register(BuiltinExp{})
 	gob.Register(TypeAssert{})
 	gob.Register(IsExp{})
+	gob.Register(ForIter{})
 }
 
 type NodeID int
@@ -490,6 +491,21 @@ func (n *For) String() string {
 	return lines
 }
 
+type ForIter struct {
+	Item Node
+	Iter Node
+	Body *Block
+	NodeID
+}
+
+func (n *ForIter) String() string {
+	lines := fmt.Sprintf("for %s in %s {\n", n.Item, n.Iter)
+	lines += n.Body.String()
+	lines += "}"
+
+	return lines
+}
+
 type CompNode struct {
 	Op    string
 	Left  Node
@@ -748,6 +764,8 @@ func Statement(node Node) bool {
 		return true
 	case *For:
 		return true
+	case *ForIter:
+		return true
 	case *BlockExp:
 		return true
 	case *FlowControl:
@@ -823,6 +841,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *TypeAssert:
 		node.NodeID = newID
 	case *IsExp:
+		node.NodeID = newID
+	case *ForIter:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

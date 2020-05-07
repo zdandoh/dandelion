@@ -154,6 +154,10 @@ func (c *Compiler) GetType(node ast.Node) types.Type {
 	return c.Types[ast.HashNode(node)]
 }
 
+func (c *Compiler) SetType(node ast.Node, ty types.Type) {
+	c.Types[ast.HashNode(node)] = ty
+}
+
 func (c *Compiler) SetupTypes(prog *ast.Program) {
 	StrType = c.mod.NewTypeDef("str", StrType)
 	LenType = c.mod.NewTypeDef("len_t", lltypes.NewInt(32))
@@ -518,6 +522,16 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.CompileLoopBody(node.Body, postFor, forStep)
 
 		c.currBlock = postFor
+	case *ast.ForIter:
+		var compNode ast.Node
+
+		iterType := c.GetType(node.Iter)
+		compNode, typeMap := parser.DesugarForIter(node.Body, node.Iter, node.Item, iterType)
+		for newNode, newType := range typeMap {
+			c.SetType(newNode, newType)
+		}
+
+		retVal = c.CompileNode(compNode)
 	case *ast.FlowControl:
 		cFun := c.FEnv[c.currFun.Name()]
 

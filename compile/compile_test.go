@@ -1335,17 +1335,52 @@ return sum;
 	}
 }
 
-//func TestPipeline(t *testing.T) {
+func TestForIter(t *testing.T) {
+	src := `
+a = [1, 2, 4, 8];
+
+sum = 0;
+for item in a {
+	sum = sum + item;
+};
+
+range = f() {
+	for i = 1; i < 10; i = i * 2 {
+		yield i;
+	};
+};
+
+sum2 = 0;
+for x in range() {
+	sum2 = sum2 + x;
+};
+
+return sum + sum2;
+`
+
+	if !CompileCheckExit(src, 30) {
+		t.Fail()
+	}
+}
+
+//func TestManyClosures(t *testing.T) {
 //	src := `
-//fun = f{
-//	e + 1;
+//x = 16;
+//
+//fun = f(arg) {
+//	f(arg2) {
+//		f(arg3) {
+//			f(arg4) {
+//				return x + arg + arg2 + arg3 + arg4;
+//			};
+//		};
+//	};
 //};
 //
-//new = [1, 2, 3] -> fun;
-//return new[2];
+//fun(1)(2)(4)(8);
 //`
 //
-//	if !CompileCheckExit(src, 4) {
+//	if !CompileCheckExit(src, 1+2+4+8+16) {
 //		t.Fail()
 //	}
 //}

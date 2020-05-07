@@ -442,6 +442,10 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.Constraints = append(i.Constraints, box.cons...)
 		case *ast.IsExp:
 			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+		case *ast.ForIter:
+			subtype := i.NewTypeVar()
+			i.AddCons(Constraint{i.GetTypeVar(node.Iter), Container{types.NullType{}, subtype, 0, i.NewContainerID()}})
+			i.AddCons(Constraint{subtype, i.GetTypeVar(node.Item)})
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
 			fieldName := node.Field.(*ast.Ident).Value

@@ -463,8 +463,8 @@ func (l *listener) ExitForIter(c *parser.ForIterContext) {
 	iterInit := l.nodeStack.Pop()
 	body := l.blockStack.Pop()
 
-	newNode := ForIterToFor(body, iterInit, &ast.Ident{itemName, l.NewNodeID()})
-	l.nodeStack.Push(newNode)
+	forIter := &ast.ForIter{&ast.Ident{itemName, l.NewNodeID()}, iterInit, body, l.NewNodeID()}
+	l.nodeStack.Push(forIter)
 }
 
 func (l *listener) EnterFlowControl(c *parser.FlowControlContext) {

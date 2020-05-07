@@ -73,7 +73,6 @@ NEQ: '!=';
 BYTE: '\'' . '\'';
 NUMBER: '-'?[0-9]+;
 FLOAT: '-'?[0-9]+ '.' [0-9]+;
-FMODS: 'f' ('i'|'m')? 'a'?;
 IDENT: [a-zA-Z_0-9]+;
 COMMAND: COMMAND_UNTERM '`';
 COMMAND_UNTERM: '`' (~[`\\\r\n] | '\\' (. | EOF))*;

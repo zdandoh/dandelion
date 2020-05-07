@@ -30,7 +30,7 @@ expr
    | expr 'is' typed                              # IsExp
    | left=expr PIPE right=expr                    # PipeExp
    | expr op=(MUL|DIV) expr                       # MulDiv
-   | FMODS '{' body '}'                           # FunDef
+   | FSTART '{' body '}'                          # FunDef
    | FSTART '(' args=arglist? ')' '{' body '}'    # FunDef
    | FSTART '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
