@@ -136,6 +136,10 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 		cons.Ret = ReplaceCons(cons.Ret, old, new)
 		return cons
 	case Container:
+		oldCont, isOldCont := old.(Container)
+		if isOldCont && oldCont.ID == cons.ID {
+			return new
+		}
 		return Container{cons.Type, ReplaceCons(cons.Subtype, old, new), cons.Index, cons.ID}
 	case Tup:
 		newSubs := make([]Constrainable, 0)
@@ -149,7 +153,7 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 	case BaseType:
 	// Don't do anything with base types
 	case StructOptions:
-		// Don't do anything with struct options
+	// Don't do anything with struct options
 	default:
 		panic("Can't replace constraint: " + cons.ConsString())
 	}
