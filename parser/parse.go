@@ -723,11 +723,14 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 func ParseProgram(text string) *ast.Program {
 	is := antlr.NewInputStream(text)
 	lexer := parser.NewDandelionLex(is)
+
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := parser.NewDandelion(stream)
 
 	errorStrat := &ErrorStrategy{}
 	p.SetErrorHandler(errorStrat)
+	p.RemoveErrorListeners()
+	p.AddErrorListener(&ErrorListener{})
 
 	l := &listener{}
 	l.typeStack = &TypeStack{}
