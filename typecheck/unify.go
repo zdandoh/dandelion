@@ -426,3 +426,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	return errors.Errorf("unable to unify '%v' and '%v' (%s)", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right), currCons.String())
 }
+
+func (u *Unifier) Swap(cons Constraint) error {
+	return u.Unify(Constraint{cons.Right, cons.Left})
+}

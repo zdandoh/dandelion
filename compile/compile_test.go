@@ -1261,6 +1261,7 @@ for item in iter() {
 };
 return sum;
 `
+
 	if !CompileCheckExit(src, 45) {
 		t.Fail()
 	}
@@ -1363,6 +1364,22 @@ return sum + sum2;
 	}
 }
 
+func TestPipeline(t *testing.T) {
+	src := `
+incr = f{
+	e + 1;
+};
+
+arr = [1, 2, 3, 4];
+arr -> incr -> incr;
+return arr[0];
+`
+
+	if !CompileCheckExit(src, 1) {
+		t.Fail()
+	}
+}
+
 //func TestManyClosures(t *testing.T) {
 //	src := `
 //x = 16;
@@ -1398,20 +1415,6 @@ return sum + sum2;
 //`
 //
 //	if !CompileCheckExit(src, 33) {
-//		t.Fail()
-//	}
-//}
-
-//func TestPipeline(t *testing.T) {
-//	src := `
-//adder = f(int e, int i, int[] a) int {
-//	e * 2;
-//};
-//newarr = [1, 2, 3] -> adder;
-//return newarr[2];
-//`
-//
-//	if !CompileCheckExit(src, 6) {
 //		t.Fail()
 //	}
 //}

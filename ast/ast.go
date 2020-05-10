@@ -48,6 +48,7 @@ func init() {
 	gob.Register(TypeAssert{})
 	gob.Register(IsExp{})
 	gob.Register(ForIter{})
+	gob.Register(PipeExp{})
 }
 
 type NodeID int
@@ -843,6 +844,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *IsExp:
 		node.NodeID = newID
 	case *ForIter:
+		node.NodeID = newID
+	case *PipeExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

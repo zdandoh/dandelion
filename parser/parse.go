@@ -6,6 +6,7 @@ import (
 	"dandelion/types"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,7 @@ type listener struct {
 	prog       *ast.Program
 }
 
-const Debug = true
+const Debug = false
 const ExternPrefix = "__extern_"
 
 func DebugPrintln(more ...interface{}) {
@@ -357,7 +358,7 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 
 	var args []ast.Node
 	if isPipeFunc {
-		args = []ast.Node{&ast.Ident{"i", l.NewNodeID()}, &ast.Ident{"e", l.NewNodeID()}, &ast.Ident{"a", l.NewNodeID()}}
+		args = []ast.Node{&ast.Ident{"e", l.NewNodeID()}, &ast.Ident{"i", l.NewNodeID()}, &ast.Ident{"a", l.NewNodeID()}}
 	} else if c.GetTypedargs() != nil {
 		argTypes := filterCommas(c.GetTypedargs().GetChildren())
 		for _, arg := range argTypes {
@@ -725,10 +726,18 @@ func ParseProgram(text string) *ast.Program {
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := parser.NewDandelion(stream)
 
+	errorStrat := &ErrorStrategy{}
+	p.SetErrorHandler(errorStrat)
+
 	l := &listener{}
 	l.typeStack = &TypeStack{}
 	l.prog = ast.NewProgram()
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Start())
+	if errorStrat.parseErrors > 0 {
+		fmt.Fprintf(os.Stderr, "%d parse errors encountered", errorStrat.parseErrors)
+		os.Exit(1)
+	}
+
 	l.prog.CurrNodeID = l.nodeID + 1
 
 	return l.prog
