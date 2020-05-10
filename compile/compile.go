@@ -419,8 +419,6 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.currBlock.NewSRem(compLeft, compRight)
 	case *ast.Assign:
 		retVal = c.compileAssign(node)
-	case *ast.Pipeline:
-		retVal = c.compilePipeline(node)
 	case *ast.FunApp:
 		var callee value.Value
 		if node.Extern {
@@ -607,15 +605,20 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		listType := c.GetType(node).(types.ArrayType)
 		llListType := c.typeToLLType(listType).(*lltypes.PointerType).ElemType
 		llSubtype := c.typeToLLType(listType.Subtype)
-		list := c.currBlock.NewAlloca(llListType)
+		list := CallMalloc(c.currBlock, llListType)
 
 		// Set list length
-		lenPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
-		c.currBlock.NewStore(constant.NewInt(IntType, int64(node.Length)), lenPtr)
+		lenVal := constant.NewInt(IntType, int64(node.Length))
+		lenPtr := NewGetElementPtr(c.currBlock, list, Zero, Zero)
+		c.currBlock.NewStore(lenVal, lenPtr)
 
 		// Get array start ptr
-		arr := CallMalloc(c.currBlock, lltypes.NewArray(uint64(node.Length), llSubtype))
-		arrStart := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
+		subtypeSize := GetSize(c.currBlock, llSubtype)
+		arrSize := c.currBlock.NewMul(subtypeSize, lenVal)
+
+		arr := c.currBlock.NewCall(Malloc, arrSize)
+		arrStart := c.currBlock.NewBitCast(arr, lltypes.NewPointer(llSubtype))
+		//arrStart := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 
 		// Set arr start pointer in list
 		arrPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
@@ -624,7 +627,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		// Set all arr elements
 		for i, val := range node.Exprs {
 			compVal := c.CompileNode(val)
-			elemPtr := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, int64(0)), constant.NewInt(IntType, int64(i)))
+			elemPtr := NewGetElementPtr(c.currBlock, arrStart, constant.NewInt(IntType, int64(i)))
 			c.currBlock.NewStore(compVal, elemPtr)
 		}
 
@@ -847,11 +850,6 @@ func (c *Compiler) extractFirstArg(block *ir.Block, sourceFun value.Value, argVa
 
 	castTrampPtr := c.currBlock.NewBitCast(adjustedTrampPtr, finalType)
 	return castTrampPtr
-}
-
-func (c *Compiler) compilePipeline(node *ast.Pipeline) value.Value {
-
-	return nil
 }
 
 func NewLoad(block *ir.Block, ptr value.Value) value.Value {

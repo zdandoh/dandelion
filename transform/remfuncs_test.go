@@ -3,6 +3,7 @@ package transform
 import (
 	"dandelion/ast"
 	"dandelion/parser"
+	"fmt"
 	"testing"
 )
 
@@ -53,4 +54,10 @@ func (t *testfuncinside) WalkBlock(block *ast.Block) *ast.Block {
 
 func (t *testfuncinside) WalkNode(node ast.Node) ast.Node {
 	return t.walkNode(node)
+}
+
+func TestDesugarPipeline(t *testing.T) {
+	d := PipeDesugar{}
+	arr := &ast.ArrayLiteral{4, []ast.Node{&ast.Num{1, ast.NoID}, &ast.Num{2, ast.NoID}}, 0, ast.NoID}
+	fmt.Println(d.DesugarPipeline(&ast.Pipeline{[]ast.Node{arr, &ast.Ident{"step1", ast.NoID}, &ast.Ident{"step2", ast.NoID}}, ast.NoID}))
 }

@@ -54,7 +54,7 @@ typedef struct str {
 } str;
 
 void prints(str* s) {
-	printf("%.*s\n", s->len, s->data);
+	printf("%.*s\n", (int)s->len, s->data);
 };
 
 int d_open(void* fname, void* mode) {
