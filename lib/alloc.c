@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdint.h>
 
 #define MEM_SIZE 72
 
@@ -47,8 +48,17 @@ void printp(void* p) {
 	printf("%p\n", p);
 }
 
+typedef struct str {
+	uint64_t len;
+	char* data;
+} str;
+
+void prints(str* s) {
+	printf("%.*s\n", s->len, s->data);
+};
+
 int d_open(void* fname, void* mode) {
 	open(fname, O_CREAT);
 	printf("%p %p\n", fname, mode);
 	return 5;
-};
+}

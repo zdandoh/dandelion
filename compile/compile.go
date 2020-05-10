@@ -86,6 +86,7 @@ var ByteType = lltypes.I8
 var BoolType = lltypes.I1
 var FloatType = lltypes.Float
 var Zero = constant.NewInt(IntType, 0)
+var One = constant.NewInt(IntType, 1)
 
 func (c *Compiler) getLabel(label string) string {
 	c.LabelNo++
@@ -358,7 +359,40 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			case "-":
 				retVal = c.currBlock.NewFSub(leftNode, rightNode)
 			}
+		} else if addType.Equal(c.typeToLLType(types.StringType{})) {
+			// Load and calculate new length
+			rightLenPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, Zero)
+			leftLenPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, Zero)
+			rightLen := NewLoad(c.currBlock, rightLenPtr)
+			leftLen := NewLoad(c.currBlock, leftLenPtr)
+			newLen := c.currBlock.NewAdd(rightLen, leftLen)
+
+			// Store new length
+			newStr := c.currBlock.NewAlloca(StrType)
+			newLenPtr := NewGetElementPtr(c.currBlock, newStr, Zero, Zero)
+			c.currBlock.NewStore(newLen, newLenPtr)
+
+			// Store new data pointer
+			strMem := c.currBlock.NewCall(Malloc, newLen)
+			newDataPtr := NewGetElementPtr(c.currBlock, newStr, Zero, One)
+			c.currBlock.NewStore(strMem, newDataPtr)
+
+			// Load old data pointers
+			rightDataPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, One)
+			leftDataPtr := NewGetElementPtr(c.currBlock, leftNode, Zero, One)
+			rightData := NewLoad(c.currBlock, rightDataPtr)
+			leftData := NewLoad(c.currBlock, leftDataPtr)
+
+			// Calculate offset
+			offPtr := NewGetElementPtr(c.currBlock, strMem, leftLen)
+
+			// Memcpy the data
+			c.currBlock.NewCall(MemCopy, strMem, leftData, leftLen)
+			c.currBlock.NewCall(MemCopy, offPtr, rightData, rightLen)
+
+			retVal = newStr
 		}
+
 	case *ast.MulDiv:
 		rightNode := c.CompileNode(node.Right)
 		leftNode := c.CompileNode(node.Left)
@@ -991,6 +1025,7 @@ func RunProg(progText string) (string, int) {
 	progTypes := typecheck.Infer(prog)
 
 	llvm_ir := Compile(prog, progTypes)
+
 	fmt.Println(llvm_ir)
 	err := ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
 	if err != nil {

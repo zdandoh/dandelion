@@ -1433,6 +1433,20 @@ conn_gen() -> f{
 	}
 }
 
+func TestStringAdd(t *testing.T) {
+	src := `
+str = "hello ";
+str2 = "world!";
+
+news = str + str2;
+f(string)void __extern_prints(news);
+`
+
+	if !CompileCheckOutput(src, "hello world!") {
+		t.FailNow()
+	}
+}
+
 //func TestManyClosures(t *testing.T) {
 //	src := `
 //x = 16;

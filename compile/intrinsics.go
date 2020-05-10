@@ -10,6 +10,7 @@ var InitTrampoline value.Value
 var AdjustTrampoline value.Value
 var AllocClo value.Value
 var Malloc value.Value
+var MemCopy value.Value
 var Free value.Value
 var OpenF value.Value
 
@@ -28,6 +29,7 @@ var CoroPromise value.Value
 var Print value.Value
 var PrintB value.Value
 var PrintP value.Value
+var PrintS value.Value
 var ThrowEx value.Value
 
 func (c *Compiler) setupIntrinsics() {
@@ -43,6 +45,10 @@ func (c *Compiler) setupIntrinsics() {
 		"printp",
 		lltypes.Void,
 		ir.NewParam("p", lltypes.I8Ptr))
+	PrintS = c.mod.NewFunc(
+		"prints",
+		lltypes.Void,
+		ir.NewParam("s", lltypes.NewPointer(StrType)))
 	InitTrampoline = c.mod.NewFunc(
 		"llvm.init.trampoline",
 		lltypes.Void,
@@ -65,6 +71,12 @@ func (c *Compiler) setupIntrinsics() {
 		"free",
 		lltypes.Void,
 		ir.NewParam("ptr", lltypes.I8Ptr))
+	MemCopy = c.mod.NewFunc(
+		"memcpy",
+		lltypes.I8Ptr,
+		ir.NewParam("dest", lltypes.I8Ptr),
+		ir.NewParam("src", lltypes.I8Ptr),
+		ir.NewParam("size", lltypes.I64))
 	OpenF = c.mod.NewFunc(
 		"d_open",
 		lltypes.I32,
