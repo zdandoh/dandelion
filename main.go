@@ -2,6 +2,7 @@ package main
 
 import (
 	"dandelion/compile"
+	"dandelion/typecheck"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -9,7 +10,8 @@ import (
 )
 
 func main() {
-	outfile := flag.String("irfile", "", "Save the LLVM IR to the specified file rather than executing it")
+	typecheck.DebugTypeInf = false
+	outIR := flag.String("irfile", "", "Save the LLVM IR to the specified file rather than executing it")
 	flag.Parse()
 
 	var src []byte
@@ -25,10 +27,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	llvmIr := compile.CompileSource(string(src))
+	llvmIr := compile.CompileSource(string(src), 1)
 
-	if *outfile != "" {
-		err = ioutil.WriteFile(*outfile, []byte(llvmIr), os.ModePerm)
+	if *outIR != "" {
+		err = ioutil.WriteFile(*outIR, []byte(llvmIr), os.ModePerm)
 	} else {
 		err = compile.ExecIR(llvmIr)
 	}

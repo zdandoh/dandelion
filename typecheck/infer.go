@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-const DebugTypeInf = true
+var DebugTypeInf = true
 
 func DebugInfer(more ...interface{}) {
 	if DebugTypeInf {

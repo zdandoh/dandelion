@@ -1,11 +1,9 @@
 package compile
 
 import (
-	"bytes"
 	"dandelion/ast"
 	"dandelion/parser"
 	"dandelion/transform"
-	"dandelion/typecheck"
 	"dandelion/types"
 	"fmt"
 	"github.com/llir/llvm/ir"
@@ -13,14 +11,8 @@ import (
 	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
-	"io/ioutil"
-	"log"
-	"os"
-	"os/exec"
 	"reflect"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 type PointerEnv map[string]map[string]value.Value
@@ -266,7 +258,6 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		c.currBlock.NewStore(constant.NewInt(IntType, 0), cFun.RetPtr)
 	}
 	for lineNo, line := range fun.Body.Lines {
-		fmt.Printf("Compiling line %d of %s\n", lineNo+1, name)
 		lastVal := c.CompileNode(line)
 		if c.bailBlock {
 			c.bailBlock = false
@@ -966,108 +957,11 @@ func (c *Compiler) getListElemPtr(list value.Value, index value.Value) value.Val
 }
 
 func (c *Compiler) CompileBlock(block *ast.Block) {
-	for lineNo, line := range block.Lines {
-		fmt.Printf("Compiling line %d of block\n", lineNo)
+	for _, line := range block.Lines {
 		c.CompileNode(line)
 		if c.bailBlock {
 			c.bailBlock = false
 			break
 		}
 	}
-}
-
-func CompileSource(progText string) string {
-	prog := parser.ParseProgram(progText)
-	transform.TransformAst(prog)
-
-	progTypes := typecheck.Infer(prog)
-	llvmIr := Compile(prog, progTypes)
-
-	return llvmIr
-}
-
-func ExecIR(llvmIr string) error {
-	cmd := exec.Command("lli")
-	buffer := bytes.NewBufferString(llvmIr)
-
-	cmd.Stdin = buffer
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	err := cmd.Start()
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	exitStatus := 0
-	err = cmd.Wait()
-	if err != nil {
-		exitCode, ok := err.(*exec.ExitError)
-		if ok {
-			status, ok := exitCode.Sys().(syscall.WaitStatus)
-			if ok {
-				exitStatus = status.ExitStatus()
-			}
-		}
-	}
-
-	os.Exit(exitStatus)
-	return nil
-}
-
-func RunProg(progText string) (string, int) {
-	prog := parser.ParseProgram(progText)
-	fmt.Println(prog)
-	transform.TransformAst(prog)
-
-	progTypes := typecheck.Infer(prog)
-
-	llvm_ir := Compile(prog, progTypes)
-
-	fmt.Println(llvm_ir)
-	err := ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	output, err := exec.Command("bash", "-i", "tester.sh").Output()
-	if err != nil {
-		log.Println(string(output))
-		log.Fatalf(err.Error())
-	}
-
-	outputStr := strings.TrimSpace(string(output))
-	outLines := strings.Split(outputStr, "\n")
-	lastLine := outLines[len(outLines)-1]
-	outLines = outLines[0 : len(outLines)-1]
-
-	exitCode, err := strconv.Atoi(lastLine)
-	if err != nil {
-		log.Fatalln(outputStr, err)
-	}
-
-	return strings.Join(outLines, "\n"), exitCode
-}
-
-func CompileCheckExit(progText string, code int) bool {
-	outputStr, exitCode := RunProg(progText)
-
-	if exitCode != code {
-		log.Println(outputStr)
-		return false
-	}
-
-	return true
-}
-
-func CompileCheckOutput(progText string, output string) bool {
-	outputStr, _ := RunProg(progText)
-
-	if outputStr != strings.TrimSpace(output) {
-		fmt.Println("Output doesn't match:")
-		fmt.Println(outputStr)
-		return false
-	}
-
-	return true
 }
