@@ -1370,12 +1370,22 @@ incr = f{
 	e + 1;
 };
 
+p = f{
+	f(int)void __extern_print(e);
+	0;
+};
+
 arr = [1, 2, 3, 4];
-arr -> incr -> incr;
-return arr[0];
+arr -> incr -> incr -> p;
 `
 
-	if !CompileCheckExit(src, 1) {
+	output := `
+3
+4
+5
+6`
+
+	if !CompileCheckOutput(src, output) {
 		t.Fail()
 	}
 }

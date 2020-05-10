@@ -95,6 +95,14 @@ func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
 		if !ok {
 			f.Unbound[node.Value] = true
 		}
+	case *ast.FunApp:
+		// Prevent external function definitions from getting marked as unbound
+		if node.Extern {
+			funIdent, isIdent := node.Fun.(*ast.Ident)
+			if isIdent {
+				f.Defs[funIdent.Value] = true
+			}
+		}
 	}
 
 	return retVal

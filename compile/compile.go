@@ -983,7 +983,7 @@ func ExecIR(llvmIr string) error {
 	return nil
 }
 
-func CompileCheckExit(progText string, code int) bool {
+func RunProg(progText string) (string, int) {
 	prog := parser.ParseProgram(progText)
 	fmt.Println(prog)
 	transform.TransformAst(prog)
@@ -1004,13 +1004,35 @@ func CompileCheckExit(progText string, code int) bool {
 	}
 
 	outputStr := strings.TrimSpace(string(output))
-	exitCode, err := strconv.Atoi(outputStr)
+	outLines := strings.Split(outputStr, "\n")
+	lastLine := outLines[len(outLines)-1]
+	outLines = outLines[0 : len(outLines)-1]
+
+	exitCode, err := strconv.Atoi(lastLine)
 	if err != nil {
 		log.Fatalln(outputStr, err)
 	}
 
+	return strings.Join(outLines, "\n"), exitCode
+}
+
+func CompileCheckExit(progText string, code int) bool {
+	outputStr, exitCode := RunProg(progText)
+
 	if exitCode != code {
 		log.Println(outputStr)
+		return false
+	}
+
+	return true
+}
+
+func CompileCheckOutput(progText string, output string) bool {
+	outputStr, _ := RunProg(progText)
+
+	if outputStr != strings.TrimSpace(output) {
+		fmt.Println("Output doesn't match:")
+		fmt.Println(outputStr)
 		return false
 	}
 
