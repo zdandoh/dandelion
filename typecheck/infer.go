@@ -188,8 +188,9 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 	return types.NullType{}
 }
 
-func (i *TypeInferer) AddCons(con Constraint) {
-	i.Constraints = append(i.Constraints, con)
+func (i *TypeInferer) AddCons(left Constrainable, right Constrainable, source ast.Node) {
+	cons := Constraint{left, right, source}
+	i.Constraints = append(i.Constraints, cons)
 }
 
 func (i *TypeInferer) NewTypeVar() TypeVar {
@@ -285,7 +286,8 @@ func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
 		panic("Unknown hint type: " + hintType.TypeString())
 	}
 
-	box.cons = append(box.cons, Constraint{newVar, varVal})
+	cons := Constraint{newVar, varVal, NoSource}
+	box.cons = append(box.cons, cons)
 	return newVar
 }
 
@@ -302,15 +304,15 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		baseFun := i.FunLookup[fName]
 
 		// Constraint to assign variable name to actual function def
-		i.AddCons(Constraint{i.GetTypeVar(fIdent), baseFun})
-		i.AddCons(Constraint{i.GetTypeVar(fIdent), i.GetTypeVar(funDef)})
+		i.AddCons(i.GetTypeVar(fIdent), baseFun, funDef)
+		i.AddCons(i.GetTypeVar(fIdent), i.GetTypeVar(funDef), funDef)
 
 		if funDef.TypeHint != nil {
 			// The user provided the type of the function
 			cons := make([]Constraint, 0)
 			box := &consBox{cons}
 			hintVar := i.hintToCons(*funDef.TypeHint, box)
-			i.AddCons(Constraint{i.GetTypeVar(fIdent), hintVar})
+			i.AddCons(i.GetTypeVar(fIdent), hintVar, funDef)
 			i.Constraints = append(i.Constraints, box.cons...)
 		}
 
@@ -323,7 +325,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		_, isReturn := lastLine.(*ast.ReturnExp)
 		// Don't try to implicitly return from main or coroutines
 		if lastLine != nil && !isReturn && fName != "main" && !*funDef.IsCoro {
-			i.AddCons(Constraint{baseFun.Ret, i.GetTypeVar(lastLine)})
+			i.AddCons(baseFun.Ret, i.GetTypeVar(lastLine), lastLine)
 		}
 	}
 
@@ -335,38 +337,38 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		if meta != nil && meta.Hint != nil {
 			box := &consBox{make([]Constraint, 0)}
 			hintVar := i.hintToCons(meta.Hint, box)
-			i.AddCons(Constraint{i.GetTypeVar(astNode), hintVar})
+			i.AddCons(i.GetTypeVar(astNode), hintVar, astNode)
 			i.Constraints = append(i.Constraints, box.cons...)
 		}
 
 		switch node := astNode.(type) {
 		case *ast.Num:
-			i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
+			i.AddCons(typeVar, BaseType{types.IntType{}}, node)
 		case *ast.FloatExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.FloatType{}}})
+			i.AddCons(typeVar, BaseType{types.FloatType{}}, node)
 		case *ast.StrExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.StringType{}}})
+			i.AddCons(typeVar, BaseType{types.StringType{}}, node)
 		case *ast.ByteExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.ByteType{}}})
+			i.AddCons(typeVar, BaseType{types.ByteType{}}, node)
 		case *ast.BoolExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+			i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 		case *ast.AddSub:
-			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
-			i.AddCons(Constraint{typeVar, i.GetTypeVar(node.Right)})
+			i.AddCons(i.GetTypeVar(node.Left), i.GetTypeVar(node.Right), node)
+			i.AddCons(typeVar, i.GetTypeVar(node.Right), node)
 		case *ast.MulDiv:
-			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
-			i.AddCons(Constraint{typeVar, i.GetTypeVar(node.Right)})
+			i.AddCons(i.GetTypeVar(node.Left), i.GetTypeVar(node.Right), node)
+			i.AddCons(typeVar, i.GetTypeVar(node.Right), node)
 		case *ast.ParenExp:
-			i.AddCons(Constraint{i.GetTypeVar(node), i.GetTypeVar(node.Exp)})
+			i.AddCons(i.GetTypeVar(node), i.GetTypeVar(node.Exp), node)
 		case *ast.Assign:
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr)})
-			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+			i.AddCons(i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr), node)
+			i.AddCons(typeVar, BaseType{types.NullType{}}, node)
 		case *ast.Closure:
 			baseFun := i.FunLookup[node.Target.(*ast.Ident).Value]
 			cloFun := remFirstArg(baseFun)
 
-			i.AddCons(Constraint{typeVar, cloFun})
-			i.AddCons(Constraint{baseFun.Args[0], BaseType{types.NullType{}}})
+			i.AddCons(typeVar, cloFun, node)
+			i.AddCons(baseFun.Args[0], BaseType{types.NullType{}}, node)
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {
@@ -374,8 +376,8 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 			newFun.Ret = i.NewTypeVar()
 
-			i.AddCons(Constraint{i.GetTypeVar(node.Fun), newFun})
-			i.AddCons(Constraint{typeVar, newFun.Ret})
+			i.AddCons(i.GetTypeVar(node.Fun), newFun, node)
+			i.AddCons(typeVar, newFun.Ret, node)
 
 			funIdent, ok := node.Fun.(*ast.Ident)
 			if !ok {
@@ -389,13 +391,13 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 				break
 			}
 
-			i.AddCons(Constraint{typeVar, baseFun.Ret})
-			i.AddCons(Constraint{baseFun, newFun})
+			i.AddCons(typeVar, baseFun.Ret, node)
+			i.AddCons(baseFun, newFun, node)
 		case *ast.Ident:
 		// Identifiers don't add any additional constraints
 		case *ast.ReturnExp:
 			sourceFun := i.FunLookup[node.SourceFunc]
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), sourceFun.Ret})
+			i.AddCons(i.GetTypeVar(node.Target), sourceFun.Ret, node)
 		case *ast.YieldExp:
 			// If a function contains a yield, it automatically returns a coroutine object
 			currFun := i.FunLookup[node.SourceFunc]
@@ -404,18 +406,18 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			newCo.Yields = i.GetTypeVar(node.Target)
 			newCo.Reads = i.NewTypeVar()
 
-			i.AddCons(Constraint{currFun.Ret, newCo})
-			i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
+			i.AddCons(currFun.Ret, newCo, node)
+			i.AddCons(typeVar, BaseType{types.NullType{}}, node)
 		case *ast.BuiltinExp:
 			i.getBuiltinConstraints(node, typeVar)
 		case *ast.CompNode:
-			i.AddCons(Constraint{i.GetTypeVar(node.Left), i.GetTypeVar(node.Right)})
-			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+			i.AddCons(i.GetTypeVar(node.Left), i.GetTypeVar(node.Right), node)
+			i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 		case *ast.ArrayLiteral:
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(Constraint{typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0, i.NewContainerID()}})
+			i.AddCons(typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0, i.NewContainerID()}, node)
 			if len(node.Exprs) > 0 {
-				i.AddCons(Constraint{subtypeVar, i.GetTypeVar(node.Exprs[0])})
+				i.AddCons(subtypeVar, i.GetTypeVar(node.Exprs[0]), node)
 			}
 		case *ast.TupleLiteral:
 			tup := Tup{}
@@ -423,7 +425,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 				expSubtype := i.GetTypeVar(exp)
 				tup.Subtypes = append(tup.Subtypes, expSubtype)
 			}
-			i.AddCons(Constraint{typeVar, tup})
+			i.AddCons(typeVar, tup, node)
 		case *ast.SliceNode:
 			index := -1
 			indexNode, isIndexNum := node.Index.(*ast.Num)
@@ -432,20 +434,20 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(Constraint{i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index, i.NewContainerID()}})
-			i.AddCons(Constraint{typeVar, subtypeVar})
+			i.AddCons(i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index, i.NewContainerID()}, node)
+			i.AddCons(typeVar, subtypeVar, node)
 		case *ast.TypeAssert:
 			cons := make([]Constraint, 0)
 			box := &consBox{cons}
 			hintVar := i.hintToCons(node.TargetType, box)
-			i.AddCons(Constraint{typeVar, hintVar})
+			i.AddCons(typeVar, hintVar, node)
 			i.Constraints = append(i.Constraints, box.cons...)
 		case *ast.IsExp:
-			i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+			i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 		case *ast.ForIter:
 			subtype := i.NewTypeVar()
-			i.AddCons(Constraint{i.GetTypeVar(node.Iter), Container{types.NullType{}, subtype, 0, i.NewContainerID()}})
-			i.AddCons(Constraint{subtype, i.GetTypeVar(node.Item)})
+			i.AddCons(i.GetTypeVar(node.Iter), Container{types.NullType{}, subtype, 0, i.NewContainerID()}, node)
+			i.AddCons(subtype, i.GetTypeVar(node.Item), node)
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
 			fieldName := node.Field.(*ast.Ident).Value
@@ -464,7 +466,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 
 			options.Dependants[typeVar] = fieldName
-			i.AddCons(Constraint{i.GetTypeVar(node.Target), options})
+			i.AddCons(i.GetTypeVar(node.Target), options, node)
 		}
 	}
 
@@ -477,25 +479,25 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVar) {
 	switch node.Type {
 	case ast.BuiltinDone:
-		i.AddCons(Constraint{typeVar, BaseType{types.BoolType{}}})
+		i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 	case ast.BuiltinAny:
-		i.AddCons(Constraint{typeVar, BaseType{types.AnyType{}}})
+		i.AddCons(typeVar, BaseType{types.AnyType{}}, node)
 	case ast.BuiltinSend:
 		newCo := Coroutine{}
 		newCo.Yields = i.NewTypeVar()
 		newCo.Reads = i.NewTypeVar()
 
-		i.AddCons(Constraint{typeVar, BaseType{types.NullType{}}})
-		i.AddCons(Constraint{i.GetTypeVar(node.Args[0]), newCo})
-		i.AddCons(Constraint{i.GetTypeVar(node.Args[1]), newCo.Reads})
+		i.AddCons(typeVar, BaseType{types.NullType{}}, node)
+		i.AddCons(i.GetTypeVar(node.Args[0]), newCo, node)
+		i.AddCons(i.GetTypeVar(node.Args[1]), newCo.Reads, node)
 	case ast.BuiltinNext:
 		newCo := Coroutine{}
 		newCo.Yields = typeVar
 		newCo.Reads = i.NewTypeVar()
 
-		i.AddCons(Constraint{i.GetTypeVar(node.Args[0]), newCo})
+		i.AddCons(i.GetTypeVar(node.Args[0]), newCo, node)
 	case ast.BuiltinLen:
-		i.AddCons(Constraint{typeVar, BaseType{types.IntType{}}})
+		i.AddCons(typeVar, BaseType{types.IntType{}}, node)
 	}
 }
 

@@ -3,6 +3,7 @@ package typecheck
 import (
 	"bytes"
 	"crypto/sha256"
+	"dandelion/ast"
 	"dandelion/types"
 	"encoding/gob"
 	"fmt"
@@ -24,6 +25,8 @@ type Constrainable interface {
 	ConsString() string
 }
 
+var NoSource ast.Node = nil
+
 type consBox struct {
 	cons []Constraint
 }
@@ -40,8 +43,9 @@ func (t TypeVar) ConsString() string {
 }
 
 type Constraint struct {
-	Left  Constrainable
-	Right Constrainable
+	Left   Constrainable
+	Right  Constrainable
+	Source ast.Node
 }
 
 func (c Constraint) String() string {

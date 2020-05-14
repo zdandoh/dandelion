@@ -166,7 +166,7 @@ func (u *Unifier) ReplaceAllCons(old Constrainable, new Constrainable) {
 		newLeft := ReplaceCons(con.Left, old, new)
 		newRight := ReplaceCons(con.Right, old, new)
 
-		u.cons[i] = Constraint{newLeft, newRight}
+		u.cons[i] = Constraint{newLeft, newRight, con.Source}
 	}
 }
 
@@ -188,7 +188,7 @@ func (u *Unifier) UnifyAll() (Subs, error) {
 	return u.subs, nil
 }
 
-func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Constrainable, error) {
+func (u *Unifier) resolveStructOpt(currCons Constraint, old Constrainable, newOpt StructOptions) (Constrainable, error) {
 	var newItem Constrainable = newOpt
 	if len(newOpt.Types) == 0 {
 		return nil, fmt.Errorf("no type satisfies struct constraints")
@@ -211,11 +211,11 @@ func (u *Unifier) resolveStructOpt(old Constrainable, newOpt StructOptions) (Con
 			if structDef.HasMethod(dep) {
 				// We need to treat struct methods differently than members
 				method := structDef.Method(dep)
-				u.cons = append(u.cons, Constraint{depVar, remFirstArg(u.funcs[method.TargetName])})
+				u.cons = append(u.cons, Constraint{depVar, remFirstArg(u.funcs[method.TargetName]), currCons.Source})
 				continue
 			} else {
 				// Member
-				u.cons = append(u.cons, Constraint{depVar, BaseType{structDef.MemberType(dep)}})
+				u.cons = append(u.cons, Constraint{depVar, BaseType{structDef.MemberType(dep)}, currCons.Source})
 			}
 		}
 		newItem = BaseType{structType}
@@ -239,16 +239,18 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
-		return fmt.Errorf("type inference failed, base types not equal: %s != %s", leftBase.TypeString(), rightBase.TypeString())
+		errorMsg := fmt.Sprintf("Type inference error: base types not equal %s != %s\nSource expression: %s",
+			leftBase.TypeString(), rightBase.TypeString(), currCons.Source)
+		return fmt.Errorf(errorMsg)
 	}
 	if isLeftBase {
-		return u.Unify(Constraint{currCons.Right, currCons.Left})
+		return u.Swap(currCons)
 	}
 	if isRightBase && isLeftStructOpt {
 		newOpt := StructOptions{}
 		newOpt.Dependants = leftStructOpt.Dependants
 		newOpt.Types = []types.Type{rightBase.Type}
-		_, err := u.resolveStructOpt(leftStructOpt, newOpt)
+		_, err := u.resolveStructOpt(currCons, leftStructOpt, newOpt)
 		if err != nil {
 			return err
 		}
@@ -270,19 +272,20 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if rightIsVar && !leftIsVar {
-		return u.Unify(Constraint{currCons.Right, currCons.Left})
+		return u.Swap(currCons)
 	}
 
 	rightFun, rightIsFun := currCons.Right.(Fun)
 	leftFun, leftIsFun := currCons.Left.(Fun)
 	if rightIsFun && leftIsFun {
 		if len(rightFun.Args) != len(leftFun.Args) {
-			panic("Unified functions don't have equal arg counts")
+			errorMsg := fmt.Sprintf("Functions don't have equal arg counts: %s", currCons.Source)
+			return fmt.Errorf(errorMsg)
 		}
 		for k, arg := range leftFun.Args {
-			u.cons = append(u.cons, Constraint{arg, rightFun.Args[k]})
+			u.cons = append(u.cons, Constraint{arg, rightFun.Args[k], currCons.Source})
 		}
-		u.cons = append(u.cons, Constraint{leftFun.Ret, rightFun.Ret})
+		u.cons = append(u.cons, Constraint{leftFun.Ret, rightFun.Ret, currCons.Source})
 		return nil
 	}
 	if rightIsFun && !leftIsFun {
@@ -319,7 +322,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 			u.subs.Set(old, newCon)
 		}
 
-		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightContainer.Subtype})
+		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightContainer.Subtype, currCons.Source})
 		return nil
 	}
 
@@ -332,14 +335,14 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if isLeftTuple && isRightContainer {
-		return u.Unify(Constraint{currCons.Right, currCons.Left})
+		return u.Swap(currCons)
 	}
 	if isRightTuple && isLeftContainer {
 		if leftContainer.Index < 0 || leftContainer.Index >= len(rightTuple.Subtypes) {
 			return fmt.Errorf("illegal index for tuple: %d", leftContainer.Index)
 		}
 
-		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightTuple.Subtypes[leftContainer.Index]})
+		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightTuple.Subtypes[leftContainer.Index], currCons.Source})
 		u.subs.Set(leftContainer, rightTuple)
 		u.ReplaceAllCons(leftContainer, rightTuple)
 
@@ -350,7 +353,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 			return fmt.Errorf("cannot unify, tuples have different subtype counts")
 		}
 		for k, sub := range leftTuple.Subtypes {
-			u.cons = append(u.cons, Constraint{sub, rightTuple.Subtypes[k]})
+			u.cons = append(u.cons, Constraint{sub, rightTuple.Subtypes[k], currCons.Source})
 		}
 		return nil
 	}
@@ -358,7 +361,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	rightCoroutine, isRightCoroutine := currCons.Right.(Coroutine)
 	leftCoroutine, isLeftCoroutine := currCons.Left.(Coroutine)
 	if rightIsVar && isLeftCoroutine {
-		return u.Unify(Constraint{rightVar, leftCoroutine})
+		return u.Swap(currCons)
 	}
 	if leftIsVar && isRightCoroutine {
 		u.subs.Set(leftVar, rightCoroutine)
@@ -366,27 +369,27 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if isLeftCoroutine && isRightCoroutine {
-		u.cons = append(u.cons, Constraint{leftCoroutine.Yields, rightCoroutine.Yields})
-		u.cons = append(u.cons, Constraint{leftCoroutine.Reads, rightCoroutine.Reads})
+		u.cons = append(u.cons, Constraint{leftCoroutine.Yields, rightCoroutine.Yields, currCons.Source})
+		u.cons = append(u.cons, Constraint{leftCoroutine.Reads, rightCoroutine.Reads, currCons.Source})
 		return nil
 	}
 	if isLeftCoroutine && isRightContainer {
-		return u.Unify(Constraint{currCons.Right, currCons.Left})
+		return u.Swap(currCons)
 	}
 	if isLeftContainer && isRightCoroutine {
 		u.ReplaceAllCons(leftContainer, rightCoroutine)
 		u.ReplaceAllSubs(leftContainer, rightCoroutine)
-		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightCoroutine.Yields})
+		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightCoroutine.Yields, currCons.Source})
 		return nil
 	}
 
 	// Unify struct options
 	if rightIsVar && isLeftStructOpt {
-		return u.Unify(Constraint{rightVar, leftStructOpt})
+		return u.Swap(currCons)
 	}
 	if leftIsVar && isRightStructOpt {
 		u.subs.Set(leftVar, rightStructOpt)
-		newItem, err := u.resolveStructOpt(leftVar, rightStructOpt)
+		newItem, err := u.resolveStructOpt(currCons, leftVar, rightStructOpt)
 		if err != nil {
 			return err
 		}
@@ -412,21 +415,22 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		}
 
 		newOpt := StructOptions{intersectStructs, allDeps}
-		finalRepl, err := u.resolveStructOpt(leftStructOpt, newOpt)
+		finalRepl, err := u.resolveStructOpt(currCons, leftStructOpt, newOpt)
 		u.ReplaceAllSubs(leftStructOpt, finalRepl)
 		if err != nil {
 			return err
 		}
 
-		finalRepl, err = u.resolveStructOpt(rightStructOpt, newOpt)
+		finalRepl, err = u.resolveStructOpt(currCons, rightStructOpt, newOpt)
 		u.ReplaceAllSubs(rightStructOpt, finalRepl)
 
 		return err
 	}
 
-	return errors.Errorf("unable to unify '%v' and '%v' (%s)", reflect.TypeOf(currCons.Left), reflect.TypeOf(currCons.Right), currCons.String())
+	errorMsg := fmt.Sprintf("Unable to infer type of expression: %s\nIncompatible types '%v' and '%v'", currCons.Source, reflect.TypeOf(currCons.Left).Name(), reflect.TypeOf(currCons.Right).Name())
+	return errors.New(errorMsg)
 }
 
 func (u *Unifier) Swap(cons Constraint) error {
-	return u.Unify(Constraint{cons.Right, cons.Left})
+	return u.Unify(Constraint{cons.Right, cons.Left, cons.Source})
 }
