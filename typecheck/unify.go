@@ -279,7 +279,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	leftFun, leftIsFun := currCons.Left.(Fun)
 	if rightIsFun && leftIsFun {
 		if len(rightFun.Args) != len(leftFun.Args) {
-			errorMsg := fmt.Sprintf("Functions don't have equal arg counts: %s", currCons.Source)
+			errorMsg := fmt.Sprintf("Function application doesn't have correct argument count: %s", currCons.Source)
 			return fmt.Errorf(errorMsg)
 		}
 		for k, arg := range leftFun.Args {

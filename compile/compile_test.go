@@ -515,22 +515,6 @@ return ret;
 	}
 }
 
-func TestInferArray2(t *testing.T) {
-	src := `
-fun = f(x) {
-	x[3] = 7;
-	x;
-};
-
-arr = [1, 2, 3, 4, 5];
-return fun(arr)[3];
-`
-
-	if !CompileCheckExit(src, 7) {
-		t.Fail()
-	}
-}
-
 func TestInferEmptyArray(t *testing.T) {
 	src := `
 empty = [];
@@ -1444,6 +1428,25 @@ f(string)void __extern_prints(news);
 
 	if !CompileCheckOutput(src, "hello world!") {
 		t.FailNow()
+	}
+}
+
+// TODO this shouldn't need a type hint, but we can't tell if the
+// return value is a tuple or array, so we just return null
+func TestInferArray2(t *testing.T) {
+	src := `
+fun = f(x) {
+	x[3] = 7;
+	x;
+};
+
+arr = [1, 2, 3, 4, 5];
+[]int new_arr = fun(arr);
+return new_arr[3];
+`
+
+	if !CompileCheckExit(src, 7) {
+		t.Fail()
 	}
 }
 

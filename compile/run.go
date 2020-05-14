@@ -21,11 +21,15 @@ func RunProg(progText string) (string, int) {
 	transform.TransformAst(prog)
 
 	progTypes := typecheck.Infer(prog)
+	err := typecheck.ValidateProg(prog, progTypes)
+	if err != nil {
+		os.Exit(1)
+	}
 
 	llvm_ir := Compile(prog, progTypes)
 
 	fmt.Println(llvm_ir)
-	err := ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
+	err = ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
 	if err != nil {
 		fmt.Println(err)
 	}

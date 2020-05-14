@@ -498,6 +498,8 @@ func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVa
 		i.AddCons(i.GetTypeVar(node.Args[0]), newCo, node)
 	case ast.BuiltinLen:
 		i.AddCons(typeVar, BaseType{types.IntType{}}, node)
+	case ast.BuiltinType:
+		i.AddCons(typeVar, BaseType{types.IntType{}}, node)
 	}
 }
 
