@@ -2,6 +2,7 @@ package compile
 
 import (
 	"dandelion/ast"
+	"dandelion/errs"
 	"dandelion/parser"
 	"dandelion/transform"
 	"dandelion/types"
@@ -431,7 +432,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			var cFun *CFunc
 			cFun, inFEnv = c.FEnv[node.Value]
 			if !inFEnv {
-				panic("Unbound identifier: " + node.Value)
+				errs.Error(errs.ErrorValue, node, "unbound identifier")
+				errs.CheckExit()
 			}
 			ptr = cFun.Func
 		}
@@ -660,7 +662,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		sourceType := c.GetType(node.Target)
 		_, isAny := sourceType.(types.AnyType)
 		if !isAny {
-			panic("Can only use type assertion on 'any' type")
+			errs.Error(errs.ErrorValue, node, "can only use type assertion on 'any' type")
+			errs.CheckExit()
 		}
 
 		typeTagPtr := NewGetElementPtr(c.currBlock, compTarg, Zero, Zero)
