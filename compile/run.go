@@ -2,6 +2,7 @@ package compile
 
 import (
 	"bytes"
+	"dandelion/errs"
 	"dandelion/parser"
 	"dandelion/transform"
 	"dandelion/typecheck"
@@ -17,19 +18,18 @@ import (
 
 func RunProg(progText string) (string, int) {
 	prog := parser.ParseProgram(progText)
+	errs.SetProg(prog)
 	fmt.Println(prog)
 	transform.TransformAst(prog)
 
 	progTypes := typecheck.Infer(prog)
-	err := typecheck.ValidateProg(prog, progTypes)
-	if err != nil {
-		os.Exit(1)
-	}
+	typecheck.ValidateProg(prog, progTypes)
+	errs.CheckExit()
 
 	llvm_ir := Compile(prog, progTypes)
 
 	fmt.Println(llvm_ir)
-	err = ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
+	err := ioutil.WriteFile("llvm_ir.ll", []byte(llvm_ir), os.ModePerm)
 	if err != nil {
 		fmt.Println(err)
 	}

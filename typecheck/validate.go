@@ -2,6 +2,7 @@ package typecheck
 
 import (
 	"dandelion/ast"
+	"dandelion/errs"
 	"dandelion/transform"
 	"dandelion/types"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 
 type TypeValidator struct {
 	progTypes map[ast.NodeHash]types.Type
-	errors    []error
+	prog      *ast.Program
 }
 
 type TypeList []types.Type
@@ -33,15 +34,14 @@ var Nullable = TypeList{types.CoroutineType{}, types.FuncType{}, types.StructTyp
 var Ordered = TypeList{types.IntType{}, types.BoolType{}, types.FloatType{}, types.ByteType{}}
 var Lenable = TypeList{types.StringType{}, types.ArrayType{}, types.TupleType{}}
 
-func ValidateProg(prog *ast.Program, tys map[ast.NodeHash]types.Type) error {
+func ValidateProg(prog *ast.Program, tys map[ast.NodeHash]types.Type) {
 	v := &TypeValidator{}
 	v.progTypes = tys
+	v.prog = prog
 
 	for _, fun := range prog.Funcs {
 		ast.WalkAst(fun, v)
 	}
-
-	return nil
 }
 
 func (v *TypeValidator) Type(node ast.Node) types.Type {
@@ -84,14 +84,14 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	switch node := astNode.(type) {
 	case *ast.Assign:
 		if !isNode(node.Target, Assignable) {
-			v.printError(node.Target, "is not assignable")
+			errs.Error(errs.ErrorType, node, "target is not assignable")
 		}
 	case *ast.AddSub:
 		if node.Op == "+" && (!v.isType(node.Right, Addable) || !v.isType(node.Left, Addable)) {
-			v.printError(node, "type not addable")
+			errs.Error(errs.ErrorType, node, "operand is not addable")
 		}
 		if node.Op == "-" && (!v.isType(node.Right, Number) || !v.isType(node.Left, Number)) {
-			v.printError(node, "type not a number")
+			errs.Error(errs.ErrorType, node, "operand is not a number")
 		}
 	case *ast.SliceNode:
 		if transform.IsCloArg(node.Arr) {
@@ -99,51 +99,59 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		}
 
 		if !v.likeType(node.Arr, Sliceable) {
-			v.printError(node.Arr, "type is not sliceable")
+			ty := v.Type(node.Arr)
+			errs.Error(errs.ErrorType, node.Arr, "type '%s' is not sliceable", ty.TypeString())
 		}
 		if !v.isType(node.Index, Index) {
-			v.printError(node.Index, "type is not a valid index")
+			ty := v.Type(node.Index)
+			errs.Error(errs.ErrorType, node.Index, "type '%s' is not a valid index", ty.TypeString())
 		}
 	case *ast.ForIter:
 		if !v.likeType(node.Iter, Iterable) {
-			v.printError(node.Iter, "type is not an iterable")
+			ty := v.Type(node.Iter)
+			errs.Error(errs.ErrorType, node.Iter, "type '%s' is not iterable", ty.TypeString())
 		}
 	case *ast.For:
 		if !v.isType(node.Cond, Conditional) {
-			v.printError(node.Cond, "type is not a valid conditional")
+			ty := v.Type(node.Cond)
+			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.While:
 		if !v.isType(node.Cond, Conditional) {
-			v.printError(node.Cond, "type is not a valid conditional")
+			ty := v.Type(node.Cond)
+			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.If:
 		if !v.isType(node.Cond, Conditional) {
-			v.printError(node.Cond, "type is not a valid conditional")
+			ty := v.Type(node.Cond)
+			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.StructAccess:
 		if !v.likeType(node.Target, DotAccess) {
-			v.printError(node.Target, "can't access attribute of type")
+			ty := v.Type(node.Target)
+			errs.Error(errs.ErrorType, node.Target, "can't access attribute of type '%s'", ty.TypeString())
 		}
 	case *ast.MulDiv:
 		if !v.isType(node.Left, Number) || !v.isType(node.Right, Number) {
-			v.printError(node, "operand is not number")
+			errs.Error(errs.ErrorType, node, "operand is not number")
 		}
 	case *ast.FunApp:
 		if !v.likeType(node.Fun, Invocable) {
-			v.printError(node, "target is not invocable")
+			errs.Error(errs.ErrorType, node, "target is not invocable")
 		}
 	case *ast.NullExp:
 		if !v.likeType(node, Nullable) {
-			v.printError(node, "target isn't nullable")
+			ty := v.Type(node)
+			errs.Error(errs.ErrorType, node, "target of type '%s' isn't nullable", ty.TypeString())
 		}
 	case *ast.CompNode:
 		if node.Op == "==" || node.Op == "!=" {
-			// These aren't ordered
+			// These don't need to be ordered
 			break
 		}
 
 		if !v.isType(node.Right, Ordered) || !v.isType(node.Left, Ordered) {
-			v.printError(node, "operand isn't ordered")
+			errs.Error(errs.ErrorType, node, "operand isn't ordered")
 		}
 	case *ast.ArrayLiteral:
 		if len(node.Exprs) < 1 {
@@ -152,13 +160,13 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		nodeType := v.Type(node.Exprs[0])
 		for _, node := range node.Exprs {
 			if !types.Equals(v.Type(node), nodeType) {
-				v.printError(node, "list elements must be of same type")
+				errs.Error(errs.ErrorType, node, "list elements must be of same type")
 				break
 			}
 		}
 	case *ast.Mod:
 		if !v.isType(node.Left, Natural) || !v.isType(node.Right, Natural) {
-			v.printError(node, "operand isn't a natural number")
+			errs.Error(errs.ErrorType, node, "operand isn't a natural number")
 		}
 	case *ast.BuiltinExp:
 		switch node.Type {
@@ -166,23 +174,24 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			ty := v.Type(node.Args[0])
 			_, isCoro := ty.(types.CoroutineType)
 			if !isCoro {
-				v.printError(node, "argument to done must be coroutine")
+				errs.Error(errs.ErrorType, node, "argument to done must be coroutine")
 			}
 		case ast.BuiltinNext:
 			ty := v.Type(node.Args[0])
 			_, isCoro := ty.(types.CoroutineType)
 			if !isCoro {
-				v.printError(node, "argument to next must be coroutine")
+				errs.Error(errs.ErrorType, node, "argument to next must be coroutine")
 			}
 		case ast.BuiltinSend:
 			ty := v.Type(node.Args[0])
 			_, isCoro := ty.(types.CoroutineType)
 			if !isCoro {
-				v.printError(node, "argument to send must be coroutine")
+				errs.Error(errs.ErrorType, node, "argument to send must be coroutine")
 			}
 		case ast.BuiltinLen:
 			if !v.likeType(node.Args[0], Lenable) {
-				v.printError(node, "cannot take length of argument")
+				ty := v.Type(node.Args[0])
+				errs.Error(errs.ErrorType, node, "cannot take length of type '%s'", ty.TypeString())
 			}
 		case ast.BuiltinAny:
 		case ast.BuiltinType:
@@ -218,9 +227,4 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 
 func (v *TypeValidator) WalkBlock(block *ast.Block) *ast.Block {
 	return nil
-}
-
-func (v *TypeValidator) printError(node ast.Node, msg string) {
-	ty := v.Type(node)
-	panic(fmt.Sprintf("%s - %s - %s", node, msg, ty.TypeString()))
 }
