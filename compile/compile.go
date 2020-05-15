@@ -379,8 +379,8 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			offPtr := NewGetElementPtr(c.currBlock, strMem, leftLen)
 
 			// Memcpy the data
-			c.currBlock.NewCall(MemCopy, strMem, leftData, leftLen)
-			c.currBlock.NewCall(MemCopy, offPtr, rightData, rightLen)
+			c.currBlock.NewCall(MemCopy, strMem, leftData, leftLen, constant.False)
+			c.currBlock.NewCall(MemCopy, offPtr, rightData, rightLen, constant.False)
 
 			retVal = newStr
 		}
@@ -629,19 +629,24 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		sliceable := c.CompileNode(node.Arr)
 		index := c.CompileNode(node.Index)
 
-		// Do some hacky stuff here to allow for slicing different types without explicit ast info
-		// If the type is a struct that starts with len_t, it's a list, otherwise it's a tuple
-		ptrType := sliceable.Type().(*lltypes.PointerType).ElemType
-		structType := ptrType.(*lltypes.StructType)
+		targType := c.GetType(node.Arr)
+		_, isTup := targType.(types.TupleType)
+		_, isList := targType.(types.ArrayType)
 
-		if structType.Fields[0].Name() == "len_t" {
-			// Array type
+		if isList {
+			// Setup bounds check
+			lenPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, Zero)
+			len := NewLoad(c.currBlock, lenPtr)
+
+			c.setupBoundsCheck(len, index)
+
 			elemPtr := c.getListElemPtr(sliceable, index)
 			retVal = NewLoad(c.currBlock, elemPtr)
-		} else {
-			// Tuple type
+		} else if isTup || transform.IsCloArg(node.Arr) {
 			elemPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, index)
 			retVal = NewLoad(c.currBlock, elemPtr)
+		} else {
+			panic("Unknown slice target: " + node.Arr.String())
 		}
 	case *ast.TupleLiteral:
 		tupleType := c.typeToLLType(c.GetType(node)).(*lltypes.PointerType).ElemType
@@ -674,7 +679,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		contBlock := c.currFun.NewBlock(c.getLabel("assertcont"))
 		failBlock := c.currFun.NewBlock(c.getLabel("assertfail"))
 		failBlock.NewCall(ThrowEx, constant.NewInt(lltypes.I32, 1))
-		failBlock.NewRet(constant.NewInt(lltypes.I32, 0))
+		failBlock.NewUnreachable()
 
 		contBlock.Term = c.currBlock.Term
 		c.currBlock.NewCondBr(areEq, contBlock, failBlock)
@@ -925,10 +930,17 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		var elemPtr value.Value
 		arrType := c.GetType(target.Arr)
 		_, isTup := arrType.(types.TupleType)
+		_, isArr := arrType.(types.ArrayType)
 		if isTup {
 			elemPtr = NewGetElementPtr(c.currBlock, list, Zero, index)
 			retVal = NewLoad(c.currBlock, elemPtr)
-		} else {
+		} else if isArr {
+			// Setup bounds check
+			lenPtr := NewGetElementPtr(c.currBlock, list, Zero, Zero)
+			len := NewLoad(c.currBlock, lenPtr)
+
+			c.setupBoundsCheck(len, index)
+
 			elemPtr = c.getListElemPtr(list, index)
 		}
 
@@ -946,6 +958,20 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 	}
 
 	return retVal
+}
+
+func (c *Compiler) setupBoundsCheck(len value.Value, index value.Value) {
+	contBlock := c.currFun.NewBlock(c.getLabel("slicecont"))
+	contBlock.Term = c.currBlock.Term
+
+	failBlock := c.currFun.NewBlock(c.getLabel("slicefail"))
+	failBlock.NewCall(IndexError, index)
+	failBlock.NewUnreachable()
+
+	boundCheck := c.currBlock.NewICmp(enum.IPredULT, index, len)
+	c.currBlock.NewCondBr(boundCheck, contBlock, failBlock)
+
+	c.currBlock = contBlock
 }
 
 func (c *Compiler) getListElemPtr(list value.Value, index value.Value) value.Value {

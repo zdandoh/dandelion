@@ -31,6 +31,7 @@ var PrintB value.Value
 var PrintP value.Value
 var PrintS value.Value
 var ThrowEx value.Value
+var IndexError value.Value
 
 func (c *Compiler) setupIntrinsics() {
 	Print = c.mod.NewFunc(
@@ -63,6 +64,7 @@ func (c *Compiler) setupIntrinsics() {
 		"alloc_clo",
 		lltypes.I8Ptr)
 	ThrowEx = c.mod.NewFunc("throwex", lltypes.Void, ir.NewParam("exno", lltypes.I32))
+	IndexError = c.mod.NewFunc("indexoob", lltypes.Void, ir.NewParam("index", lltypes.I32))
 	Malloc = c.mod.NewFunc(
 		"malloc",
 		lltypes.I8Ptr,
@@ -72,11 +74,12 @@ func (c *Compiler) setupIntrinsics() {
 		lltypes.Void,
 		ir.NewParam("ptr", lltypes.I8Ptr))
 	MemCopy = c.mod.NewFunc(
-		"memcpy",
-		lltypes.I8Ptr,
+		"llvm.memcpy.p0i8.p0i8.i64",
+		lltypes.Void,
 		ir.NewParam("dest", lltypes.I8Ptr),
 		ir.NewParam("src", lltypes.I8Ptr),
-		ir.NewParam("size", lltypes.I64))
+		ir.NewParam("size", lltypes.I64),
+		ir.NewParam("volatile", lltypes.I1))
 	OpenF = c.mod.NewFunc(
 		"d_open",
 		lltypes.I32,
