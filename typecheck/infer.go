@@ -2,9 +2,9 @@ package typecheck
 
 import (
 	"dandelion/ast"
+	"dandelion/errs"
 	"dandelion/types"
 	"fmt"
-	"os"
 	"reflect"
 )
 
@@ -72,11 +72,8 @@ func Infer(prog *ast.Program) map[ast.NodeHash]types.Type {
 	infer.CreateConstraints(prog)
 
 	unifier := NewUnifier(infer.Constraints, prog, infer.FunLookup)
-	subs, err := unifier.UnifyAll()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	subs, _ := unifier.UnifyAll()
+	errs.CheckExit()
 
 	DebugInfer("------ FINAL CONSTRAINTS ------")
 	for _, c := range infer.Constraints {

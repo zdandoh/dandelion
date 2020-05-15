@@ -2,9 +2,8 @@ package typecheck
 
 import (
 	"dandelion/ast"
+	"dandelion/errs"
 	"dandelion/types"
-	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
 )
 
@@ -191,7 +190,8 @@ func (u *Unifier) UnifyAll() (Subs, error) {
 func (u *Unifier) resolveStructOpt(currCons Constraint, old Constrainable, newOpt StructOptions) (Constrainable, error) {
 	var newItem Constrainable = newOpt
 	if len(newOpt.Types) == 0 {
-		return nil, fmt.Errorf("no type satisfies struct constraints")
+		errs.Error(errs.ErrorType, currCons.Source, "no type satisfies struct constraints")
+		return nil, errs.ErrorType
 	}
 	if len(newOpt.Types) == 1 {
 		// There is only one struct option, add base type constraints
@@ -239,9 +239,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
-		errorMsg := fmt.Sprintf("Type inference error: base types not equal %s != %s\nSource expression: %s",
-			leftBase.TypeString(), rightBase.TypeString(), currCons.Source)
-		return fmt.Errorf(errorMsg)
+		errs.Error(errs.ErrorType, currCons.Source, "base types not equal %s != %s", leftBase.TypeString(), rightBase.TypeString())
+		return errs.ErrorType
 	}
 	if isLeftBase {
 		return u.Swap(currCons)
@@ -279,8 +278,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	leftFun, leftIsFun := currCons.Left.(Fun)
 	if rightIsFun && leftIsFun {
 		if len(rightFun.Args) != len(leftFun.Args) {
-			errorMsg := fmt.Sprintf("Function application doesn't have correct argument count: %s", currCons.Source)
-			return fmt.Errorf(errorMsg)
+			errs.Error(errs.ErrorValue, currCons.Source, "function application doesn't have correct argument count")
+			return errs.ErrorValue
 		}
 		for k, arg := range leftFun.Args {
 			u.cons = append(u.cons, Constraint{arg, rightFun.Args[k], currCons.Source})
@@ -339,7 +338,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	}
 	if isRightTuple && isLeftContainer {
 		if leftContainer.Index < 0 || leftContainer.Index >= len(rightTuple.Subtypes) {
-			return fmt.Errorf("illegal index for tuple: %d", leftContainer.Index)
+			errs.Error(errs.ErrorValue, currCons.Source, "illegal index for tuple: %d", leftContainer.Index)
+			return errs.ErrorValue
 		}
 
 		u.cons = append(u.cons, Constraint{leftContainer.Subtype, rightTuple.Subtypes[leftContainer.Index], currCons.Source})
@@ -350,7 +350,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	}
 	if isLeftTuple && isRightTuple {
 		if len(leftTuple.Subtypes) != len(rightTuple.Subtypes) {
-			return fmt.Errorf("cannot unify, tuples have different subtype counts")
+			errs.Error(errs.ErrorType, currCons.Source, "tuples have different subtype counts")
+			return errs.ErrorType
 		}
 		for k, sub := range leftTuple.Subtypes {
 			u.cons = append(u.cons, Constraint{sub, rightTuple.Subtypes[k], currCons.Source})
@@ -427,8 +428,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return err
 	}
 
-	errorMsg := fmt.Sprintf("Unable to infer type of expression: %s\nIncompatible types '%v' and '%v'", currCons.Source, reflect.TypeOf(currCons.Left).Name(), reflect.TypeOf(currCons.Right).Name())
-	return errors.New(errorMsg)
+	errs.Error(errs.ErrorType, currCons.Source, "unable to infer type of expression - incompatible types '%s' and '%s'", reflect.TypeOf(currCons.Left).Name(), reflect.TypeOf(currCons.Right).Name())
+	return errs.ErrorType
 }
 
 func (u *Unifier) Swap(cons Constraint) error {

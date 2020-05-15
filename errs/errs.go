@@ -2,24 +2,25 @@ package errs
 
 import (
 	"dandelion/ast"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 )
 
-type ErrorCat string
-
+var ExitFun = Exit
 var sourceProg *ast.Program
 
-const (
-	ErrorType   ErrorCat = "Type Error"
-	ErrorSyntax ErrorCat = "Syntax Error"
+var (
+	ErrorType   = errors.New("Type Error")
+	ErrorValue  = errors.New("Value Error")
+	ErrorSyntax = errors.New("Syntax Error")
 )
 
 var errCount = 0
 var sep = lineSep()
 
-func Error(eType ErrorCat, sourceNode ast.Node, format string, a ...interface{}) {
+func Error(eType error, sourceNode ast.Node, format string, a ...interface{}) {
 	meta := sourceProg.Meta(sourceNode)
 	lineNo := Line(meta)
 
@@ -28,17 +29,21 @@ func Error(eType ErrorCat, sourceNode ast.Node, format string, a ...interface{})
 	errCount++
 }
 
-func Fmt(eType ErrorCat, lineNo string, sourceNode ast.Node, format string, a ...interface{}) string {
+func Fmt(eType error, lineNo string, sourceNode ast.Node, format string, a ...interface{}) string {
 	preMsg := fmt.Sprintf(format, a...)
 
-	msg := fmt.Sprintf("%s: line %s: %s%s%s", eType, lineNo, preMsg, sep, sourceNode)
+	msg := fmt.Sprintf("%s: line %s: %s%s%s", eType.Error(), lineNo, preMsg, sep, sourceNode)
 	return msg
 }
 
 func CheckExit() {
 	if errCount > 0 {
-		os.Exit(1)
+		ExitFun()
 	}
+}
+
+func Exit() {
+	os.Exit(1)
 }
 
 func SetProg(prog *ast.Program) {
