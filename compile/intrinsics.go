@@ -10,6 +10,8 @@ var InitTrampoline value.Value
 var AdjustTrampoline value.Value
 var AllocClo value.Value
 var Malloc value.Value
+var MallocData value.Value
+var GCInit value.Value
 var MemCopy value.Value
 var Free value.Value
 var OpenF value.Value
@@ -66,11 +68,18 @@ func (c *Compiler) setupIntrinsics() {
 	ThrowEx = c.mod.NewFunc("throwex", lltypes.Void, ir.NewParam("exno", lltypes.I32))
 	IndexError = c.mod.NewFunc("indexoob", lltypes.Void, ir.NewParam("index", lltypes.I32))
 	Malloc = c.mod.NewFunc(
-		"malloc",
+		"GC_malloc",
 		lltypes.I8Ptr,
 		ir.NewParam("size", lltypes.I64))
+	MallocData = c.mod.NewFunc(
+		"GC_malloc_atomic",
+		lltypes.I8Ptr,
+		ir.NewParam("size", lltypes.I64))
+	GCInit = c.mod.NewFunc(
+		"GC_enable_incremental",
+		lltypes.Void)
 	Free = c.mod.NewFunc(
-		"free",
+		"GC_free",
 		lltypes.Void,
 		ir.NewParam("ptr", lltypes.I8Ptr))
 	MemCopy = c.mod.NewFunc(

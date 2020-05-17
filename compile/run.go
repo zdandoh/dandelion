@@ -82,7 +82,7 @@ func CompileOutput(progText string) string {
 }
 
 func ExecIR(llvmIr string) error {
-	cmd := exec.Command("lli", "-load", "lib/lib.so")
+	cmd := exec.Command("lli", "-load", "lib/lib.so", "-load", "lib/libgc.so")
 	buffer := bytes.NewBufferString(llvmIr)
 
 	cmd.Stdin = buffer

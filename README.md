@@ -29,7 +29,7 @@ Language Features
 - [x] Classic imperative control flow (`if`, `while`, `for`, `break`, `continue`, `return`)
 - [ ] Function modifiers
 - [x] Coroutines
-- [ ] GC
+- [x] GC
 - [ ] Command invocation syntactic sugar
 - [ ] String interpolation
 - [ ] Automatic semi-colon insertion

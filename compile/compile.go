@@ -365,7 +365,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			c.currBlock.NewStore(newLen, newLenPtr)
 
 			// Store new data pointer
-			strMem := c.currBlock.NewCall(Malloc, newLen)
+			strMem := c.currBlock.NewCall(MallocData, newLen)
 			newDataPtr := NewGetElementPtr(c.currBlock, newStr, Zero, One)
 			c.currBlock.NewStore(strMem, newDataPtr)
 
