@@ -354,20 +354,28 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		} else if addType.Equal(c.typeToLLType(types.StringType{})) {
 			// Load and calculate new length
 			rightLenPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, Zero)
-			leftLenPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, Zero)
+			leftLenPtr := NewGetElementPtr(c.currBlock, leftNode, Zero, Zero)
 			rightLen := NewLoad(c.currBlock, rightLenPtr)
 			leftLen := NewLoad(c.currBlock, leftLenPtr)
 			newLen := c.currBlock.NewAdd(rightLen, leftLen)
 
+			strSize := GetSize(c.currBlock, StrType)
+			totalLen := c.currBlock.NewAdd(newLen, strSize)
+
+			newStrMem := c.currBlock.NewCall(Malloc, totalLen)
+			newStr := c.currBlock.NewBitCast(newStrMem, lltypes.NewPointer(StrType))
+
 			// Store new length
-			newStr := c.currBlock.NewAlloca(StrType)
 			newLenPtr := NewGetElementPtr(c.currBlock, newStr, Zero, Zero)
 			c.currBlock.NewStore(newLen, newLenPtr)
 
+			// Calculate str data pointer
+			newStrDataPtr := NewGetElementPtr(c.currBlock, newStr, One)
+			newStrDataPtr = c.currBlock.NewBitCast(newStrDataPtr, lltypes.I8Ptr)
+
 			// Store new data pointer
-			strMem := c.currBlock.NewCall(MallocData, newLen)
 			newDataPtr := NewGetElementPtr(c.currBlock, newStr, Zero, One)
-			c.currBlock.NewStore(strMem, newDataPtr)
+			c.currBlock.NewStore(newStrDataPtr, newDataPtr)
 
 			// Load old data pointers
 			rightDataPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, One)
@@ -376,10 +384,10 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			leftData := NewLoad(c.currBlock, leftDataPtr)
 
 			// Calculate offset
-			offPtr := NewGetElementPtr(c.currBlock, strMem, leftLen)
+			offPtr := NewGetElementPtr(c.currBlock, newStrDataPtr, leftLen)
 
 			// Memcpy the data
-			c.currBlock.NewCall(MemCopy, strMem, leftData, leftLen, constant.False)
+			c.currBlock.NewCall(MemCopy, newStrDataPtr, leftData, leftLen, constant.False)
 			c.currBlock.NewCall(MemCopy, offPtr, rightData, rightLen, constant.False)
 
 			retVal = newStr
