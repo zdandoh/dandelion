@@ -11,6 +11,7 @@ arglist: IDENT (',' IDENT)* (',')?;
 typelist: typed? (',' typed)*;
 typed
     : IDENT                                 # BaseType
+    | ANY                                   # BaseType
     | 'f' '(' ftypelist=typelist ')' typed  # TypedFun
     | '[' ']' typed                         # TypedArr
     | '(' tuptypes=typelist ')'             # TypedTup

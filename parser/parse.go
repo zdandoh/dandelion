@@ -267,6 +267,7 @@ func (l *listener) ExitStructAccess(c *parser.StructAccessContext) {
 	access := &ast.StructAccess{}
 	access.Field = &ast.Ident{c.IDENT().GetText(), l.NewNodeID()}
 	access.Target = l.nodeStack.Pop()
+	access.NodeID = l.NewNodeID()
 	l.nodeStack.Push(access)
 }
 
@@ -724,6 +725,7 @@ func (l *listener) EnterStrExp(c *parser.StrExpContext) {
 func (l *listener) ExitStrExp(c *parser.StrExpContext) {
 	DebugPrintln("Exiting string", c.GetText())
 	text := c.GetText()[1 : len(c.GetText())-1]
+	text = strings.Replace(text, "\\n", "\n", -1)
 	l.nodeStack.Push(&ast.StrExp{text, l.NewNodeID()})
 }
 

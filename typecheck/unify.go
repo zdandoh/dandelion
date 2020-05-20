@@ -225,6 +225,27 @@ func (u *Unifier) resolveStructOpt(currCons Constraint, old Constrainable, newOp
 	return newItem, nil
 }
 
+func (u *Unifier) resolvePrimitiveMethod(sourceCons Constraint, structOpt StructOptions, baseCons Constrainable) {
+	for depVar, depName := range structOpt.Dependants {
+		switch cons := baseCons.(type) {
+		case Container:
+			// Need to setup type inference for methods of containers
+			switch depName {
+			case "push":
+				pushType := Fun{
+					Args: []Constrainable{cons.Subtype},
+					Ret:  BaseType{types.NullType{}},
+				}
+				u.cons = append(u.cons, Constraint{depVar, pushType, sourceCons.Source})
+			default:
+				panic("Undefined type inference rule for container, method: " + depName)
+			}
+		}
+	}
+
+	u.ReplaceAllCons(structOpt, baseCons)
+}
+
 func (u *Unifier) Unify(currCons Constraint) error {
 	// Skip same sided vars
 	if Equals(currCons.Left, currCons.Right) {
@@ -385,7 +406,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	}
 
 	// Unify struct options
-	if rightIsVar && isLeftStructOpt {
+	if (rightIsVar || isRightContainer) && isLeftStructOpt {
 		return u.Swap(currCons)
 	}
 	if leftIsVar && isRightStructOpt {
@@ -426,6 +447,10 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		u.ReplaceAllSubs(rightStructOpt, finalRepl)
 
 		return err
+	}
+	if isRightStructOpt && isLeftContainer {
+		u.resolvePrimitiveMethod(currCons, rightStructOpt, leftContainer)
+		return nil
 	}
 
 	errs.Error(errs.ErrorType, currCons.Source, "unable to infer type of expression - incompatible types '%s' and '%s'", reflect.TypeOf(currCons.Left).Name(), reflect.TypeOf(currCons.Right).Name())
