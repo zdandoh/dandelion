@@ -238,7 +238,8 @@ func (u *Unifier) resolvePrimitiveMethod(sourceCons Constraint, structOpt Struct
 				}
 				u.cons = append(u.cons, Constraint{depVar, pushType, sourceCons.Source})
 			default:
-				panic("Undefined type inference rule for container, method: " + depName)
+				errs.Error(errs.ErrorValue, sourceCons.Source, "container doesn't have method: "+depName)
+				errs.CheckExit()
 			}
 		}
 	}

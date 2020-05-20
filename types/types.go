@@ -64,6 +64,8 @@ func (i FloatType) TypeString() string {
 	return "float"
 }
 
+var ListMethods = []string{"push"}
+
 type ArrayType struct {
 	Subtype Type
 }
@@ -187,4 +189,14 @@ func HashType(t Type) TypeHash {
 
 	hash := sha256.New()
 	return TypeHash(hex.EncodeToString(hash.Sum(b.Bytes())))
+}
+
+func HasMethod(methodList []string, methodName string) bool {
+	for _, mName := range methodList {
+		if methodName == mName {
+			return true
+		}
+	}
+
+	return false
 }
