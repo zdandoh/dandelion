@@ -5,6 +5,7 @@ import (
 	"dandelion/errs"
 	"dandelion/types"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 	"reflect"
@@ -52,11 +53,59 @@ func (c *Compiler) strConcat(leftNode value.Value, rightNode value.Value) value.
 	return newStr
 }
 
-func (c *Compiler) listPush() {
+func (c *Compiler) listPush(list ast.Node, value ast.Node) value.Value {
+	listVal := c.CompileNode(list)
+	newVal := c.CompileNode(value)
 
+	len := c.arrLen(listVal)
+	cap := c.arrCap(listVal)
+
+	newLen := c.currBlock.NewAdd(len, One)
+	c.setArrLen(listVal, newLen)
+	shouldResize := c.currBlock.NewICmp(enum.IPredUGT, newLen, cap)
+
+	resizeBlock := c.currFun.NewBlock(c.getLabel("push_resize"))
+	contBlock := c.currFun.NewBlock(c.getLabel("push_cont"))
+
+	resizeBlock.NewBr(contBlock)
+	contBlock.Term = c.currBlock.Term
+
+	c.currBlock.NewCondBr(shouldResize, resizeBlock, contBlock)
+	c.currBlock = resizeBlock
+
+	// Setup resize block
+	newCap := c.currBlock.NewAdd(cap, cap)
+	c.setArrCap(listVal, newCap)
+
+	// Calculate new arr size in bytes
+	listType := c.GetType(list).(types.ArrayType)
+	llSubtype := c.typeToLLType(listType.Subtype)
+	newByteSize := c.currBlock.NewMul(GetSize(c.currBlock, llSubtype), c.currBlock.NewSExt(newCap, lltypes.I64))
+
+	dataPtr := c.arrData(listVal)
+	voidDataPtr := c.currBlock.NewBitCast(dataPtr, lltypes.I8Ptr)
+	newDataPtr := c.currBlock.NewCall(Realloc, voidDataPtr, newByteSize)
+	castDataPtr := c.currBlock.NewBitCast(newDataPtr, dataPtr.Type())
+	c.setArrData(listVal, castDataPtr)
+
+	c.currBlock = contBlock
+	dataPtr = c.arrData(listVal)
+	elemPtr := NewGetElementPtr(c.currBlock, dataPtr, len)
+	c.currBlock.NewStore(newVal, elemPtr)
+
+	return nil
 }
 
 func (c *Compiler) compileBaseMethod(baseType ast.Node, methodName string, args []ast.Node) value.Value {
+	ty := c.GetType(baseType)
+
+	switch ty.(type) {
+	case types.ArrayType:
+		switch methodName {
+		case "push":
+			return c.listPush(baseType, args[0])
+		}
+	}
 	return nil
 }
 

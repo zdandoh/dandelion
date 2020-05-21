@@ -1434,6 +1434,69 @@ return new_arr[3];
 	}
 }
 
+func TestArrPush(t *testing.T) {
+	src := `
+arr = [];
+arr.push(5);
+arr.push(1);
+return arr[0] + arr[1];
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.Fail()
+	}
+}
+
+func TestCloContainer(t *testing.T) {
+	src := `
+x = 5;
+y = 10;
+
+fun1 = f() {
+	x;
+};
+
+fun2 = f() {
+	y;
+};
+
+arr = [fun1, fun2];
+tup = (fun1, fun2);
+return arr[0]() + tup[1]();
+`
+
+	if !CompileCheckExit(src, 15) {
+		t.Fail()
+	}
+}
+
+func TestPrintFun(t *testing.T) {
+	src := `
+p = f(any var)void {
+	if var is int {
+		f(int)void __extern_print(var.(int));
+	};
+	if var is string {
+		f(string)void __extern_prints(var.(string));
+	};
+};
+
+str = "hello";
+my_int = 32;
+p(any(str));
+p(any(my_int));
+`
+
+	out := `
+hello
+32
+`
+
+	if !CompileCheckOutput(src, out) {
+		t.Fail()
+	}
+}
+
 // This test is cool and all but it is broken until I add array resizing
 //func TestInferEmptyArray(t *testing.T) {
 //	src := `

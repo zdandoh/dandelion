@@ -12,6 +12,7 @@ import (
 	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -74,6 +75,7 @@ var StrType lltypes.Type = lltypes.NewStruct(lltypes.I64, lltypes.I8Ptr)
 var AnyType lltypes.Type = lltypes.NewStruct(lltypes.I32, lltypes.I8Ptr, IntType)
 var CoroType lltypes.Type = lltypes.NewStruct(lltypes.I1, lltypes.I8Ptr)
 var LenType lltypes.Type
+var CapType = lltypes.I32
 var IntType = lltypes.I32
 var ByteType = lltypes.I8
 var BoolType = lltypes.I1
@@ -110,7 +112,7 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 	case types.ArrayType:
 		subtype := c.typeToLLType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
-		return lltypes.NewPointer(lltypes.NewStruct(LenType, arrPtr))
+		return lltypes.NewPointer(lltypes.NewStruct(LenType, CapType, arrPtr))
 	case types.CoroutineType:
 		return lltypes.I8Ptr
 	case types.StructType:
@@ -578,20 +580,22 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		// Set list length
 		lenVal := constant.NewInt(IntType, int64(node.Length))
-		lenPtr := NewGetElementPtr(c.currBlock, list, Zero, Zero)
-		c.currBlock.NewStore(lenVal, lenPtr)
+		c.setArrLen(list, lenVal)
+
+		// Set list cap
+		minCap := int64(math.Max(float64(node.Length), 8))
+		capVal := constant.NewInt(lltypes.I32, minCap)
+		c.setArrCap(list, capVal)
 
 		// Get array start ptr
 		subtypeSize := GetSize(c.currBlock, llSubtype)
-		arrSize := c.currBlock.NewMul(subtypeSize, lenVal)
+		arrSize := c.currBlock.NewMul(subtypeSize, capVal)
 
 		arr := c.currBlock.NewCall(Malloc, arrSize)
 		arrStart := c.currBlock.NewBitCast(arr, lltypes.NewPointer(llSubtype))
-		//arrStart := NewGetElementPtr(c.currBlock, arr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
 
 		// Set arr start pointer in list
-		arrPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
-		c.currBlock.NewStore(arrStart, arrPtr)
+		c.setArrData(list, arrStart)
 
 		// Set all arr elements
 		for i, val := range node.Exprs {
@@ -611,9 +615,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		if isList {
 			// Setup bounds check
-			lenPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, Zero)
-			len := NewLoad(c.currBlock, lenPtr)
-
+			len := c.arrLen(sliceable)
 			c.setupBoundsCheck(len, index)
 
 			elemPtr := c.getListElemPtr(sliceable, index)
@@ -794,6 +796,39 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 	return retVal
 }
 
+func (c *Compiler) arrLen(arr value.Value) value.Value {
+	lenPtr := NewGetElementPtr(c.currBlock, arr, Zero, Zero)
+	lenVal := NewLoad(c.currBlock, lenPtr)
+	return lenVal
+}
+
+func (c *Compiler) setArrLen(arr value.Value, newLen value.Value) {
+	lenPtr := NewGetElementPtr(c.currBlock, arr, Zero, Zero)
+	c.currBlock.NewStore(newLen, lenPtr)
+}
+
+func (c *Compiler) arrCap(arr value.Value) value.Value {
+	capPtr := NewGetElementPtr(c.currBlock, arr, Zero, One)
+	capVal := NewLoad(c.currBlock, capPtr)
+	return capVal
+}
+
+func (c *Compiler) setArrCap(arr value.Value, newCap value.Value) {
+	capPtr := NewGetElementPtr(c.currBlock, arr, Zero, One)
+	c.currBlock.NewStore(newCap, capPtr)
+}
+
+func (c *Compiler) arrData(arr value.Value) value.Value {
+	dataPtr := NewGetElementPtr(c.currBlock, arr, Zero, constant.NewInt(lltypes.I32, 2))
+	dataVal := NewLoad(c.currBlock, dataPtr)
+	return dataVal
+}
+
+func (c *Compiler) setArrData(arr value.Value, newData value.Value) {
+	dataPtr := NewGetElementPtr(c.currBlock, arr, Zero, constant.NewInt(lltypes.I32, 2))
+	c.currBlock.NewStore(newData, dataPtr)
+}
+
 func (c *Compiler) compileLen(node *ast.BuiltinExp) value.Value {
 	var retVal value.Value
 
@@ -801,8 +836,7 @@ func (c *Compiler) compileLen(node *ast.BuiltinExp) value.Value {
 	switch ty := targetType.(type) {
 	case types.ArrayType:
 		targetArr := c.CompileNode(node.Args[0])
-		lenPtr := NewGetElementPtr(c.currBlock, targetArr, constant.NewInt(IntType, 0), constant.NewInt(IntType, 0))
-		retVal = c.currBlock.NewLoad(IntType, lenPtr)
+		retVal = c.arrLen(targetArr)
 	case types.TupleType:
 		retVal = constant.NewInt(IntType, int64(len(ty.Types)))
 	case types.StringType:
@@ -916,9 +950,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			retVal = NewLoad(c.currBlock, elemPtr)
 		} else if isArr {
 			// Setup bounds check
-			lenPtr := NewGetElementPtr(c.currBlock, list, Zero, Zero)
-			len := NewLoad(c.currBlock, lenPtr)
-
+			len := c.arrLen(list)
 			c.setupBoundsCheck(len, index)
 
 			elemPtr = c.getListElemPtr(list, index)
@@ -956,9 +988,7 @@ func (c *Compiler) setupBoundsCheck(len value.Value, index value.Value) {
 
 func (c *Compiler) getListElemPtr(list value.Value, index value.Value) value.Value {
 	// Load the pointer to the array from the struct
-	arrPtr := NewGetElementPtr(c.currBlock, list, constant.NewInt(IntType, 0), constant.NewInt(IntType, 1))
-	// Load the pointer itself
-	arrStart := NewLoad(c.currBlock, arrPtr)
+	arrStart := c.arrData(list)
 	// Get the pointer for the specific element
 	elemPtr := NewGetElementPtr(c.currBlock, arrStart, index)
 
