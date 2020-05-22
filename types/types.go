@@ -20,7 +20,7 @@ func init() {
 	gob.Register(CoroutineType{})
 	gob.Register(TupleType{})
 	gob.Register(StructType{})
-	gob.Register(NullType{})
+	gob.Register(VoidType{})
 	gob.Register(AnyType{})
 	gob.Register(FuncType{})
 }
@@ -88,11 +88,11 @@ func (a TupleType) TypeString() string {
 	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
 }
 
-type NullType struct {
+type VoidType struct {
 }
 
-func (a NullType) TypeString() string {
-	return "null"
+func (a VoidType) TypeString() string {
+	return "void"
 }
 
 type FuncType struct {

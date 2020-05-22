@@ -78,8 +78,8 @@ func (c *Compiler) listPush(list ast.Node, value ast.Node) value.Value {
 	c.setArrCap(listVal, newCap)
 
 	// Calculate new arr size in bytes
-	listType := c.GetType(list).(types.ArrayType)
-	llSubtype := c.typeToLLType(listType.Subtype)
+	listType := c.Type(list).(types.ArrayType)
+	llSubtype := c.llType(listType.Subtype)
 	newByteSize := c.currBlock.NewMul(GetSize(c.currBlock, llSubtype), c.currBlock.NewSExt(newCap, lltypes.I64))
 
 	dataPtr := c.arrData(listVal)
@@ -101,7 +101,7 @@ func (c *Compiler) listPop(list ast.Node) value.Value {
 }
 
 func (c *Compiler) compileBaseMethod(baseType ast.Node, methodName string, args []ast.Node) value.Value {
-	ty := c.GetType(baseType)
+	ty := c.Type(baseType)
 
 	switch ty.(type) {
 	case types.ArrayType:
@@ -121,7 +121,7 @@ func (c *Compiler) checkBaseMethod(node ast.Node) (ast.Node, string, bool) {
 		return nil, "", false
 	}
 
-	targType := c.GetType(structAccess.Target)
+	targType := c.Type(structAccess.Target)
 	fieldName := structAccess.Field.(*ast.Ident).Value
 
 	switch targType.(type) {

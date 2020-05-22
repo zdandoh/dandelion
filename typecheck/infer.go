@@ -94,7 +94,7 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 
 	for _, subExp := range i.Subexps {
 		if ast.Statement(subExp) {
-			finalTypes[ast.HashNode(subExp)] = types.NullType{}
+			finalTypes[ast.HashNode(subExp)] = types.VoidType{}
 			continue
 		}
 
@@ -143,7 +143,7 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 			listType := types.ArrayType{}
 			listType.Subtype = i.ResolveType(cons.Subtype, subs)
 			return listType
-		case types.NullType:
+		case types.VoidType:
 			nextCont, ok := subs.Get(cons)
 			if !ok {
 				// TODO fix this bug in a way that actually makes sense. If a subtype gets replaced, it isn't updated in
@@ -160,7 +160,7 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 					return i.ResolveType(newCons, subs)
 				}
 
-				return types.NullType{}
+				return types.VoidType{}
 			}
 
 			return i.ResolveType(nextCont, subs)
@@ -182,7 +182,7 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		panic(fmt.Sprintf("Unknown constraint type %v", reflect.TypeOf(cons)))
 	}
 
-	return types.NullType{}
+	return types.VoidType{}
 }
 
 func (i *TypeInferer) AddCons(left Constrainable, right Constrainable, source ast.Node) {
@@ -273,11 +273,11 @@ func (i *TypeInferer) hintToCons(hintType types.Type, box *consBox) TypeVar {
 		varVal = tup
 	case types.ArrayType:
 		subTypeVar := i.hintToCons(ty.Subtype, box)
-		cont := Container{types.ArrayType{types.NullType{}}, subTypeVar, 0, i.NewContainerID()}
+		cont := Container{types.ArrayType{types.VoidType{}}, subTypeVar, 0, i.NewContainerID()}
 		varVal = cont
 	case types.StructType:
 		varVal = StructOptions{[]types.Type{ty}, make(map[TypeVar]string)}
-	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType, types.NullType, types.AnyType:
+	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType, types.VoidType, types.AnyType:
 		varVal = BaseType{ty}
 	default:
 		panic("Unknown hint type: " + hintType.TypeString())
@@ -319,7 +319,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			lastLine = funDef.Body.Lines[len(funDef.Body.Lines)-1]
 		} else if len(funDef.Body.Lines) == 0 && funDef.TypeHint == nil {
 			// Function has no body, must be void unless hinted
-			i.AddCons(baseFun.Ret, BaseType{types.NullType{}}, funDef)
+			i.AddCons(baseFun.Ret, BaseType{types.VoidType{}}, funDef)
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)
@@ -362,13 +362,13 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(i.GetTypeVar(node), i.GetTypeVar(node.Exp), node)
 		case *ast.Assign:
 			i.AddCons(i.GetTypeVar(node.Target), i.GetTypeVar(node.Expr), node)
-			i.AddCons(typeVar, BaseType{types.NullType{}}, node)
+			i.AddCons(typeVar, BaseType{types.VoidType{}}, node)
 		case *ast.Closure:
 			baseFun := i.FunLookup[node.Target.(*ast.Ident).Value]
 			cloFun := remFirstArg(baseFun)
 
 			i.AddCons(typeVar, cloFun, node)
-			i.AddCons(baseFun.Args[0], BaseType{types.NullType{}}, node)
+			i.AddCons(baseFun.Args[0], BaseType{types.VoidType{}}, node)
 		case *ast.FunApp:
 			newFun := Fun{}
 			for _, arg := range node.Args {
@@ -407,7 +407,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			newCo.Reads = i.NewTypeVar()
 
 			i.AddCons(currFun.Ret, newCo, node)
-			i.AddCons(typeVar, BaseType{types.NullType{}}, node)
+			i.AddCons(typeVar, BaseType{types.VoidType{}}, node)
 		case *ast.BuiltinExp:
 			i.getBuiltinConstraints(node, typeVar)
 		case *ast.CompNode:
@@ -415,7 +415,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 		case *ast.ArrayLiteral:
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(typeVar, Container{types.ArrayType{types.NullType{}}, subtypeVar, 0, i.NewContainerID()}, node)
+			i.AddCons(typeVar, Container{types.ArrayType{types.VoidType{}}, subtypeVar, 0, i.NewContainerID()}, node)
 			if len(node.Exprs) > 0 {
 				i.AddCons(subtypeVar, i.GetTypeVar(node.Exprs[0]), node)
 			}
@@ -434,7 +434,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 
 			subtypeVar := i.NewTypeVar()
-			i.AddCons(i.GetTypeVar(node.Arr), Container{types.NullType{}, subtypeVar, index, i.NewContainerID()}, node)
+			i.AddCons(i.GetTypeVar(node.Arr), Container{types.VoidType{}, subtypeVar, index, i.NewContainerID()}, node)
 			i.AddCons(typeVar, subtypeVar, node)
 		case *ast.TypeAssert:
 			cons := make([]Constraint, 0)
@@ -446,7 +446,7 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			i.AddCons(typeVar, BaseType{types.BoolType{}}, node)
 		case *ast.ForIter:
 			subtype := i.NewTypeVar()
-			i.AddCons(i.GetTypeVar(node.Iter), Container{types.NullType{}, subtype, 0, i.NewContainerID()}, node)
+			i.AddCons(i.GetTypeVar(node.Iter), Container{types.VoidType{}, subtype, 0, i.NewContainerID()}, node)
 			i.AddCons(subtype, i.GetTypeVar(node.Item), node)
 		case *ast.StructAccess:
 			options := StructOptions{[]types.Type{}, make(map[TypeVar]string)}
@@ -487,7 +487,7 @@ func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVa
 		newCo.Yields = i.NewTypeVar()
 		newCo.Reads = i.NewTypeVar()
 
-		i.AddCons(typeVar, BaseType{types.NullType{}}, node)
+		i.AddCons(typeVar, BaseType{types.VoidType{}}, node)
 		i.AddCons(i.GetTypeVar(node.Args[0]), newCo, node)
 		i.AddCons(i.GetTypeVar(node.Args[1]), newCo.Reads, node)
 	case ast.BuiltinNext:

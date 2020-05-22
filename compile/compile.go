@@ -88,7 +88,7 @@ func (c *Compiler) getLabel(label string) string {
 	return fmt.Sprintf("%s_%d", label, c.LabelNo)
 }
 
-func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
+func (c *Compiler) llType(myType types.Type) lltypes.Type {
 	switch t := myType.(type) {
 	case types.BoolType:
 		return BoolType
@@ -100,17 +100,17 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		return FloatType
 	case types.StringType:
 		return lltypes.NewPointer(StrType)
-	case types.NullType:
+	case types.VoidType:
 		return lltypes.Void
 	case types.FuncType:
-		retType := c.typeToLLType(t.RetType)
+		retType := c.llType(t.RetType)
 		argTypes := make([]lltypes.Type, 0)
 		for _, arg := range t.ArgTypes {
-			argTypes = append(argTypes, c.typeToLLType(arg))
+			argTypes = append(argTypes, c.llType(arg))
 		}
 		return lltypes.NewPointer(lltypes.NewFunc(retType, argTypes...))
 	case types.ArrayType:
-		subtype := c.typeToLLType(t.Subtype)
+		subtype := c.llType(t.Subtype)
 		arrPtr := lltypes.NewPointer(subtype)
 		return lltypes.NewPointer(lltypes.NewStruct(LenType, CapType, arrPtr))
 	case types.CoroutineType:
@@ -124,13 +124,13 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 		structDef := c.prog.Struct(t.Name)
 		memberTypes := make([]lltypes.Type, len(structDef.Members))
 		for i, member := range structDef.Members {
-			memberTypes[i] = c.typeToLLType(member.Type)
+			memberTypes[i] = c.llType(member.Type)
 		}
 		return lltypes.NewPointer(lltypes.NewStruct(memberTypes...))
 	case types.TupleType:
 		elemTypes := make([]lltypes.Type, len(t.Types))
 		for i, elem := range t.Types {
-			elemTypes[i] = c.typeToLLType(elem)
+			elemTypes[i] = c.llType(elem)
 		}
 
 		return lltypes.NewPointer(lltypes.NewStruct(elemTypes...))
@@ -143,10 +143,10 @@ func (c *Compiler) typeToLLType(myType types.Type) lltypes.Type {
 
 func (c *Compiler) PromiseType(coroutineType types.CoroutineType) *lltypes.StructType {
 	return lltypes.NewStruct(
-		c.typeToLLType(coroutineType.Yields), lltypes.I32)
+		c.llType(coroutineType.Yields), lltypes.I32)
 }
 
-func (c *Compiler) GetType(node ast.Node) types.Type {
+func (c *Compiler) Type(node ast.Node) types.Type {
 	return c.Types[ast.HashNode(node)]
 }
 
@@ -164,7 +164,7 @@ func (c *Compiler) SetupTypes(prog *ast.Program) {
 		c.TypeDefs[structDef.Type.Name] = lltypes.NewPointer(c.mod.NewTypeDef(structDef.Type.Name, structType))
 
 		for _, member := range structDef.Members {
-			structType.Fields = append(structType.Fields, c.typeToLLType(member.Type))
+			structType.Fields = append(structType.Fields, c.llType(member.Type))
 		}
 	}
 }
@@ -188,11 +188,11 @@ func (c *Compiler) SetupFuncs(prog *ast.Program) {
 	c.FEnv["abs"] = &CFunc{abs, nil, nil, nil}
 
 	for name, fun := range prog.Funcs {
-		llRetType := c.typeToLLType(c.GetType(fun).(types.FuncType).RetType)
+		llRetType := c.llType(c.Type(fun).(types.FuncType).RetType)
 		params := make([]*ir.Param, 0)
 		for i := 0; i < len(fun.Args); i++ {
 			argName := fun.Args[i].(*ast.Ident).Value
-			argType := c.typeToLLType(c.GetType(fun.Args[i]))
+			argType := c.llType(c.Type(fun.Args[i]))
 			newParam := ir.NewParam(argName, argType)
 			// TODO do a better job of detecting the closure argument
 			if transform.IsCloArg(fun.Args[i]) || strings.HasPrefix(argName, "__this") {
@@ -216,12 +216,12 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 	c.currFun = cFun.Func
 	c.currBlock = c.currFun.NewBlock("entry")
-	funType := c.GetType(fun).(types.FuncType)
+	funType := c.Type(fun).(types.FuncType)
 	if *fun.IsCoro {
 		c.currBlock = c.SetupCoro(c.currBlock, c.currFun, funType.RetType.(types.CoroutineType))
 	}
 
-	_, isVoid := funType.RetType.(types.NullType)
+	_, isVoid := funType.RetType.(types.VoidType)
 	if isVoid && len(fun.Body.Lines) == 0 {
 		c.currBlock.NewRet(nil)
 	}
@@ -235,12 +235,12 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 		if transform.IsCloArg(arg) {
 			// If the arg is the closure value, get the type for the related tuple and cast it to that type
 			cloTupIdent := &ast.Ident{transform.CloArgToTupName(arg.(*ast.Ident).Value), ast.NoID}
-			cloTupType := c.typeToLLType(c.GetType(cloTupIdent))
+			cloTupType := c.llType(c.Type(cloTupIdent))
 			castTupPtr := c.currBlock.NewBitCast(c.currBlock.Parent.Params[i], cloTupType)
-			argType = c.typeToLLType(c.GetType(cloTupIdent))
+			argType = c.llType(c.Type(cloTupIdent))
 			storePtr = castTupPtr
 		} else {
-			argType = c.typeToLLType(c.GetType(arg))
+			argType = c.llType(c.Type(arg))
 		}
 
 		argPtr := c.currBlock.NewAlloca(argType)
@@ -250,7 +250,7 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 	// Allocate space for return value & setup return block
 	// If the return value is null, return void
-	retType := c.typeToLLType(funType.RetType)
+	retType := c.llType(funType.RetType)
 	cFun.RetBlock = cFun.Func.NewBlock(c.getLabel(name + "_ret"))
 	if !isVoid {
 		retPtr := c.currBlock.NewAlloca(retType)
@@ -335,7 +335,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.BoolExp:
 		retVal = constant.NewBool(node.Value)
 	case *ast.NullExp:
-		nullType := c.typeToLLType(c.GetType(node))
+		nullType := c.llType(c.Type(node))
 		retVal = constant.NewNull(nullType.(*lltypes.PointerType))
 	case *ast.AddSub:
 		rightNode := c.CompileNode(node.Right)
@@ -356,7 +356,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			case "-":
 				retVal = c.currBlock.NewFSub(leftNode, rightNode)
 			}
-		} else if addType.Equal(c.typeToLLType(types.StringType{})) {
+		} else if addType.Equal(c.llType(types.StringType{})) {
 			retVal = c.strConcat(leftNode, rightNode)
 		}
 
@@ -395,7 +395,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		var callee value.Value
 		if node.Extern {
-			callee = ir.NewGlobal(node.Fun.(*ast.Ident).Value, c.typeToLLType(c.GetType(node.Fun)).(*lltypes.PointerType).ElemType)
+			callee = ir.NewGlobal(node.Fun.(*ast.Ident).Value, c.llType(c.Type(node.Fun)).(*lltypes.PointerType).ElemType)
 		} else {
 			callee = c.CompileNode(node.Fun)
 		}
@@ -461,7 +461,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.Closure:
 		tuplePtr := c.CompileNode(node.ArgTup)
 		sourceFuncPtr := c.CompileNode(node.Target)
-		newFunType := c.typeToLLType(c.GetType(node.NewFunc))
+		newFunType := c.llType(c.Type(node.NewFunc))
 
 		retVal = c.extractFirstArg(c.currBlock, sourceFuncPtr, tuplePtr, newFunType)
 	case *ast.If:
@@ -531,7 +531,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.ForIter:
 		var compNode ast.Node
 
-		iterType := c.GetType(node.Iter)
+		iterType := c.Type(node.Iter)
 		compNode, typeMap := parser.DesugarForIter(node.Body, node.Iter, node.Item, iterType)
 		for newNode, newType := range typeMap {
 			c.SetType(newNode, newType)
@@ -576,9 +576,9 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		c.currBlock.NewStore(charPtr, charPtrDest)
 		retVal = strPtr
 	case *ast.ArrayLiteral:
-		listType := c.GetType(node).(types.ArrayType)
-		llListType := c.typeToLLType(listType).(*lltypes.PointerType).ElemType
-		llSubtype := c.typeToLLType(listType.Subtype)
+		listType := c.Type(node).(types.ArrayType)
+		llListType := c.llType(listType).(*lltypes.PointerType).ElemType
+		llSubtype := c.llType(listType.Subtype)
 		list := CallMalloc(c.currBlock, llListType)
 
 		// Set list length
@@ -612,7 +612,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		sliceable := c.CompileNode(node.Arr)
 		index := c.CompileNode(node.Index)
 
-		targType := c.GetType(node.Arr)
+		targType := c.Type(node.Arr)
 		_, isTup := targType.(types.TupleType)
 		_, isList := targType.(types.ArrayType)
 
@@ -630,7 +630,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			panic("Unknown slice target: " + node.Arr.String())
 		}
 	case *ast.TupleLiteral:
-		tupleType := c.typeToLLType(c.GetType(node)).(*lltypes.PointerType).ElemType
+		tupleType := c.llType(c.Type(node)).(*lltypes.PointerType).ElemType
 		tuplePtr := CallMalloc(c.currBlock, tupleType)
 
 		for i, elem := range node.Exprs {
@@ -645,7 +645,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 	case *ast.TypeAssert:
 		compTarg := c.CompileNode(node.Target)
 
-		sourceType := c.GetType(node.Target)
+		sourceType := c.Type(node.Target)
 		_, isAny := sourceType.(types.AnyType)
 		if !isAny {
 			errs.Error(errs.ErrorValue, node, "can only use type assertion on 'any' type")
@@ -669,7 +669,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 		// Actually convert the value to the correct type
 		var valPtr value.Value
-		targetLLType := c.typeToLLType(node.TargetType)
+		targetLLType := c.llType(node.TargetType)
 		_, isPtr := targetLLType.(*lltypes.PointerType)
 		if isPtr {
 			valPtr = NewGetElementPtr(c.currBlock, compTarg, Zero, constant.NewInt(lltypes.I32, 1))
@@ -681,7 +681,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = c.currBlock.NewLoad(targetLLType, sourcePtr)
 	case *ast.IsExp:
 		checkTypeNo := c.typeTable.GetNo(node.CheckType)
-		checkNodeType := c.GetType(node.CheckNode)
+		checkNodeType := c.Type(node.CheckNode)
 
 		_, isCheckNodeAny := checkNodeType.(types.AnyType)
 		if !isCheckNodeAny {
@@ -699,7 +699,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		return c.currBlock.NewICmp(enum.IPredEQ, tagVal, constant.NewInt(lltypes.I32, int64(checkTypeNo)))
 
 	case *ast.StructInstance:
-		structType := c.typeToLLType(node.DefRef.Type).(*lltypes.PointerType).ElemType
+		structType := c.llType(node.DefRef.Type).(*lltypes.PointerType).ElemType
 		structPtr := CallMalloc(c.currBlock, structType)
 
 		for i, member := range node.Values {
@@ -711,7 +711,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = structPtr
 	case *ast.StructAccess:
 		structPtr := c.CompileNode(node.Target)
-		structType, isStructType := c.GetType(node.Target).(types.StructType)
+		structType, isStructType := c.Type(node.Target).(types.StructType)
 		if !isStructType {
 			errs.Error(errs.ErrorValue, node, "can't use base method '%s' outside of call", node.Field)
 			errs.CheckExit()
@@ -731,7 +731,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			// Method handling
 			targFun := c.FEnv[method.TargetName].Func
 			structPtr := c.CompileNode(node.Target)
-			finalFunType := c.typeToLLType(c.GetType(node))
+			finalFunType := c.llType(c.Type(node))
 			retVal = c.extractFirstArg(c.currBlock, targFun, structPtr, finalFunType)
 		} else {
 			// Member handling
@@ -753,7 +753,7 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 	case ast.BuiltinLen:
 		retVal = c.compileLen(node)
 	case ast.BuiltinNext:
-		coroType := c.GetType(node.Args[0]).(types.CoroutineType)
+		coroType := c.Type(node.Args[0]).(types.CoroutineType)
 		targetCoro := c.CompileNode(node.Args[0])
 		c.currBlock.NewCall(CoroResume, targetCoro)
 		voidPromise := c.currBlock.NewCall(CoroPromise, targetCoro, constant.NewInt(lltypes.I32, 4), constant.False)
@@ -763,7 +763,7 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 	case ast.BuiltinAny:
 		target := node.Args[0]
 		compTarget := c.CompileNode(target)
-		targType := c.GetType(target)
+		targType := c.Type(target)
 		_, isTargAny := targType.(types.AnyType)
 		if isTargAny {
 			retVal = compTarget
@@ -776,7 +776,7 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 		typeNo := constant.NewInt(lltypes.I32, int64(c.typeTable.GetNo(targType)))
 		c.currBlock.NewStore(typeNo, tagPtr)
 
-		_, targetIsPtr := c.typeToLLType(targType).(*lltypes.PointerType)
+		_, targetIsPtr := c.llType(targType).(*lltypes.PointerType)
 		var valStorePtr value.Value
 		if targetIsPtr {
 			valStorePtr = NewGetElementPtr(c.currBlock, anyPtr, Zero, constant.NewInt(lltypes.I32, 1))
@@ -788,7 +788,7 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 
 		retVal = anyPtr
 	case ast.BuiltinType:
-		retVal = constant.NewInt(IntType, int64(c.typeTable.GetNo(c.GetType(node))))
+		retVal = constant.NewInt(IntType, int64(c.typeTable.GetNo(c.Type(node))))
 	case ast.BuiltinDone:
 		handle := c.CompileNode(node.Args[0])
 		retVal = c.currBlock.NewCall(CoroDone, handle)
@@ -835,7 +835,7 @@ func (c *Compiler) setArrData(arr value.Value, newData value.Value) {
 func (c *Compiler) compileLen(node *ast.BuiltinExp) value.Value {
 	var retVal value.Value
 
-	targetType := c.GetType(node.Args[0])
+	targetType := c.Type(node.Args[0])
 	switch ty := targetType.(type) {
 	case types.ArrayType:
 		targetArr := c.CompileNode(node.Args[0])
@@ -921,7 +921,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 			if !ok {
 				panic("Identifier not in type environment: " + targetName)
 			}
-			targetLLType := c.typeToLLType(targetType)
+			targetLLType := c.llType(targetType)
 
 			ptr, isPtr := targetLLType.(*lltypes.PointerType)
 			isFunc := false
@@ -945,7 +945,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		list := c.CompileNode(target.Arr)
 
 		var elemPtr value.Value
-		arrType := c.GetType(target.Arr)
+		arrType := c.Type(target.Arr)
 		_, isTup := arrType.(types.TupleType)
 		_, isArr := arrType.(types.ArrayType)
 		if isTup {
@@ -965,7 +965,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 		structPtr := c.CompileNode(target.Target)
 		expPtr := c.CompileNode(node.Expr)
 
-		structType := c.GetType(target.Target).(types.StructType)
+		structType := c.Type(target.Target).(types.StructType)
 		structDef := c.prog.Struct(structType.Name)
 		structOffset := structDef.Offset(target.Field.(*ast.Ident).Value)
 		destPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(lltypes.I32, int64(structOffset)))

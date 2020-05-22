@@ -234,7 +234,7 @@ func (u *Unifier) resolvePrimitiveMethod(sourceCons Constraint, structOpt Struct
 			case "push":
 				pushType := Fun{
 					Args: []Constrainable{cons.Subtype},
-					Ret:  BaseType{types.NullType{}},
+					Ret:  BaseType{types.VoidType{}},
 				}
 				u.cons = append(u.cons, Constraint{depVar, pushType, sourceCons.Source})
 			case "pop":
@@ -330,7 +330,7 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		return nil
 	}
 	if isLeftContainer && isRightContainer {
-		nullT := types.NullType{}
+		nullT := types.VoidType{}
 
 		var newCon Constrainable
 		var old Constrainable

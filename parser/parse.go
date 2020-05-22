@@ -206,7 +206,7 @@ func (l *listener) ExitBaseType(c *parser.BaseTypeContext) {
 	case "byte":
 		t = types.ByteType{}
 	case "void":
-		t = types.NullType{}
+		t = types.VoidType{}
 	case "any":
 		t = types.AnyType{}
 	default:

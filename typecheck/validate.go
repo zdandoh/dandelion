@@ -30,7 +30,7 @@ var Conditional = TypeList{types.BoolType{}}
 var Iterable = TypeList{types.ArrayType{}, types.CoroutineType{}}
 var DotAccess = TypeList{types.StructType{}, types.ArrayType{}}
 var Invocable = TypeList{types.FuncType{}}
-var Nullable = TypeList{types.CoroutineType{}, types.FuncType{}, types.StructType{}, types.TupleType{}, types.NullType{}, types.ArrayType{}, types.AnyType{}}
+var Nullable = TypeList{types.CoroutineType{}, types.FuncType{}, types.StructType{}, types.TupleType{}, types.VoidType{}, types.ArrayType{}, types.AnyType{}}
 var Ordered = TypeList{types.IntType{}, types.BoolType{}, types.FloatType{}, types.ByteType{}}
 var Lenable = TypeList{types.StringType{}, types.ArrayType{}, types.TupleType{}}
 
@@ -83,7 +83,7 @@ func isNode(node ast.Node, list NodeList) bool {
 func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	switch node := astNode.(type) {
 	case *ast.Assign:
-		_, isExpNull := v.Type(node.Expr).(types.NullType)
+		_, isExpNull := v.Type(node.Expr).(types.VoidType)
 		if isExpNull {
 			errs.Error(errs.ErrorValue, node, "void type used as value")
 		}
@@ -142,8 +142,8 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		}
 	case *ast.FunApp:
 		for _, arg := range node.Args {
-			_, isNull := v.Type(arg).(types.NullType)
-			if isNull {
+			_, isVoid := v.Type(arg).(types.VoidType)
+			if isVoid {
 				errs.Error(errs.ErrorValue, node, "void type used as value")
 			}
 		}
