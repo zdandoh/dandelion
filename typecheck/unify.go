@@ -237,6 +237,12 @@ func (u *Unifier) resolvePrimitiveMethod(sourceCons Constraint, structOpt Struct
 					Ret:  BaseType{types.NullType{}},
 				}
 				u.cons = append(u.cons, Constraint{depVar, pushType, sourceCons.Source})
+			case "pop":
+				popType := Fun{
+					Args: []Constrainable{},
+					Ret:  cons.Subtype,
+				}
+				u.cons = append(u.cons, Constraint{depVar, popType, sourceCons.Source})
 			default:
 				errs.Error(errs.ErrorValue, sourceCons.Source, "container doesn't have method: "+depName)
 				errs.CheckExit()

@@ -222,6 +222,9 @@ func (c *Compiler) CompileFunc(name string, fun *ast.FunDef) {
 	}
 
 	_, isVoid := funType.RetType.(types.NullType)
+	if isVoid && len(fun.Body.Lines) == 0 {
+		c.currBlock.NewRet(nil)
+	}
 
 	// Bind function args
 	for i, arg := range fun.Args {

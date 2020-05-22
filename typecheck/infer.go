@@ -317,6 +317,9 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 		var lastLine ast.Node
 		if len(funDef.Body.Lines) > 0 {
 			lastLine = funDef.Body.Lines[len(funDef.Body.Lines)-1]
+		} else if len(funDef.Body.Lines) == 0 && funDef.TypeHint == nil {
+			// Function has no body, must be void unless hinted
+			i.AddCons(baseFun.Ret, BaseType{types.NullType{}}, funDef)
 		}
 
 		_, isReturn := lastLine.(*ast.ReturnExp)

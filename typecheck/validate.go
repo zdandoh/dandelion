@@ -83,6 +83,11 @@ func isNode(node ast.Node, list NodeList) bool {
 func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	switch node := astNode.(type) {
 	case *ast.Assign:
+		_, isExpNull := v.Type(node.Expr).(types.NullType)
+		if isExpNull {
+			errs.Error(errs.ErrorValue, node, "void type used as value")
+		}
+
 		if !isNode(node.Target, Assignable) {
 			errs.Error(errs.ErrorType, node, "target is not assignable")
 		}
@@ -136,6 +141,13 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			errs.Error(errs.ErrorType, node, "operand is not number")
 		}
 	case *ast.FunApp:
+		for _, arg := range node.Args {
+			_, isNull := v.Type(arg).(types.NullType)
+			if isNull {
+				errs.Error(errs.ErrorValue, node, "void type used as value")
+			}
+		}
+
 		if !v.likeType(node.Fun, Invocable) {
 			errs.Error(errs.ErrorType, node, "target is not invocable")
 		}

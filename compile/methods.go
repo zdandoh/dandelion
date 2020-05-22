@@ -96,6 +96,10 @@ func (c *Compiler) listPush(list ast.Node, value ast.Node) value.Value {
 	return nil
 }
 
+func (c *Compiler) listPop(list ast.Node) value.Value {
+	return nil
+}
+
 func (c *Compiler) compileBaseMethod(baseType ast.Node, methodName string, args []ast.Node) value.Value {
 	ty := c.GetType(baseType)
 
@@ -104,6 +108,8 @@ func (c *Compiler) compileBaseMethod(baseType ast.Node, methodName string, args 
 		switch methodName {
 		case "push":
 			return c.listPush(baseType, args[0])
+		case "pop":
+			return c.listPop(baseType)
 		}
 	}
 	return nil

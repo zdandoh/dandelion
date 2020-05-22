@@ -64,7 +64,7 @@ func (i FloatType) TypeString() string {
 	return "float"
 }
 
-var ListMethods = []string{"push"}
+var ListMethods = []string{"push", "pop"}
 
 type ArrayType struct {
 	Subtype Type
