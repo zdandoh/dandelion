@@ -7,6 +7,7 @@ import (
 	"dandelion/types"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 )
 
 type TypeValidator struct {
@@ -80,18 +81,26 @@ func isNode(node ast.Node, list NodeList) bool {
 	return false
 }
 
+func (v *TypeValidator) checkVoid(nodes ...ast.Node) {
+	for _, node := range nodes {
+		nodeType := v.Type(node)
+		_, isVoidType := nodeType.(types.VoidType)
+		if isVoidType {
+			debug.PrintStack()
+			errs.Error(errs.ErrorValue, node, "void type used as value")
+		}
+	}
+}
+
 func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	switch node := astNode.(type) {
 	case *ast.Assign:
-		_, isExpNull := v.Type(node.Expr).(types.VoidType)
-		if isExpNull {
-			errs.Error(errs.ErrorValue, node, "void type used as value")
-		}
-
+		v.checkVoid(node.Expr)
 		if !isNode(node.Target, Assignable) {
 			errs.Error(errs.ErrorType, node, "target is not assignable")
 		}
 	case *ast.AddSub:
+		v.checkVoid(node.Left, node.Right)
 		if node.Op == "+" && (!v.isType(node.Right, Addable) || !v.isType(node.Left, Addable)) {
 			errs.Error(errs.ErrorType, node, "operand is not addable")
 		}
@@ -99,9 +108,12 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			errs.Error(errs.ErrorType, node, "operand is not a number")
 		}
 	case *ast.SliceNode:
+		v.checkVoid(node.Index)
 		if transform.IsCloArg(node.Arr) {
 			break
 		}
+
+		v.checkVoid(node.Arr)
 
 		if !v.likeType(node.Arr, Sliceable) {
 			ty := v.Type(node.Arr)
@@ -112,39 +124,46 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			errs.Error(errs.ErrorType, node.Index, "type '%s' is not a valid index", ty.TypeString())
 		}
 	case *ast.ForIter:
+		v.checkVoid(node.Iter, node.Item)
 		if !v.likeType(node.Iter, Iterable) {
 			ty := v.Type(node.Iter)
 			errs.Error(errs.ErrorType, node.Iter, "type '%s' is not iterable", ty.TypeString())
 		}
 	case *ast.For:
+		v.checkVoid(node.Cond)
 		if !v.isType(node.Cond, Conditional) {
 			ty := v.Type(node.Cond)
 			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.While:
+		v.checkVoid(node.Cond)
 		if !v.isType(node.Cond, Conditional) {
 			ty := v.Type(node.Cond)
 			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.If:
+		v.checkVoid(node.Cond)
 		if !v.isType(node.Cond, Conditional) {
 			ty := v.Type(node.Cond)
 			errs.Error(errs.ErrorType, node.Cond, "type '%s' is not a valid conditional", ty.TypeString())
 		}
 	case *ast.StructAccess:
+		v.checkVoid(node.Target)
 		if !v.likeType(node.Target, DotAccess) {
 			ty := v.Type(node.Target)
 			errs.Error(errs.ErrorType, node.Target, "can't access attribute of type '%s'", ty.TypeString())
 		}
 	case *ast.MulDiv:
+		v.checkVoid(node.Left, node.Right)
 		if !v.isType(node.Left, Number) || !v.isType(node.Right, Number) {
 			errs.Error(errs.ErrorType, node, "operand is not number")
 		}
 	case *ast.FunApp:
+		v.checkVoid(node.Fun)
+
 		for _, arg := range node.Args {
-			_, isVoid := v.Type(arg).(types.VoidType)
-			if isVoid {
-				errs.Error(errs.ErrorValue, node, "void type used as value")
+			if !transform.IsCloArg(arg) {
+				v.checkVoid(arg)
 			}
 		}
 
@@ -157,6 +176,7 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			errs.Error(errs.ErrorType, node, "target of type '%s' isn't nullable", ty.TypeString())
 		}
 	case *ast.CompNode:
+		v.checkVoid(node.Left, node.Right)
 		if node.Op == "==" || node.Op == "!=" {
 			// These don't need to be ordered
 			break
@@ -166,6 +186,7 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			errs.Error(errs.ErrorType, node, "operand isn't ordered")
 		}
 	case *ast.ArrayLiteral:
+		v.checkVoid(node.Exprs...)
 		if len(node.Exprs) < 1 {
 			break
 		}
@@ -177,10 +198,12 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			}
 		}
 	case *ast.Mod:
+		v.checkVoid(node.Left, node.Right)
 		if !v.isType(node.Left, Natural) || !v.isType(node.Right, Natural) {
 			errs.Error(errs.ErrorType, node, "operand isn't a natural number")
 		}
 	case *ast.BuiltinExp:
+		v.checkVoid(node.Args...)
 		switch node.Type {
 		case ast.BuiltinDone:
 			ty := v.Type(node.Args[0])
@@ -210,20 +233,30 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		default:
 			panic("Validation step undefined for builtin: " + node.Type)
 		}
-	case *ast.BeginExp:
+	case *ast.StructDef:
+		for _, member := range node.Members {
+			_, isVoid := member.Type.(types.VoidType)
+			if isVoid {
+				errs.Error(errs.ErrorValue, node, "void type not allowed in struct")
+			}
+		}
 	case *ast.IsExp:
+		v.checkVoid(node.CheckNode)
 	case *ast.TypeAssert:
+		v.checkVoid(node.Target)
+	case *ast.YieldExp:
+		v.checkVoid(node.Target)
+	case *ast.TupleLiteral:
+		v.checkVoid(node.Exprs...)
+	case *ast.BeginExp:
 	case *ast.FlowControl:
 	case *ast.ParenExp:
 	case *ast.Closure:
-	case *ast.YieldExp:
 	case *ast.ReturnExp:
 	case *ast.BlockExp:
 	case *ast.PipeExp:
 	case *ast.Pipeline:
-	case *ast.TupleLiteral:
 	case *ast.StructInstance:
-	case *ast.StructDef:
 	case *ast.FunDef:
 	case *ast.Ident:
 	case *ast.Num:

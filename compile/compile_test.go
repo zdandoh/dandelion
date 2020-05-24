@@ -1565,6 +1565,23 @@ return f(arg) {
 	}
 }
 
+func TestComplicatedTypeInfer(t *testing.T) {
+	src := `
+x = 32;
+return f() {
+	f(y) {
+		[(f() {
+			x + y;
+		}, f() { y * 3; })];
+	};
+}()(3)[0][0]();
+`
+
+	if !CompileCheckExit(src, 35) {
+		t.Fail()
+	}
+}
+
 //func TestPipeline2(t *testing.T) {
 //	src := `
 //arr = [1, 2, 3];
