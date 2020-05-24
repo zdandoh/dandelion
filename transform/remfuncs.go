@@ -50,6 +50,12 @@ func (r *FuncRemover) newFunName() string {
 	return name
 }
 
+func (r *FuncRemover) newAnonName() string {
+	name := fmt.Sprintf("fun_%d", r.nameCounter)
+	r.nameCounter++
+	return name
+}
+
 func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 	var retVal ast.Node
 
@@ -109,8 +115,15 @@ func (r *FuncRemover) WalkNode(astNode ast.Node) ast.Node {
 		r.nameStack.Pop()
 	case *ast.FunDef:
 		newName := r.newFunName()
+		newTarget := "anon-" + r.newAnonName()
+		targetIdent := &ast.Ident{newTarget, ast.NoID}
 		r.funcs[newName] = node
-		retVal = &ast.Ident{newName, ast.NoID}
+
+		beginExp := &ast.BeginExp{[]ast.Node{
+			&ast.Assign{targetIdent, &ast.Ident{newName, ast.NoID}, ast.NoID},
+			targetIdent,
+		}, ast.NoID}
+		retVal = beginExp
 
 		r.funDefLocs[r.nameStack.Peek()] = append(r.funDefLocs[r.nameStack.Peek()], newName)
 		r.nameStack.Push(newName)

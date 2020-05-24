@@ -1513,24 +1513,70 @@ return 3;
 	}
 }
 
-//func TestManyClosures(t *testing.T) {
+func TestAnonClosure(t *testing.T) {
+	src := `
+x = 5;
+return f(){ x; }();
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
+func TestCurry(t *testing.T) {
+	src := `
+print = f(num) {
+	f(int)void __extern_print(num);
+};
+
+curry = f(fun, arg) {
+	return f() {
+		fun(arg);
+	};
+};
+
+curry_print = curry(print, 10);
+curry_print();
+`
+
+	if !CompileCheckOutput(src, "10") {
+		t.Fail()
+	}
+}
+
+func TestManyClosures(t *testing.T) {
+	src := `
+x = 16;
+
+return f(arg) {
+	f(arg2) {
+		f(arg3) {
+			f(arg4) {
+				return x + arg + arg2 + arg3 + arg4;
+			};
+		};
+	};
+}(1)(2)(4)(8);
+`
+
+	if !CompileCheckExit(src, 1+2+4+8+16) {
+		t.Fail()
+	}
+}
+
+//func TestPipeline2(t *testing.T) {
 //	src := `
-//x = 16;
-//
-//fun = f(arg) {
-//	f(arg2) {
-//		f(arg3) {
-//			f(arg4) {
-//				return x + arg + arg2 + arg3 + arg4;
-//			};
-//		};
-//	};
+//arr = [1, 2, 3];
+//fun = f(a, b, c, d, e, g, h, i, j){
+//	arr.push(g);
 //};
 //
-//return fun(1)(2)(4)(8);
+//fun(5, "string", 'b', 1, 2, 3, 4, 5, 6);
+//return ln.num;
 //`
 //
-//	if !CompileCheckExit(src, 1+2+4+8+16) {
+//	if !CompileCheckExit(src, 1) {
 //		t.Fail()
 //	}
 //}

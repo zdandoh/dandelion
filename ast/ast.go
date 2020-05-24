@@ -49,6 +49,8 @@ func init() {
 	gob.Register(IsExp{})
 	gob.Register(ForIter{})
 	gob.Register(PipeExp{})
+	gob.Register(ByteExp{})
+	gob.Register(BeginExp{})
 }
 
 type NodeID int
@@ -383,7 +385,8 @@ type LineBundle struct {
 }
 
 func (n *LineBundle) String() string {
-	return "__UNRESOLVED_LINE_BUNDLE__"
+	b := &Block{n.Lines}
+	return "__UNRESOLVED_LINE_BUNDLE__ {\n" + b.String() + "}"
 }
 
 type TypeAssert struct {
@@ -505,6 +508,21 @@ func (n *ForIter) String() string {
 	lines += "}"
 
 	return lines
+}
+
+type BeginExp struct {
+	Nodes []Node
+	NodeID
+}
+
+func (n *BeginExp) String() string {
+	nodeStrs := make([]string, 0)
+
+	for _, node := range n.Nodes {
+		nodeStrs = append(nodeStrs, fmt.Sprintf("%s", node))
+	}
+
+	return fmt.Sprintf("begin(%s)", strings.Join(nodeStrs, ", "))
 }
 
 type CompNode struct {
@@ -846,6 +864,10 @@ func SetID(astNode Node, newID NodeID) {
 	case *ForIter:
 		node.NodeID = newID
 	case *PipeExp:
+		node.NodeID = newID
+	case *ByteExp:
+		node.NodeID = newID
+	case *BeginExp:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

@@ -210,6 +210,7 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		default:
 			panic("Validation step undefined for builtin: " + node.Type)
 		}
+	case *ast.BeginExp:
 	case *ast.IsExp:
 	case *ast.TypeAssert:
 	case *ast.FlowControl:

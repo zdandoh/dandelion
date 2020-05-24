@@ -77,6 +77,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &ForIter{WalkAst(node.Item, w), WalkAst(node.Iter, w), WalkBlock(node.Body, w), node.NodeID}
 	case *BlockExp:
 		retVal = &BlockExp{WalkBlock(node.Block, w), node.NodeID}
+	case *BeginExp:
+		retVal = &BeginExp{WalkList(node.Nodes, w), node.NodeID}
 	case *IsExp:
 		retVal = &IsExp{WalkAst(node.CheckNode, w), node.CheckType, node.NodeID}
 	case *StructInstance:

@@ -642,6 +642,13 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		retVal = tuplePtr
 	case *ast.BuiltinExp:
 		retVal = c.compileBuiltin(node)
+	case *ast.BeginExp:
+		var lastVal value.Value
+		for _, subNode := range node.Nodes {
+			lastVal = c.CompileNode(subNode)
+		}
+
+		retVal = lastVal
 	case *ast.TypeAssert:
 		compTarg := c.CompileNode(node.Target)
 

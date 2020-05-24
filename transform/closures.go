@@ -132,7 +132,7 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 		// Create closure
 		enclosedFunc := c.Prog.Funcs[ident.Value]
 
-		retLines := &ast.LineBundle{}
+		retLines := &ast.BeginExp{}
 		cloName := fmt.Sprintf("clo.%s", ident)
 		tupName := cloName + CloTupSuffix
 		argName := cloName + CloArgSuffix
@@ -165,19 +165,19 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		enclosedFunc.Body.Lines = append(enclosedFunc.Body.Lines)
 
-		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, &ast.NullExp{int(c.Prog.NewNodeID()), ast.NoID}, ast.NoID})
-		retLines.Lines = append(retLines.Lines, tupAssign)
+		retLines.Nodes = append(retLines.Nodes, &ast.Assign{node.Target, &ast.NullExp{int(c.Prog.NewNodeID()), ast.NoID}, ast.NoID})
+		retLines.Nodes = append(retLines.Nodes, tupAssign)
 
 		closure := &ast.Closure{}
 		closure.Target = ident
 		closure.ArgTup = &ast.Ident{tupName, ast.NoID}
 		closure.NewFunc = node.Target
 
-		retLines.Lines = append(retLines.Lines, &ast.Assign{node.Target, closure, ast.NoID})
+		retLines.Nodes = append(retLines.Nodes, &ast.Assign{node.Target, closure, ast.NoID})
 
 		for i, tupExpr := range cloTuple.Exprs {
 			if tupExpr.(*ast.Ident).Value == node.Target.(*ast.Ident).Value {
-				retLines.Lines = append(retLines.Lines, &ast.Assign{&ast.SliceNode{&ast.Num{int64(i), ast.NoID}, tupIdent, ast.NoID}, node.Target, ast.NoID})
+				retLines.Nodes = append(retLines.Nodes, &ast.Assign{&ast.SliceNode{&ast.Num{int64(i), ast.NoID}, tupIdent, ast.NoID}, node.Target, ast.NoID})
 			}
 		}
 
