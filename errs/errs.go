@@ -21,8 +21,13 @@ var errCount = 0
 var sep = lineSep()
 
 func Error(eType error, sourceNode ast.Node, format string, a ...interface{}) {
-	meta := sourceProg.Meta(sourceNode)
-	lineNo := Line(meta)
+	var lineNo string
+	if sourceNode != nil {
+		meta := sourceProg.Meta(sourceNode)
+		lineNo = Line(meta)
+	} else {
+		lineNo = "<unknown>"
+	}
 
 	msg := Fmt(eType, lineNo, sourceNode, format, a...)
 	fmt.Fprintln(os.Stderr, msg)
@@ -32,7 +37,10 @@ func Error(eType error, sourceNode ast.Node, format string, a ...interface{}) {
 func Fmt(eType error, lineNo string, sourceNode ast.Node, format string, a ...interface{}) string {
 	preMsg := fmt.Sprintf(format, a...)
 
-	msg := fmt.Sprintf("%s: line %s: %s%s%s", eType.Error(), lineNo, preMsg, sep, sourceNode)
+	msg := fmt.Sprintf("%s: line %s: %s%s", eType.Error(), lineNo, preMsg, sep)
+	if sourceNode != nil {
+		msg += sourceNode.String()
+	}
 	return msg
 }
 
