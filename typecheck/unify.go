@@ -129,11 +129,12 @@ func ReplaceCons(check Constrainable, old Constrainable, new Constrainable) Cons
 			return new
 		}
 	case Fun:
-		for i, arg := range cons.Args {
-			cons.Args[i] = ReplaceCons(arg, old, new)
+		newF := Fun{}
+		for _, arg := range cons.Args {
+			newF.Args = append(newF.Args, ReplaceCons(arg, old, new))
 		}
-		cons.Ret = ReplaceCons(cons.Ret, old, new)
-		return cons
+		newF.Ret = ReplaceCons(cons.Ret, old, new)
+		return newF
 	case Container:
 		oldCont, isOldCont := old.(Container)
 		if isOldCont && oldCont.ID == cons.ID {

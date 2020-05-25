@@ -1526,7 +1526,7 @@ return f(){ x; }();
 
 func TestCurry(t *testing.T) {
 	src := `
-print = f(num) {
+p = f(num) {
 	f(int)void __extern_print(num);
 };
 
@@ -1536,7 +1536,7 @@ curry = f(fun, arg) {
 	};
 };
 
-curry_print = curry(print, 10);
+curry_print = curry(p, 10);
 curry_print();
 `
 

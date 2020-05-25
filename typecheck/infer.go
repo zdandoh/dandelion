@@ -3,6 +3,7 @@ package typecheck
 import (
 	"dandelion/ast"
 	"dandelion/errs"
+	"dandelion/transform"
 	"dandelion/types"
 	"fmt"
 	"reflect"
@@ -427,6 +428,10 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			}
 			i.AddCons(typeVar, tup, node)
 		case *ast.SliceNode:
+			if transform.IsCloArg(node.Arr) {
+				break
+			}
+
 			index := -1
 			indexNode, isIndexNum := node.Index.(*ast.Num)
 			if isIndexNum {
