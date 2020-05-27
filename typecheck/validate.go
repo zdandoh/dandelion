@@ -248,6 +248,21 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		v.checkVoid(node.Target)
 	case *ast.TupleLiteral:
 		v.checkVoid(node.Exprs...)
+	case *ast.Pipeline:
+		if !v.likeType(node.Ops[0], Iterable) {
+			errs.Error(errs.ErrorType, node, "pipeline start must be iterable")
+		}
+		for i := 1; i < len(node.Ops); i++ {
+			isLast := i == len(node.Ops) - 1
+			fun, isFun := v.Type(node.Ops[i]).(types.FuncType)
+			if !isFun {
+				errs.Error(errs.ErrorValue, node, "pipeline element must be function")
+			}
+			_, isVoid := fun.RetType.(types.VoidType)
+			if isVoid && !isLast {
+				errs.Error(errs.ErrorValue, node, "non-terminal pipeline step returns void")
+			}
+		}
 	case *ast.BeginExp:
 	case *ast.FlowControl:
 	case *ast.ParenExp:
@@ -255,7 +270,6 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.ReturnExp:
 	case *ast.BlockExp:
 	case *ast.PipeExp:
-	case *ast.Pipeline:
 	case *ast.StructInstance:
 	case *ast.FunDef:
 	case *ast.Ident:

@@ -22,7 +22,7 @@ Language Features
 - [x] Structs
 - [x] Functions
 - [x] Struct methods
-- [ ] Pipelines
+- [x] Pipelines
 - [x] Global type inference
 - [x] Type annotations (for when types can't be inferred)
 - [x] Closures

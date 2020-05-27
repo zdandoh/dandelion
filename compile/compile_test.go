@@ -1636,6 +1636,30 @@ range(5) -> f{ f(int)void __extern_print(e); };
 		t.Fail()
 	}
 }
+
+func TestNestedCoro2(t *testing.T) {
+	src := `
+range = f() {
+	for i = 0; i < 5; i = i + 1 {
+		yield i;
+	};
+};
+
+range2 = f() {
+	other = range();
+	for i = 0; i < 5; i = i + 1 {
+		yield next(other) * i;
+	};
+};
+
+range2() -> f{ f(int)void __extern_print(e); };
+`
+
+	if !CompileCheckOutput(src, "0\n1\n4\n9\n16") {
+		t.Fail()
+	}
+}
+
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;
