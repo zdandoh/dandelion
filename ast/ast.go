@@ -638,10 +638,9 @@ type BlockExp struct {
 }
 
 func (n *BlockExp) String() string {
+	n.Block.String()
 	block := "{\n"
-	for _, line := range n.Block.Lines {
-		block += "    " + line.String() + "\n"
-	}
+	block += n.Block.String()
 	block += "}"
 	return block
 }

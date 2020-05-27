@@ -76,11 +76,6 @@ func CompileCheckOutput(progText string, output string) bool {
 	return true
 }
 
-func CompileOutput(progText string) string {
-	outputStr, _ := RunProg(progText)
-	return outputStr
-}
-
 func ExecIR(llvmIr string) error {
 	cmd := exec.Command("lli", "-load", "lib/lib.so", "-load", "lib/libgc.so")
 	buffer := bytes.NewBufferString(llvmIr)

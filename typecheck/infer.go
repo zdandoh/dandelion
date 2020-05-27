@@ -143,6 +143,13 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 		case types.ArrayType:
 			listType := types.ArrayType{}
 			listType.Subtype = i.ResolveType(cons.Subtype, subs)
+
+			// If the subtype resolves to void, this whole type is void. Pipelines can cause this.
+			_, isSubtypeVoid := listType.Subtype.(types.VoidType)
+			if isSubtypeVoid {
+				return types.VoidType{}
+			}
+
 			return listType
 		case types.VoidType:
 			nextCont, ok := subs.Get(cons)
@@ -453,6 +460,21 @@ func (i *TypeInferer) CreateConstraints(prog *ast.Program) {
 			subtype := i.NewTypeVar()
 			i.AddCons(i.GetTypeVar(node.Iter), Container{types.VoidType{}, subtype, 0, i.NewContainerID()}, node)
 			i.AddCons(subtype, i.GetTypeVar(node.Item), node)
+		case *ast.Pipeline:
+			dataNode := node.Ops[0]
+			subtype := i.NewTypeVar()
+
+			newContainer := Container{types.VoidType{}, subtype, 0, i.NewContainerID()}
+			i.AddCons(i.GetTypeVar(dataNode), newContainer, node)
+
+			var lastRet TypeVar
+			for k := 1; k < len(node.Ops); k++ {
+				lastRet = i.NewTypeVar()
+				newFun := Fun{[]Constrainable{subtype, BaseType{types.IntType{}}, newContainer}, lastRet}
+				i.AddCons(i.GetTypeVar(node.Ops[k]), newFun, node)
+			}
+
+			i.AddCons(typeVar, Container{types.ArrayType{types.VoidType{}}, lastRet, 0, i.NewContainerID()}, node)
 		case *ast.BeginExp:
 			lastItem := node.Nodes[len(node.Nodes)-1]
 			i.AddCons(typeVar, i.GetTypeVar(lastItem), node)

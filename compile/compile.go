@@ -538,6 +538,13 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		}
 
 		retVal = c.CompileNode(compNode)
+	case *ast.Pipeline:
+		compNode, typeMap := parser.DesugarPipeline(node, c.Type)
+		for newNode, newType := range typeMap {
+			c.SetType(newNode, newType)
+		}
+
+		retVal = c.CompileNode(compNode)
 	case *ast.FlowControl:
 		cFun := c.FEnv[c.currFun.Name()]
 

@@ -1582,22 +1582,60 @@ return f() {
 	}
 }
 
-//func TestPipeline2(t *testing.T) {
-//	src := `
-//arr = [1, 2, 3];
-//fun = f(a, b, c, d, e, g, h, i, j){
-//	arr.push(g);
-//};
-//
-//fun(5, "string", 'b', 1, 2, 3, 4, 5, 6);
-//return ln.num;
-//`
-//
-//	if !CompileCheckExit(src, 1) {
-//		t.Fail()
-//	}
-//}
+func TestPipelineRet(t *testing.T) {
+	src := `
+thing = [1,2,3] -> f{ e + 1; };
+return thing[2];
+`
 
+	if !CompileCheckExit(src, 4) {
+		t.Fail()
+	}
+}
+
+func TestPipelineVoid(t *testing.T) {
+	src := `
+["hello", "world", "!"] -> f{ f(string)void __extern_prints(e); };
+`
+
+	if !CompileCheckOutput(src, "hello\nworld\n!") {
+		t.Fail()
+	}
+}
+
+func TestLongPipeline(t *testing.T) {
+	src := `
+incr = f{
+	e + 1;
+};
+
+mult = f{
+	e * 2;
+};
+
+[1, 2, 3, 4] -> incr -> incr -> mult -> mult -> f{ f(int)void __extern_print(e); };
+`
+
+	if !CompileCheckOutput(src, "12\n16\n20\n24") {
+		t.Fail()
+	}
+}
+
+func TestCoroPipeline(t *testing.T) {
+	src := `
+range = f(max) {
+	for i = 0; i < max; i = i + 1 {
+		yield i;
+	};
+};
+
+range(5) -> f{ f(int)void __extern_print(e); };
+`
+
+	if !CompileCheckOutput(src, "0\n1\n2\n3\n4") {
+		t.Fail()
+	}
+}
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `
 //x = 22;
