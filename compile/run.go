@@ -11,6 +11,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -124,4 +126,66 @@ func CompileSource(progText string, optLevel int) string {
 	}
 
 	return string(optIR)
+}
+
+func MakeBinary(ir string, optLevel int, outFile string) string {
+	execPath, err := os.Executable()
+	execPath = filepath.Dir(execPath)
+	if err != nil {
+		execPath = os.Args[0]
+	}
+	outFile = getOutFile(outFile)
+
+	// Call llc to get object file
+	cmd := exec.Command("llc", "-filetype=obj")
+	cmd.Stdin = bytes.NewBufferString(ir)
+
+	objName := outFile + "-obj" + ".o"
+	defer os.Remove(objName)
+
+	objBytes, err := cmd.Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr,"error creating object file: %v\n", err)
+		return ""
+	}
+
+	err = ioutil.WriteFile(objName, objBytes, os.ModePerm)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't write object file %s: %v\n", objName, err)
+		return ""
+	}
+
+	libDir := filepath.Join(execPath, "lib")
+	objDir := filepath.Join(libDir, runtime.GOOS)
+	objectFiles := []string{
+		filepath.Join(objDir, "headers.o"),
+		filepath.Join(objDir, "gc.a"),
+		filepath.Join(objDir, "alloc.o"),
+		filepath.Join(objDir, "exception.o"),
+		filepath.Join(objName),
+	}
+
+	// Call clang to make final binary
+	optFlag := fmt.Sprintf("-O%d", optLevel)
+	outFlag := fmt.Sprintf("-o%s", outFile)
+	args := []string{optFlag, outFlag}
+	args = append(args, objectFiles...)
+	cmd = exec.Command("clang", args...)
+
+	clangOut, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error calling clang: %v\n", err)
+		fmt.Fprintf(os.Stderr, string(clangOut))
+		return ""
+	}
+
+	return outFile
+}
+
+func getOutFile(outFile string) string {
+	if outFile == "" {
+		tempDir := os.TempDir()
+		return filepath.Join(tempDir, "dndprog")
+	}
+	return outFile
 }

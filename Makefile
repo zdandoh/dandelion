@@ -7,8 +7,8 @@ build: runtime
 runtime: lib/alloc.c lib/exception.c
 ifeq ($(UNAME), Linux)
 	clang -shared -Wall -fPIC -o lib/lib.so lib/alloc.c lib/exception.c
-	clang -Wall -o lib/alloc.o -c lib/alloc.c
-	clang -Wall -o lib/exception.o -c lib/exception.c
+	clang -Wall -o lib/linux/alloc.o -c lib/alloc.c
+	clang -Wall -o lib/linux/exception.o -c lib/exception.c
 endif
 
 ifeq ($(UNAME), windows32)
