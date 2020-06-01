@@ -35,7 +35,7 @@ expr
    | FSTART '(' args=arglist? ')' '{' body '}'    # FunDef
    | FSTART '(' typedargs=typedidents? ')' returntype=typed '{' body '}' # FunDef
    | 'struct' '{' structbody '}'                  # StructDef
-   | bname=(LEN|DONE|NEXT|SEND|ANY|TYPE) '(' args=explist ')' # BuiltinExp
+   | bname=(LEN|DONE|NEXT|SEND|ANY|TYPE|STR) '(' args=explist ')' # BuiltinExp
    | expr '(' args=explist  ')'                   # FunApp
    | expr op=(ADD|SUB) expr                       # AddSub
    | expr MOD expr                                # ModExp

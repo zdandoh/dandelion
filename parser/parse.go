@@ -571,7 +571,10 @@ func (l *listener) ExitByteExp(c *parser.ByteExpContext) {
 
 	byteExp := &ast.ByteExp{}
 	byteStr := c.GetText()
-	byteExp.Value = byte(byteStr[1])
+	if byteStr == "'\\n'" {
+		byteStr = "'\n"
+	}
+	byteExp.Value = byteStr[1]
 	byteExp.NodeID = l.NewNodeID()
 
 	l.nodeStack.Push(byteExp)

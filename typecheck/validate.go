@@ -7,7 +7,6 @@ import (
 	"dandelion/types"
 	"fmt"
 	"reflect"
-	"runtime/debug"
 )
 
 type TypeValidator struct {
@@ -86,7 +85,6 @@ func (v *TypeValidator) checkVoid(nodes ...ast.Node) {
 		nodeType := v.Type(node)
 		_, isVoidType := nodeType.(types.VoidType)
 		if isVoidType {
-			debug.PrintStack()
 			errs.Error(errs.ErrorValue, node, "void type used as value")
 		}
 	}
@@ -98,6 +96,12 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 		v.checkVoid(node.Expr)
 		if !isNode(node.Target, Assignable) {
 			errs.Error(errs.ErrorType, node, "target is not assignable")
+		}
+
+		exprType := v.Type(node.Expr)
+		targType := v.Type(node.Target)
+		if reflect.TypeOf(exprType) != reflect.TypeOf(targType) {
+			errs.Error(errs.ErrorType, node, "invalid assignment, types not equal: %s != %s", targType.TypeString(), exprType.TypeString())
 		}
 	case *ast.AddSub:
 		v.checkVoid(node.Left, node.Right)
@@ -227,6 +231,15 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			if !v.likeType(node.Args[0], Lenable) {
 				ty := v.Type(node.Args[0])
 				errs.Error(errs.ErrorType, node, "cannot take length of type '%s'", ty.TypeString())
+			}
+		case ast.BuiltinStr:
+			ty := v.Type(node.Args[0])
+			arr, isArr := ty.(types.ArrayType)
+			if isArr {
+				_, isSubByte := arr.Subtype.(types.ByteType)
+				if !isSubByte {
+					errs.Error(errs.ErrorValue, node, "invalid argument for str builtin")
+				}
 			}
 		case ast.BuiltinAny:
 		case ast.BuiltinType:

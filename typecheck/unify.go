@@ -266,6 +266,8 @@ func (u *Unifier) Unify(currCons Constraint) error {
 	rightStructOpt, isRightStructOpt := currCons.Right.(StructOptions)
 	leftStructOpt, isLeftStructOpt := currCons.Left.(StructOptions)
 
+	leftContainer, isLeftContainer := currCons.Left.(Container)
+
 	// Unify base types
 	if isLeftBase && isRightBase && leftBase != rightBase {
 		errs.Error(errs.ErrorType, currCons.Source, "base types not equal %s != %s", leftBase.TypeString(), rightBase.TypeString())
@@ -284,6 +286,13 @@ func (u *Unifier) Unify(currCons Constraint) error {
 		}
 		// I am not sure if this replacement needs to recorded in subs, but it seems like it doesn't
 		return nil
+	}
+	if isRightBase && isLeftContainer {
+		_, isStr := rightBase.Type.(types.StringType)
+		if isStr {
+			u.cons = append(u.cons, Constraint{leftContainer.Subtype, BaseType{types.ByteType{}}, currCons.Source})
+		}
+		// Fallthrough to let the container get replaced
 	}
 	if isRightBase {
 		u.subs.Set(currCons.Left, rightBase)
@@ -324,7 +333,6 @@ func (u *Unifier) Unify(currCons Constraint) error {
 
 	// Unify containers
 	rightContainer, isRightContainer := currCons.Right.(Container)
-	leftContainer, isLeftContainer := currCons.Left.(Container)
 	if leftIsVar && isRightContainer {
 		u.subs.Set(currCons.Left, rightContainer)
 		u.ReplaceAllCons(leftVar, rightContainer)

@@ -120,6 +120,7 @@ func (i *TypeInferer) ConstructTypes(subs Subs) map[ast.NodeHash]types.Type {
 }
 
 func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type {
+	DebugInfer(consItem.ConsString() + " -> ")
 	switch cons := consItem.(type) {
 	case BaseType:
 		return cons.Type
@@ -157,6 +158,12 @@ func (i *TypeInferer) ResolveType(consItem Constrainable, subs Subs) types.Type 
 				// TODO fix this bug in a way that actually makes sense. If a subtype gets replaced, it isn't updated in
 				// Subs, so that array can no longer math a path through subs.
 				subRes := i.ResolveType(cons.Subtype, subs)
+				_, isByte := subRes.(types.ByteType)
+				if isByte{
+					// TODO This is basically saying that we can't have byte arrays, which needs fixing.
+					return types.StringType{}
+				}
+
 				cons.Subtype = BaseType{subRes}
 				nextCont, ok := subs.Get(cons)
 				if ok {
@@ -528,6 +535,8 @@ func (i *TypeInferer) getBuiltinConstraints(node *ast.BuiltinExp, typeVar TypeVa
 		i.AddCons(i.GetTypeVar(node.Args[0]), newCo, node)
 	case ast.BuiltinLen:
 		i.AddCons(typeVar, BaseType{types.IntType{}}, node)
+	case ast.BuiltinStr:
+		i.AddCons(typeVar, BaseType{types.StringType{}}, node)
 	case ast.BuiltinType:
 		i.AddCons(typeVar, BaseType{types.IntType{}}, node)
 	}

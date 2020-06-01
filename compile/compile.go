@@ -586,7 +586,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		listType := c.Type(node).(types.ArrayType)
 		llListType := c.llType(listType).(*lltypes.PointerType).ElemType
 		llSubtype := c.llType(listType.Subtype)
-		list := CallMalloc(c.currBlock, llListType)
+		list := MallocType(c.currBlock, llListType)
 
 		// Set list length
 		lenVal := constant.NewInt(IntType, int64(node.Length))
@@ -622,6 +622,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		targType := c.Type(node.Arr)
 		_, isTup := targType.(types.TupleType)
 		_, isList := targType.(types.ArrayType)
+		_, isStr := targType.(types.StringType)
 
 		if isList {
 			// Setup bounds check
@@ -633,12 +634,17 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		} else if isTup || transform.IsCloArg(node.Arr) {
 			elemPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, index)
 			retVal = NewLoad(c.currBlock, elemPtr)
+		} else if isStr {
+			dataPtrPtr := NewGetElementPtr(c.currBlock, sliceable, Zero, One)
+			dataPtr := NewLoad(c.currBlock, dataPtrPtr)
+			elemPtr := NewGetElementPtr(c.currBlock, dataPtr, index)
+			retVal = NewLoad(c.currBlock, elemPtr)
 		} else {
 			panic("Unknown slice target: " + node.Arr.String())
 		}
 	case *ast.TupleLiteral:
 		tupleType := c.llType(c.Type(node)).(*lltypes.PointerType).ElemType
-		tuplePtr := CallMalloc(c.currBlock, tupleType)
+		tuplePtr := MallocType(c.currBlock, tupleType)
 
 		for i, elem := range node.Exprs {
 			elemPtr := c.CompileNode(elem)
@@ -714,7 +720,7 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 
 	case *ast.StructInstance:
 		structType := c.llType(node.DefRef.Type).(*lltypes.PointerType).ElemType
-		structPtr := CallMalloc(c.currBlock, structType)
+		structPtr := MallocType(c.currBlock, structType)
 
 		for i, member := range node.Values {
 			valuePtr := c.CompileNode(member)
@@ -784,7 +790,7 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 			break
 		}
 
-		anyPtr := CallMalloc(c.currBlock, AnyType)
+		anyPtr := MallocType(c.currBlock, AnyType)
 
 		tagPtr := NewGetElementPtr(c.currBlock, anyPtr, Zero, Zero)
 		typeNo := constant.NewInt(lltypes.I32, int64(c.typeTable.GetNo(targType)))
@@ -806,6 +812,11 @@ func (c *Compiler) compileBuiltin(node *ast.BuiltinExp) value.Value {
 	case ast.BuiltinDone:
 		handle := c.CompileNode(node.Args[0])
 		retVal = c.currBlock.NewCall(CoroDone, handle)
+	case ast.BuiltinStr:
+		byteArr := c.CompileNode(node.Args[0])
+		len := c.arrLen(byteArr)
+		dataPtr := c.arrData(byteArr)
+		retVal = c.createString(len, dataPtr)
 	default:
 		panic("No compilation step defined for builtin " + node.Type)
 	}
@@ -896,7 +907,7 @@ func GetSize(block *ir.Block, typ lltypes.Type) value.Value {
 	return size
 }
 
-func CallMalloc(block *ir.Block, typ lltypes.Type) value.Value {
+func MallocType(block *ir.Block, typ lltypes.Type) value.Value {
 	size := GetSize(block, typ)
 	mem := block.NewCall(Malloc, size)
 	castMem := block.NewBitCast(mem, lltypes.NewPointer(typ))
@@ -943,7 +954,7 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 				_, isFunc = ptr.ElemType.(*lltypes.FuncType)
 			}
 			if isPtr && !isFunc {
-				targetAddr = CallMalloc(c.currBlock, targetLLType)
+				targetAddr = MallocType(c.currBlock, targetLLType)
 			} else {
 				targetAddr = c.currBlock.NewAlloca(targetLLType)
 			}

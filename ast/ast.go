@@ -70,6 +70,7 @@ const (
 	BuiltinAny  BuiltinName = "any"
 	BuiltinDone BuiltinName = "done"
 	BuiltinType BuiltinName = "type"
+	BuiltinStr BuiltinName = "str"
 )
 
 var BuiltinArgs = map[BuiltinName]int{
@@ -79,6 +80,7 @@ var BuiltinArgs = map[BuiltinName]int{
 	BuiltinAny:  1,
 	BuiltinDone: 1,
 	BuiltinType: 1,
+	BuiltinStr: 1,
 }
 
 type Program struct {
@@ -489,7 +491,7 @@ type For struct {
 
 func (n *For) String() string {
 	lines := fmt.Sprintf("for %v; %v; %v {\n", n.Init, n.Cond, n.Step)
-	lines += "    " + n.Body.String()
+	lines += n.Body.String()
 	lines += "    }"
 
 	return lines

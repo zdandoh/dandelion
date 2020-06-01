@@ -56,6 +56,7 @@ NEXT: 'next';
 SEND: 'send';
 ANY: 'any';
 TYPE: 'type';
+STR: 'str';
 
 // Conditional ops
 OR: '||';
@@ -70,7 +71,7 @@ GTE: '>=';
 EQ: '==';
 NEQ: '!=';
 
-BYTE: '\'' . '\'';
+BYTE: '\'' '\\'? . '\'';
 NUMBER: '-'?[0-9]+;
 FLOAT: '-'?[0-9]+ '.' [0-9]+;
 IDENT: [a-zA-Z_0-9]+;

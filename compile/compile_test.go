@@ -1179,8 +1179,8 @@ return len(tup);
 
 func TestStringLen(t *testing.T) {
 	src := `
-str = "hello, world!";
-return len(str);
+string = "hello, world!";
+return len(string);
 `
 
 	if !CompileCheckExit(src, 13) {
@@ -1403,10 +1403,10 @@ conn_gen() -> f{
 
 func TestStringAdd(t *testing.T) {
 	src := `
-str = "hello ";
+string = "hello ";
 str2 = "world!";
 
-news = str + str2;
+news = string + str2;
 f(string)void __extern_prints(news);
 `
 
@@ -1481,9 +1481,9 @@ p = f(any var)void {
 	};
 };
 
-str = "hello";
+string = "hello";
 my_int = 32;
-p(any(str));
+p(any(string));
 p(any(my_int));
 `
 
@@ -1659,6 +1659,113 @@ range2() -> f{ f(int)void __extern_print(e); };
 		t.Fail()
 	}
 }
+
+func TestStrBuiltin(t *testing.T) {
+	src := `
+arr = ['b', 'a', 'd', ' ', 'g', 'u', 'y'];
+cool_str = str(arr);
+f(string)void __extern_prints(cool_str);
+f(int)void __extern_print(len(cool_str));
+`
+
+	if !CompileCheckOutput(src, "bad guy\n7") {
+		t.Fail()
+	}
+}
+
+func TestArrReset(t *testing.T) {
+	src := `
+arr = [1, 2, 3];
+f(int)void __extern_print(len(arr));
+arr = [];
+f(int)void __extern_print(len(arr));
+`
+
+	if !CompileCheckOutput(src, "3\n0") {
+		t.Fail()
+	}
+}
+
+//func TestGrep(t *testing.T) {
+//	src := `
+//in_str = f(sub, full) {
+//	scanned = 0;
+//	cursor = 0;
+//	for i = 0; i < len(full); i = i + 1 {
+//		for k = 0; k < len(sub); k = k + 1 {
+//			scanned = scanned + 1;
+//			if full[i + k] != sub[k] {
+//				break;
+//			};
+//			if i + k >= len(full) {
+//				break;
+//			};
+//			if k == len(sub) - 1 {
+//				return true;
+//			};
+//		};
+//	};
+//	return false;
+//};
+//
+//lines = f(fname) {
+//	fd = f(string)int __extern_d_open(fname);
+//
+//	buff = [];
+//	for i = 0; i < 8192; i = i + 1 {
+//		buff.push('a');
+//	};
+//
+//	lc = 0;
+//	tot_bytes = 0;
+//	while true {
+//		bytes_read = f(int, []byte)int __extern_d_read(fd, buff);
+//		if bytes_read == 0 {
+//			break;
+//		};
+//
+//		line = [];
+//		for i = 0; i < bytes_read; i = i + 1 {
+//			tot_bytes = tot_bytes + 1;
+//			if buff[i] == '\n' {
+//				lc = lc + 1;
+//				yield str(line);
+//				line = [];
+//				continue;
+//			};
+//			line.push(buff[i]);
+//		};
+//		if len(line) > 0 {
+//			yield str(line);
+//		};
+//	};
+//};
+//
+//filter = f{
+//	if in_str("friend", e) {
+//		f(string)void __extern_prints(e);
+//	};
+//};
+//
+//lines("big.txt") -> filter;
+//`
+//
+//	if !CompileCheckOutput(src, "contains string") {
+//		t.Fail()
+//	}
+//}
+//
+//func TestStringSlice(t *testing.T) {
+//	src := `
+//my_str = "hi friend!";
+//b = my_str[1];
+//return b;
+//`
+//
+//	if !CompileCheckExit(src, 0) {
+//		t.Fail()
+//	}
+//}
 
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `

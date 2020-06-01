@@ -1,7 +1,9 @@
 package compile
 
 import (
+	"dandelion/types"
 	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/enum"
 	lltypes "github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -16,6 +18,7 @@ var GCInit value.Value
 var MemCopy value.Value
 var Free value.Value
 var OpenF value.Value
+var ReadF value.Value
 
 // Coroutine intrinsics
 var CoroID value.Value
@@ -72,6 +75,7 @@ func (c *Compiler) setupIntrinsics() {
 		"GC_malloc",
 		lltypes.I8Ptr,
 		ir.NewParam("size", lltypes.I64))
+	Malloc.(*ir.Func).ReturnAttrs = append(Malloc.(*ir.Func).ReturnAttrs, enum.ReturnAttrNoAlias)
 	Realloc = c.mod.NewFunc(
 		"GC_realloc",
 		lltypes.I8Ptr,
@@ -81,6 +85,7 @@ func (c *Compiler) setupIntrinsics() {
 		"GC_malloc_atomic",
 		lltypes.I8Ptr,
 		ir.NewParam("size", lltypes.I64))
+	MallocData.(*ir.Func).ReturnAttrs = append(MallocData.(*ir.Func).ReturnAttrs, enum.ReturnAttrNoAlias)
 	GCInit = c.mod.NewFunc(
 		"GC_enable_incremental",
 		lltypes.Void)
@@ -98,8 +103,12 @@ func (c *Compiler) setupIntrinsics() {
 	OpenF = c.mod.NewFunc(
 		"d_open",
 		lltypes.I32,
-		ir.NewParam("ptr", lltypes.NewPointer(StrType)),
-		ir.NewParam("ptr2", lltypes.NewPointer(StrType)))
+		ir.NewParam("ptr", lltypes.NewPointer(StrType)))
+	ReadF = c.mod.NewFunc(
+		"d_read",
+		lltypes.I32,
+		ir.NewParam("fd", lltypes.I32),
+		ir.NewParam("buff", c.llType(types.ArrayType{types.ByteType{}})))
 	CoroID = c.mod.NewFunc(
 		"llvm.coro.id",
 		lltypes.Token,

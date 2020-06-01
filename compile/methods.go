@@ -11,6 +11,31 @@ import (
 	"reflect"
 )
 
+func (c *Compiler) createString(len value.Value, dataPtr value.Value) value.Value {
+	castLen := c.currBlock.NewSExt(len, lltypes.I64)
+
+	strSize := GetSize(c.currBlock, StrType)
+	totalLen := c.currBlock.NewAdd(castLen, strSize)
+	newStrMem := c.currBlock.NewCall(Malloc, totalLen)
+	newStr := c.currBlock.NewBitCast(newStrMem, lltypes.NewPointer(StrType))
+
+	// Store new length
+	newLenPtr := NewGetElementPtr(c.currBlock, newStr, Zero, Zero)
+	c.currBlock.NewStore(castLen, newLenPtr)
+
+	// Calculate str data pointer
+	newStrDataPtr := NewGetElementPtr(c.currBlock, newStr, One)
+	newStrDataPtr = c.currBlock.NewBitCast(newStrDataPtr, lltypes.I8Ptr)
+
+	// Store new data pointer
+	newDataPtr := NewGetElementPtr(c.currBlock, newStr, Zero, One)
+	c.currBlock.NewStore(newStrDataPtr, newDataPtr)
+
+	c.currBlock.NewCall(MemCopy, newStrDataPtr, dataPtr, castLen, constant.False)
+
+	return newStr
+}
+
 func (c *Compiler) strConcat(leftNode value.Value, rightNode value.Value) value.Value {
 	// Load and calculate new length
 	rightLenPtr := NewGetElementPtr(c.currBlock, rightNode, Zero, Zero)

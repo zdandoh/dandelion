@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <alloca.h>
+#include <string.h>
+#include <unistd.h>
 
 #define MEM_SIZE 72
 
@@ -53,12 +56,23 @@ typedef struct str {
 	char* data;
 } str;
 
+typedef struct arr {
+	uint32_t len;
+	uint32_t cap;
+	char* data;
+} arr;
+
 void prints(str* s) {
 	printf("%.*s\n", (int)s->len, s->data);
-};
+}
 
-int d_open(void* fname, void* mode) {
-	open(fname, O_CREAT);
-	printf("%p %p\n", fname, mode);
-	return 5;
+int d_open(str* fname) {
+	char* term_name = alloca(fname->len + 1);
+	memcpy(term_name, fname->data, fname->len);
+	term_name[fname->len] = 0;
+	return open(term_name, O_RDONLY);
+}
+
+int d_read(int fd, arr* buf) {
+	return read(fd, buf->data, buf->len);
 }
