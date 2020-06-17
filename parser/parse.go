@@ -36,10 +36,10 @@ func DebugPrintln(more ...interface{}) {
 	}
 }
 
-func (l *listener) NewNodeID() ast.NodeID {
+func (l *listener) NewNodeID(line int) ast.NodeID {
 	l.nodeID++
 
-	newMeta := &ast.Meta{parser.LineCounter, nil}
+	newMeta := &ast.Meta{line, nil}
 	l.prog.Metadata[l.nodeID] = newMeta
 
 	return l.nodeID
@@ -52,7 +52,7 @@ func (l *listener) EnterParenExp(c *parser.ParenExpContext) {
 func (l *listener) ExitParenExp(c *parser.ParenExpContext) {
 	DebugPrintln("Exiting paren exp")
 
-	l.nodeStack.Push(&ast.ParenExp{l.nodeStack.Pop(), l.NewNodeID()})
+	l.nodeStack.Push(&ast.ParenExp{l.nodeStack.Pop(), l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterAddSub(c *parser.AddSubContext) {
@@ -66,7 +66,7 @@ func (l *listener) ExitAddSub(c *parser.AddSubContext) {
 	addNode.Op = c.GetOp().GetText()
 	addNode.Right = l.nodeStack.Pop()
 	addNode.Left = l.nodeStack.Pop()
-	addNode.NodeID = l.NewNodeID()
+	addNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(addNode)
 }
@@ -79,7 +79,7 @@ func (l *listener) ExitModExp(c *parser.ModExpContext) {
 	modNode := &ast.Mod{}
 	modNode.Right = l.nodeStack.Pop()
 	modNode.Left = l.nodeStack.Pop()
-	modNode.NodeID = l.NewNodeID()
+	modNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(modNode)
 }
@@ -94,7 +94,7 @@ func (l *listener) ExitMulDiv(c *parser.MulDivContext) {
 	mulNode.Op = c.GetOp().GetText()
 	mulNode.Right = l.nodeStack.Pop()
 	mulNode.Left = l.nodeStack.Pop()
-	mulNode.NodeID = l.NewNodeID()
+	mulNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(mulNode)
 }
@@ -107,7 +107,7 @@ func (l *listener) EnterNumber(c *parser.NumberContext) {
 		panic("Invalid value for int")
 	}
 
-	l.nodeStack.Push(&ast.Num{value, l.NewNodeID()})
+	l.nodeStack.Push(&ast.Num{value, l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) ExitNumber(c *parser.NumberContext) {
@@ -122,7 +122,7 @@ func (l *listener) ExitIdent(c *parser.IdentContext) {
 
 	newIdent := &ast.Ident{}
 	newIdent.Value = c.GetId().GetText()
-	newIdent.NodeID = l.NewNodeID()
+	newIdent.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	idType := c.GetIdtype()
 	if idType != nil {
@@ -146,7 +146,7 @@ func (l *listener) ExitStructDef(c *parser.StructDefContext) {
 	structDef := l.PopStructDef()
 	l.structNo++
 	structDef.Type.Name = fmt.Sprintf("anon_struct%d", l.structNo)
-	structDef.NodeID = l.NewNodeID()
+	structDef.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(structDef)
 }
 
@@ -162,7 +162,7 @@ func (l *listener) ExitNamedStructDef(c *parser.NamedStructDefContext) {
 	ident := fmt.Sprintf("%s", c.GetIdent().GetText())
 	structDef := l.PopStructDef()
 	structDef.Type.Name = ident
-	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident, l.NewNodeID()}, structDef, l.NewNodeID()})
+	l.nodeStack.Push(&ast.Assign{&ast.Ident{ident, l.NewNodeID(c.GetStart().GetLine())}, structDef, l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) PopStructDef() *ast.StructDef {
@@ -183,7 +183,7 @@ func (l *listener) ExitTypeline(c *parser.TypelineContext) {
 	DebugPrintln("Exiting type line")
 
 	memberName := fmt.Sprintf("%s", c.GetIdent().GetText())
-	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName, l.NewNodeID()}, l.typeStack.Pop(), l.NewNodeID()})
+	l.blockStack.Top.Lines = append(l.blockStack.Top.Lines, &ast.StructMember{&ast.Ident{memberName, l.NewNodeID(c.GetStart().GetLine())}, l.typeStack.Pop(), l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterBaseType(c *parser.BaseTypeContext) {
@@ -265,9 +265,9 @@ func (l *listener) ExitStructAccess(c *parser.StructAccessContext) {
 	DebugPrintln("Exiting struct access")
 
 	access := &ast.StructAccess{}
-	access.Field = &ast.Ident{c.IDENT().GetText(), l.NewNodeID()}
+	access.Field = &ast.Ident{c.IDENT().GetText(), l.NewNodeID(c.GetStart().GetLine())}
 	access.Target = l.nodeStack.Pop()
-	access.NodeID = l.NewNodeID()
+	access.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(access)
 }
 
@@ -286,7 +286,7 @@ func (l *listener) ExitBuiltinExp(c *parser.BuiltinExpContext) {
 		args = append([]ast.Node{l.nodeStack.Pop()}, args...)
 	}
 
-	builtin := &ast.BuiltinExp{args, builtinType, l.NewNodeID()}
+	builtin := &ast.BuiltinExp{args, builtinType, l.NewNodeID(c.GetStart().GetLine())}
 	l.nodeStack.Push(builtin)
 }
 
@@ -337,7 +337,7 @@ func (l *listener) ExitFunApp(c *parser.FunAppContext) {
 		funApp.Extern = true
 	}
 
-	funApp.NodeID = l.NewNodeID()
+	funApp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(funApp)
 	DebugPrintln("Exiting funapp ", argCount)
 }
@@ -364,13 +364,13 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 
 	var args []ast.Node
 	if isPipeFunc {
-		args = []ast.Node{&ast.Ident{"e", l.NewNodeID()}, &ast.Ident{"i", l.NewNodeID()}, &ast.Ident{"a", l.NewNodeID()}}
+		args = []ast.Node{&ast.Ident{"e", l.NewNodeID(c.GetStart().GetLine())}, &ast.Ident{"i", l.NewNodeID(c.GetStart().GetLine())}, &ast.Ident{"a", l.NewNodeID(c.GetStart().GetLine())}}
 	} else if c.GetTypedargs() != nil {
 		argTypes := filterCommas(c.GetTypedargs().GetChildren())
 		for _, arg := range argTypes {
 			_, ok := arg.(*antlr.TerminalNodeImpl)
 			if ok {
-				args = append(args, &ast.Ident{fmt.Sprintf("%s", arg), l.NewNodeID()})
+				args = append(args, &ast.Ident{fmt.Sprintf("%s", arg), l.NewNodeID(c.GetStart().GetLine())})
 				funType.ArgTypes = append([]types.Type{l.typeStack.Pop()}, funType.ArgTypes...)
 			}
 		}
@@ -379,7 +379,7 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 		argTokens := filterCommas(parsedArgs.GetChildren())
 		for _, arg := range argTokens {
 			argStr := fmt.Sprintf("%s", arg)
-			args = append(args, &ast.Ident{argStr, l.NewNodeID()})
+			args = append(args, &ast.Ident{argStr, l.NewNodeID(c.GetStart().GetLine())})
 		}
 	} else {
 		args = []ast.Node{}
@@ -387,7 +387,7 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 
 	funDef.Args = args
 	funDef.Body = l.blockStack.Pop()
-	funDef.NodeID = l.NewNodeID()
+	funDef.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	if isFunTyped {
 		funDef.TypeHint = &funType
@@ -407,7 +407,7 @@ func (l *listener) ExitWhile(c *parser.WhileContext) {
 	whileNode := &ast.While{}
 	whileNode.Cond = l.nodeStack.Pop()
 	whileNode.Body = l.blockStack.Pop()
-	whileNode.NodeID = l.NewNodeID()
+	whileNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(whileNode)
 }
@@ -419,7 +419,7 @@ func (l *listener) EnterBlockExp(c *parser.BlockExpContext) {
 }
 
 func (l *listener) ExitBlockExp(c *parser.BlockExpContext) {
-	l.nodeStack.Push(&ast.BlockExp{l.blockStack.Pop(), l.NewNodeID()})
+	l.nodeStack.Push(&ast.BlockExp{l.blockStack.Pop(), l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterIf(c *parser.IfContext) {
@@ -434,7 +434,7 @@ func (l *listener) ExitIf(c *parser.IfContext) {
 	ifNode := &ast.If{}
 	ifNode.Cond = l.nodeStack.Pop()
 	ifNode.Body = l.blockStack.Pop()
-	ifNode.NodeID = l.NewNodeID()
+	ifNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(ifNode)
 }
@@ -453,9 +453,9 @@ func (l *listener) ExitFor(c *parser.ForContext) {
 	forNode.Cond = l.nodeStack.Pop()
 	forNode.Init = l.nodeStack.Pop()
 	forNode.Body = l.blockStack.Pop()
-	forNode.NodeID = l.NewNodeID()
+	forNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
-	wrappedFor := &ast.BlockExp{&ast.Block{[]ast.Node{forNode}}, l.NewNodeID()}
+	wrappedFor := &ast.BlockExp{&ast.Block{[]ast.Node{forNode}}, l.NewNodeID(c.GetStart().GetLine())}
 
 	l.nodeStack.Push(wrappedFor)
 }
@@ -473,7 +473,7 @@ func (l *listener) ExitForIter(c *parser.ForIterContext) {
 	iterInit := l.nodeStack.Pop()
 	body := l.blockStack.Pop()
 
-	forIter := &ast.ForIter{&ast.Ident{itemName, l.NewNodeID()}, iterInit, body, l.NewNodeID()}
+	forIter := &ast.ForIter{&ast.Ident{itemName, l.NewNodeID(c.GetStart().GetLine())}, iterInit, body, l.NewNodeID(c.GetStart().GetLine())}
 	l.nodeStack.Push(forIter)
 }
 
@@ -483,7 +483,7 @@ func (l *listener) EnterFlowControl(c *parser.FlowControlContext) {
 
 func (l *listener) ExitFlowControl(c *parser.FlowControlContext) {
 	DebugPrintln("Exiting flow control")
-	l.nodeStack.Push(&ast.FlowControl{ast.FlowStatement(c.GetText()), l.NewNodeID()})
+	l.nodeStack.Push(&ast.FlowControl{ast.FlowStatement(c.GetText()), l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterReturn(c *parser.ReturnContext) {
@@ -492,7 +492,7 @@ func (l *listener) EnterReturn(c *parser.ReturnContext) {
 
 func (l *listener) ExitReturn(c *parser.ReturnContext) {
 	DebugPrintln("Exiting return")
-	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop(), "", l.NewNodeID()})
+	l.nodeStack.Push(&ast.ReturnExp{l.nodeStack.Pop(), "", l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterYield(c *parser.YieldContext) {
@@ -501,7 +501,7 @@ func (l *listener) EnterYield(c *parser.YieldContext) {
 
 func (l *listener) ExitYield(c *parser.YieldContext) {
 	DebugPrintln("Exiting yield")
-	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop(), "", l.NewNodeID()})
+	l.nodeStack.Push(&ast.YieldExp{l.nodeStack.Pop(), "", l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func (l *listener) EnterAssign(c *parser.AssignContext) {
@@ -513,7 +513,7 @@ func (l *listener) ExitAssign(c *parser.AssignContext) {
 	assignNode := &ast.Assign{}
 	assignNode.Expr = l.nodeStack.Pop()
 	assignNode.Target = l.nodeStack.Pop()
-	assignNode.NodeID = l.NewNodeID()
+	assignNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(assignNode)
 }
 
@@ -528,7 +528,7 @@ func (l *listener) ExitCompExp(c *parser.CompExpContext) {
 	compNode.Op = c.GetOp().GetText()
 	compNode.Right = l.nodeStack.Pop()
 	compNode.Left = l.nodeStack.Pop()
-	compNode.NodeID = l.NewNodeID()
+	compNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(compNode)
 }
@@ -542,7 +542,7 @@ func (l *listener) ExitBoolExp(c *parser.BoolExpContext) {
 
 	boolExp := &ast.BoolExp{}
 	boolExp.Value = c.GetText() == "true"
-	boolExp.NodeID = l.NewNodeID()
+	boolExp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(boolExp)
 }
@@ -557,7 +557,7 @@ func (l *listener) ExitNullExp(c *parser.NullExpContext) {
 	l.nullNo++
 	nullExp := &ast.NullExp{}
 	nullExp.NullID = l.nullNo
-	nullExp.NodeID = l.NewNodeID()
+	nullExp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(nullExp)
 }
@@ -575,7 +575,7 @@ func (l *listener) ExitByteExp(c *parser.ByteExpContext) {
 		byteStr = "'\n"
 	}
 	byteExp.Value = byteStr[1]
-	byteExp.NodeID = l.NewNodeID()
+	byteExp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(byteExp)
 }
@@ -593,7 +593,7 @@ func (l *listener) ExitFloatExp(c *parser.FloatExpContext) {
 	if err != nil {
 		panic("error parsing float: " + err.Error())
 	}
-	floatExp.NodeID = l.NewNodeID()
+	floatExp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(floatExp)
 }
@@ -619,7 +619,7 @@ func (l *listener) ExitArray(c *parser.ArrayContext) {
 		newArr.EmptyNo = -1
 	}
 
-	newArr.NodeID = l.NewNodeID()
+	newArr.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(newArr)
 }
 
@@ -637,7 +637,7 @@ func (l *listener) ExitTuple(c *parser.TupleContext) {
 		newTup.Exprs = append([]ast.Node{l.nodeStack.Pop()}, newTup.Exprs...)
 	}
 
-	newTup.NodeID = l.NewNodeID()
+	newTup.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(newTup)
 }
 
@@ -652,7 +652,7 @@ func (l *listener) ExitSliceExp(c *parser.SliceExpContext) {
 	sliceNode.Index = l.nodeStack.Pop()
 	sliceNode.Arr = l.nodeStack.Pop()
 
-	sliceNode.NodeID = l.NewNodeID()
+	sliceNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(sliceNode)
 }
 
@@ -672,7 +672,7 @@ func (l *listener) ExitCommandExp(c *parser.CommandExpContext) {
 		command.Args = append(command.Args, splitCommand[i])
 	}
 
-	command.NodeID = l.NewNodeID()
+	command.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(command)
 }
 
@@ -687,7 +687,7 @@ func (l *listener) ExitPipeExp(c *parser.PipeExpContext) {
 	pipeNode.Right = l.nodeStack.Pop()
 	pipeNode.Left = l.nodeStack.Pop()
 
-	pipeNode.NodeID = l.NewNodeID()
+	pipeNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(pipeNode)
 }
 
@@ -699,7 +699,7 @@ func (l *listener) ExitTypeAssert(c *parser.TypeAssertContext) {
 	DebugPrintln("Exiting type assert")
 
 	assert := &ast.TypeAssert{}
-	assert.NodeID = l.NewNodeID()
+	assert.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	assert.Target = l.nodeStack.Pop()
 	assert.TargetType = l.typeStack.Pop()
 
@@ -714,7 +714,7 @@ func (l *listener) ExitIsExp(c *parser.IsExpContext) {
 	DebugPrintln("Exiting is exp")
 
 	isExp := &ast.IsExp{}
-	isExp.NodeID = l.NewNodeID()
+	isExp.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	isExp.CheckType = l.typeStack.Pop()
 	isExp.CheckNode = l.nodeStack.Pop()
 
@@ -729,7 +729,7 @@ func (l *listener) ExitStrExp(c *parser.StrExpContext) {
 	DebugPrintln("Exiting string", c.GetText())
 	text := c.GetText()[1 : len(c.GetText())-1]
 	text = strings.Replace(text, "\\n", "\n", -1)
-	l.nodeStack.Push(&ast.StrExp{text, l.NewNodeID()})
+	l.nodeStack.Push(&ast.StrExp{text, l.NewNodeID(c.GetStart().GetLine())})
 }
 
 func filterCommas(elems []antlr.Tree) []antlr.Tree {
