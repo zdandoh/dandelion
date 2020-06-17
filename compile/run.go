@@ -109,9 +109,13 @@ func ExecIR(llvmIr string) error {
 
 func CompileSource(progText string, optLevel int) string {
 	prog := parser.ParseProgram(progText)
+	errs.SetProg(prog)
 	transform.TransformAst(prog)
 
 	progTypes := typecheck.Infer(prog)
+	typecheck.ValidateProg(prog, progTypes)
+	errs.CheckExit()
+
 	llvmIr := Compile(prog, progTypes)
 
 	optLevelArg := fmt.Sprintf("-O%d", optLevel)

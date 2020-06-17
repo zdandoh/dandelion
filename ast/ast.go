@@ -127,6 +127,9 @@ func (p *Program) AddStruct(name string, newStruct *StructDef) {
 }
 
 func (p *Program) Meta(node Node) *Meta {
+	if node == nil {
+		return nil
+	}
 	return p.Metadata[node.ID()]
 }
 
