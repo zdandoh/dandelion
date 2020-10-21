@@ -745,7 +745,8 @@ func filterCommas(elems []antlr.Tree) []antlr.Tree {
 }
 
 func ParseProgram(text string) *ast.Program {
-	is := antlr.NewInputStream(text)
+	semiText := insertSemis(text)
+	is := antlr.NewInputStream(semiText)
 	lexer := parser.NewDandelionLex(is)
 
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)

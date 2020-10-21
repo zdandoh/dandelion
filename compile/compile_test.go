@@ -1686,6 +1686,21 @@ f(int)void __extern_print(len(arr));
 	}
 }
 
+func TestWithoutSemi(t *testing.T) {
+	src := `
+arr = [1, 2, 3]
+fun = f(a1, a2) {
+	a1 + a2
+}
+
+return fun(arr[0], arr[1])
+`
+
+	if !CompileCheckExit(src, 3) {
+		t.Fail()
+	}
+}
+
 //func TestStringSlice(t *testing.T) {
 //	src := `
 //my_str = "hi friend!";
