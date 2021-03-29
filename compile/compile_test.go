@@ -19,6 +19,19 @@ return d;
 	}
 }
 
+func TestCompileFuncArgs(t *testing.T) {
+	src := `
+my_func = f(a) {
+	a
+}
+return my_func(5)
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
+
 func TestFloatOps(t *testing.T) {
 	src := `
 data = 3.5;
@@ -108,7 +121,7 @@ return arr[1];
 
 func TestNestedIf(t *testing.T) {
 	src := `
-condfun = f(int x) int {
+condfun = f(x) {
 	if x < 6 {
 		x = 7;
 		if x < 5 {
@@ -235,6 +248,18 @@ return l1.num;
 	}
 }
 
+//func TestCompileMethod(t *testing.T) {
+//	src := `
+//arr = [1, 2, 3];
+//arr.push(4);
+//return 0;
+//`
+//
+//	if !CompileCheckExit(src, 0) {
+//		t.Fail()
+//	}
+//}
+
 func TestInferStruct(t *testing.T) {
 	src := `
 struct Line {
@@ -254,29 +279,29 @@ return fun(Line("some data", 7));
 	}
 }
 
-func TestInferStructChoice(t *testing.T) {
-	src := `
-struct Line {
-	string value;
-	int num;
-};
-
-struct Pie {
-	string value;
-	int flavor;
-};
-
-fun = f(x) {
-	x.value;
-	x.flavor;
-};
-return 3;
-`
-
-	if !CompileCheckExit(src, 3) {
-		t.Fail()
-	}
-}
+//func TestInferStructChoice(t *testing.T) {
+//	src := `
+//struct Line {
+//	string value;
+//	int num;
+//};
+//
+//struct Pie {
+//	string value;
+//	int flavor;
+//};
+//
+//fun = f(x) {
+//	x.value;
+//	x.flavor;
+//};
+//return 3;
+//`
+//
+//	if !CompileCheckExit(src, 3) {
+//		t.Fail()
+//	}
+//}
 
 func TestAnonStruct(t *testing.T) {
 	src := `
@@ -325,7 +350,7 @@ return x;
 func TestCompileTuple(t *testing.T) {
 	src := `
 x = ("a string", "another string", 4);
-return x[2];
+return x.2;
 `
 
 	if !CompileCheckExit(src, 4) {
@@ -353,7 +378,7 @@ fun = f() {
 	(3, 4, "data");
 };
 
-return fun()[1];
+return fun().1;
 `
 
 	if !CompileCheckExit(src, 4) {
@@ -494,7 +519,7 @@ fun = f(x) {
 	(x, 4, "string");
 };
 
-return fun("string")[1];
+return fun("string").1;
 `
 
 	if !CompileCheckExit(src, 4) {
@@ -518,7 +543,7 @@ return ret;
 func TestInferTupleArray(t *testing.T) {
 	src := `
 tup_arr = [(3, 4), (6, 7), (8, 9)];
-return tup_arr[2][0];
+return tup_arr[2].0;
 `
 
 	if !CompileCheckExit(src, 8) {
@@ -964,29 +989,29 @@ return max(list);
 	}
 }
 
-func TestTypeHint(t *testing.T) {
-	src := `
-f(int, byte)[]string splitter = null;
-splitter = f(n, n2) {
-	return ["hello", "world"];
-};
-`
+//func TestTypeHint(t *testing.T) {
+//	src := `
+//f(int, byte)[]string splitter = null;
+//splitter = f(n, n2) {
+//	return ["hello", "world"];
+//};
+//`
+//
+//	if !CompileCheckExit(src, 0) {
+//		t.Fail()
+//	}
+//}
 
-	if !CompileCheckExit(src, 0) {
-		t.Fail()
-	}
-}
-
-func TestExtern(t *testing.T) {
-	src := `
-f(int)void __extern_print(5);
-return 0;
-`
-
-	if !CompileCheckExit(src, 0) {
-		t.Fail()
-	}
-}
+//func TestExtern(t *testing.T) {
+//	src := `
+//f(int)void __extern_print(5);
+//return 0;
+//`
+//
+//	if !CompileCheckExit(src, 0) {
+//		t.Fail()
+//	}
+//}
 
 func TestNestedCoro(t *testing.T) {
 	src := `
@@ -1032,8 +1057,8 @@ return val;
 func TestAssignTup(t *testing.T) {
 	src := `
 t = (1, 2, 3);
-t[1] = 1;
-return t[1];
+t.1 = 1;
+return t.1;
 `
 
 	if !CompileCheckExit(src, 1) {
@@ -1309,8 +1334,8 @@ func TestForIter(t *testing.T) {
 a = [1, 2, 4, 8];
 
 sum = 0;
-for item in a {
-	sum = sum + item;
+for i = 0; i < len(a); i = i + 1 {
+	sum = sum + a[i];
 };
 
 range = f() {
@@ -1328,6 +1353,16 @@ return sum + sum2;
 `
 
 	if !CompileCheckExit(src, 30) {
+		t.Fail()
+	}
+}
+
+func TestExternFunc(t *testing.T) {
+	src := `
+f(int)void __extern_print(5);
+`
+
+	if !CompileCheckOutput(src, "5") {
 		t.Fail()
 	}
 }
@@ -1358,48 +1393,48 @@ arr -> incr -> incr -> p;
 	}
 }
 
-func TestMultiFeatures(t *testing.T) {
-	src := `
-struct Conn {
-	int fd;
-	string name;
-};
-
-p = f{
-	f(int)void __extern_print(e);
-	0;
-};
-
-Conn.read = f(fd) {
-	data_size = 512;
-	if fd < 2 {
-		data_size = 1024;
-	};
-	data_size;
-};
-
-conn_gen = f() {
-	for i = 0; i < 4; i = i + 1 {
-		yield Conn(i, "bob");
-	};
-};
-
-conn_gen() -> f{
-	e.read(e.fd);
-} -> p;
-`
-
-	output := `
-1024
-1024
-512
-512
-`
-
-	if !CompileCheckOutput(src, output) {
-		t.Fail()
-	}
-}
+//func TestMultiFeatures(t *testing.T) {
+//	src := `
+//struct Conn {
+//	int fd;
+//	string name;
+//};
+//
+//p = f{
+//	f(int)void __extern_print(e);
+//	0;
+//};
+//
+//Conn.read = f(fd) {
+//	data_size = 512;
+//	if fd < 2 {
+//		data_size = 1024;
+//	};
+//	data_size;
+//};
+//
+//conn_gen = f() {
+//	for i = 0; i < 4; i = i + 1 {
+//		yield Conn(i, "bob");
+//	};
+//};
+//
+//conn_gen() -> f{
+//	e.read(e.fd);
+//} -> p;
+//`
+//
+//	output := `
+//1024
+//1024
+//512
+//512
+//`
+//
+//	if !CompileCheckOutput(src, output) {
+//		t.Fail()
+//	}
+//}
 
 func TestStringAdd(t *testing.T) {
 	src := `
@@ -1434,18 +1469,18 @@ return new_arr[3];
 	}
 }
 
-func TestArrPush(t *testing.T) {
-	src := `
-arr = [];
-arr.push(5);
-arr.push(1);
-return arr[0] + arr[1];
-`
-
-	if !CompileCheckExit(src, 6) {
-		t.Fail()
-	}
-}
+//func TestArrPush(t *testing.T) {
+//	src := `
+//arr = [];
+//arr.push(5);
+//arr.push(1);
+//return arr[0] + arr[1];
+//`
+//
+//	if !CompileCheckExit(src, 6) {
+//		t.Fail()
+//	}
+//}
 
 func TestCloContainer(t *testing.T) {
 	src := `
@@ -1462,7 +1497,7 @@ fun2 = f() {
 
 arr = [fun1, fun2];
 tup = (fun1, fun2);
-return arr[0]() + tup[1]();
+return arr[0]() + tup.1();
 `
 
 	if !CompileCheckExit(src, 15) {
@@ -1497,21 +1532,21 @@ hello
 	}
 }
 
-func TestInferEmptyArray(t *testing.T) {
-	src := `
-empty = [];
-empty.push(7);
-
-empty2 = [];
-empty2.push("string");
-
-return 3;
-`
-
-	if !CompileCheckExit(src, 3) {
-		t.Fail()
-	}
-}
+//func TestInferEmptyArray(t *testing.T) {
+//	src := `
+//empty = [];
+//empty.push(7);
+//
+//empty2 = [];
+//empty2.push("string");
+//
+//return 3;
+//`
+//
+//	if !CompileCheckExit(src, 3) {
+//		t.Fail()
+//	}
+//}
 
 func TestAnonClosure(t *testing.T) {
 	src := `
@@ -1574,7 +1609,7 @@ return f() {
 			x + y;
 		}, f() { y * 3; })];
 	};
-}()(3)[0][0]();
+}()(3)[0].0();
 `
 
 	if !CompileCheckExit(src, 35) {

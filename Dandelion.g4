@@ -25,6 +25,7 @@ expr
    : '(' expr ')'                                 # ParenExp
    | '[' elems=explist ']'                        # Array
    | '(' elems=explist ')'                        # Tuple
+   | expr '.' NUMBER                              # TupleAccess
    | expr '.' IDENT                               # StructAccess
    | expr '[' index=expr ']'                      # SliceExp
    | expr '.' '(' typed ')'                       # TypeAssert

@@ -2,6 +2,7 @@ package transform
 
 import (
 	"dandelion/ast"
+	"dandelion/types"
 	"fmt"
 	"strings"
 )
@@ -142,6 +143,11 @@ func rewriteMethod(origFun *ast.FunDef, destStruct *ast.StructDef) {
 	ThisCount++
 	thisName := fmt.Sprintf("__this_%d", ThisCount)
 	origFun.Args = append([]ast.Node{&ast.Ident{thisName, ast.NoID}}, origFun.Args...)
+	if origFun.TypeHint == nil {
+		origFun.TypeHint = &types.FuncType{}
+	}
+	origFun.TypeHint.ArgTypes = make([]types.Type, len(origFun.Args))
+	origFun.TypeHint.ArgTypes[0] = destStruct.Type
 
 	nameChecker := func(name string) bool {
 		if destStruct.Has(BaseName(name)) {

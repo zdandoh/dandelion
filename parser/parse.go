@@ -310,6 +310,7 @@ func (l *listener) ExitStart(c *parser.StartContext) {
 	mainFunc.Args = []ast.Node{}
 	mainFunc.TypeHint = &types.FuncType{[]types.Type{}, types.IntType{}}
 	mainFunc.Body = l.blockStack.Pop()
+	mainFunc.Body.Lines = append(mainFunc.Body.Lines, &ast.ReturnExp{&ast.Num{0, ast.NoID}, "main", ast.NoID})
 	l.prog.Funcs["main"] = mainFunc
 }
 
@@ -654,6 +655,29 @@ func (l *listener) ExitSliceExp(c *parser.SliceExpContext) {
 
 	sliceNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 	l.nodeStack.Push(sliceNode)
+}
+
+func (l *listener) EnterTupleAccess(c *parser.TupleAccessContext) {
+	DebugPrintln("Entering tuple access")
+}
+
+func (l *listener) ExitTupleAccess(c *parser.TupleAccessContext) {
+	DebugPrintln("Exiting tuple access")
+
+	tupNode := &ast.TupleAccess{}
+
+	index := c.NUMBER().GetText()
+	intIndex, err := strconv.Atoi(index)
+	if err != nil {
+		panic("invalid value for tuple access")
+	}
+	if intIndex < 0 {
+		panic("tuple access less than zero")
+	}
+
+	tupNode.Index = intIndex
+	tupNode.Tup = l.nodeStack.Pop()
+	l.nodeStack.Push(tupNode)
 }
 
 func (l *listener) EnterCommandExp(c *parser.CommandExpContext) {

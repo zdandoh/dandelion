@@ -51,6 +51,7 @@ func init() {
 	gob.Register(PipeExp{})
 	gob.Register(ByteExp{})
 	gob.Register(BeginExp{})
+	gob.Register(TupleAccess{})
 }
 
 type NodeID int
@@ -279,7 +280,7 @@ func (n *FunDef) String() string {
 	if len(n.Args) > 0 {
 		lines += "(" + strings.Join(argStrings, ",") + ")"
 	}
-	if n.TypeHint != nil {
+	if n.TypeHint != nil && n.TypeHint.RetType != nil {
 		lines += " " + n.TypeHint.RetType.TypeString() + " "
 	}
 
@@ -628,6 +629,16 @@ func (n *SliceNode) String() string {
 	return fmt.Sprintf("%v[%v]", n.Arr, n.Index)
 }
 
+type TupleAccess struct {
+	Index int
+	Tup Node
+	NodeID
+}
+
+func (n *TupleAccess) String() string {
+	return fmt.Sprintf("%v.%d", n.Tup, n.Index)
+}
+
 type StrExp struct {
 	Value string
 	NodeID
@@ -798,6 +809,20 @@ func Statement(node Node) bool {
 	return false
 }
 
+func IsVoid(node Node) bool {
+	if Statement(node) {
+		return true
+	}
+
+	switch n := node.(type) {
+	case *BeginExp:
+		lastExp := n.Nodes[len(n.Nodes) - 1]
+		return IsVoid(lastExp)
+	}
+
+	return false
+}
+
 // This is really dumb but I don't know of a better way
 func SetID(astNode Node, newID NodeID) {
 	switch node := astNode.(type) {
@@ -872,6 +897,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *ByteExp:
 		node.NodeID = newID
 	case *BeginExp:
+		node.NodeID = newID
+	case *TupleAccess:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

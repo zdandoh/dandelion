@@ -3,6 +3,7 @@ package compile
 import (
 	"bytes"
 	"dandelion/errs"
+	"dandelion/infer"
 	"dandelion/parser"
 	"dandelion/transform"
 	"dandelion/typecheck"
@@ -24,7 +25,7 @@ func RunProg(progText string) (string, int) {
 	fmt.Println(prog)
 	transform.TransformAst(prog)
 
-	progTypes := typecheck.Infer(prog)
+	progTypes := infer.InferTypes(prog)
 	typecheck.ValidateProg(prog, progTypes)
 	errs.CheckExit()
 

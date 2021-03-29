@@ -106,7 +106,13 @@ func (f FuncType) TypeString() string {
 		argStrings = append(argStrings, arg.TypeString())
 	}
 	argString := strings.Join(argStrings, ",")
-	return fmt.Sprintf("f(%s) %s", argString, f.RetType.TypeString())
+
+	var retString string
+	if f.RetType != nil {
+		retString = f.RetType.TypeString()
+	}
+
+	return fmt.Sprintf("f(%s) %s", argString, retString)
 }
 
 type StructType struct {

@@ -18,7 +18,7 @@ type TypeList []types.Type
 type NodeList []ast.Node
 
 // Ast node categories
-var Assignable = NodeList{&ast.Ident{}, &ast.StructAccess{}, &ast.SliceNode{}}
+var Assignable = NodeList{&ast.Ident{}, &ast.StructAccess{}, &ast.SliceNode{}, &ast.TupleAccess{}}
 
 // Type categories
 var Addable = TypeList{types.StringType{}, types.ByteType{}, types.IntType{}, types.FloatType{}}
@@ -127,6 +127,13 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 			ty := v.Type(node.Index)
 			errs.Error(errs.ErrorType, node.Index, "type '%s' is not a valid index", ty.TypeString())
 		}
+	case *ast.TupleAccess:
+		// TODO implement this
+		if transform.IsCloArg(node.Tup) {
+			break
+		}
+
+		v.checkVoid(node.Tup)
 	case *ast.ForIter:
 		v.checkVoid(node.Iter, node.Item)
 		if !v.likeType(node.Iter, Iterable) {

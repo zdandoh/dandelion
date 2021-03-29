@@ -151,8 +151,8 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 			unboundNames = append(unboundNames, &ast.Ident{unboundName, ast.NoID})
 			unboundAssign := &ast.Assign{
 				&ast.Ident{unboundName, ast.NoID},
-				&ast.SliceNode{
-					&ast.Num{int64(i), ast.NoID},
+				&ast.TupleAccess{
+					i,
 					&ast.Ident{argName, ast.NoID},
 					ast.NoID},
 				ast.NoID}
@@ -177,7 +177,7 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 
 		for i, tupExpr := range cloTuple.Exprs {
 			if tupExpr.(*ast.Ident).Value == node.Target.(*ast.Ident).Value {
-				retLines.Nodes = append(retLines.Nodes, &ast.Assign{&ast.SliceNode{&ast.Num{int64(i), ast.NoID}, tupIdent, ast.NoID}, node.Target, ast.NoID})
+				retLines.Nodes = append(retLines.Nodes, &ast.Assign{&ast.TupleAccess{i, tupIdent, ast.NoID}, node.Target, ast.NoID})
 			}
 		}
 

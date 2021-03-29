@@ -642,6 +642,12 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 		} else {
 			panic("Unknown slice target: " + node.Arr.String())
 		}
+	case *ast.TupleAccess:
+		tup := c.CompileNode(node.Tup)
+		index := constant.NewInt(IntType, int64(node.Index))
+
+		elemPtr := NewGetElementPtr(c.currBlock, tup, Zero, index)
+		retVal = NewLoad(c.currBlock, elemPtr)
 	case *ast.TupleLiteral:
 		tupleType := c.llType(c.Type(node)).(*lltypes.PointerType).ElemType
 		tuplePtr := MallocType(c.currBlock, tupleType)
@@ -971,6 +977,27 @@ func (c *Compiler) compileAssign(node *ast.Assign) value.Value {
 
 		var elemPtr value.Value
 		arrType := c.Type(target.Arr)
+		_, isTup := arrType.(types.TupleType)
+		_, isArr := arrType.(types.ArrayType)
+		if isTup {
+			elemPtr = NewGetElementPtr(c.currBlock, list, Zero, index)
+			retVal = NewLoad(c.currBlock, elemPtr)
+		} else if isArr {
+			// Setup bounds check
+			len := c.arrLen(list)
+			c.setupBoundsCheck(len, index)
+
+			elemPtr = c.getListElemPtr(list, index)
+		}
+
+		srcPtr := c.CompileNode(node.Expr)
+		c.currBlock.NewStore(srcPtr, elemPtr)
+	case *ast.TupleAccess:
+		index := constant.NewInt(IntType, int64(target.Index))
+		list := c.CompileNode(target.Tup)
+
+		var elemPtr value.Value
+		arrType := c.Type(target.Tup)
 		_, isTup := arrType.(types.TupleType)
 		_, isArr := arrType.(types.ArrayType)
 		if isTup {

@@ -107,6 +107,8 @@ func WalkAst(astNode Node, w AstWalker) Node {
 		retVal = &ArrayLiteral{node.Length, WalkList(node.Exprs, w), node.EmptyNo, node.NodeID}
 	case *SliceNode:
 		retVal = &SliceNode{WalkAst(node.Index, w), WalkAst(node.Arr, w), node.NodeID}
+	case *TupleAccess:
+		retVal = &TupleAccess{node.Index,WalkAst(node.Tup, w), node.NodeID}
 	case *StrExp:
 		retVal = node
 	case *BoolExp:
