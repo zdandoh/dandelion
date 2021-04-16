@@ -1469,18 +1469,18 @@ return new_arr[3];
 	}
 }
 
-//func TestArrPush(t *testing.T) {
-//	src := `
-//arr = [];
-//arr.push(5);
-//arr.push(1);
-//return arr[0] + arr[1];
-//`
-//
-//	if !CompileCheckExit(src, 6) {
-//		t.Fail()
-//	}
-//}
+func TestArrPush(t *testing.T) {
+	src := `
+arr = [];
+arr.push(5);
+arr.push(1);
+return arr[0] + arr[1];
+`
+
+	if !CompileCheckExit(src, 6) {
+		t.Fail()
+	}
+}
 
 func TestCloContainer(t *testing.T) {
 	src := `
@@ -1532,21 +1532,21 @@ hello
 	}
 }
 
-//func TestInferEmptyArray(t *testing.T) {
-//	src := `
-//empty = [];
-//empty.push(7);
-//
-//empty2 = [];
-//empty2.push("string");
-//
-//return 3;
-//`
-//
-//	if !CompileCheckExit(src, 3) {
-//		t.Fail()
-//	}
-//}
+func TestInferEmptyArray(t *testing.T) {
+	src := `
+empty = [];
+empty.push(7);
+
+empty2 = [];
+empty2.push("string");
+
+return 3;
+`
+
+	if !CompileCheckExit(src, 3) {
+		t.Fail()
+	}
+}
 
 func TestAnonClosure(t *testing.T) {
 	src := `

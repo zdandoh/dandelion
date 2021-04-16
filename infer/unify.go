@@ -7,19 +7,17 @@ import (
 )
 
 type Unifier struct {
-	cons []*TCons
 	i *Inferer
 }
 
 func Unify(i *Inferer) {
 	u := &Unifier{}
-	u.cons = i.cons
 	u.i = i
 
-	for _, con := range u.cons {
-		err := u.unify(con)
-		//fmt.Println("--- CONS ---")
-		//i.printCons()
+	for k := 0; k < len(u.i.cons); k++ {
+		err := u.unify(u.i.cons[k])
+		fmt.Println("--- CONS ---")
+		i.printCons()
 		if err != nil {
 			panic(err)
 		}
@@ -68,6 +66,11 @@ func (u *Unifier) unify(con *TCons) error {
 		// If one function is reducible & the other isn't, the reducible one is on the left
 		if rightFunc.Reducible() && !leftFunc.Reducible() {
 			return u.unify(swap(con))
+		}
+
+		// Rules to process prop owners
+		if leftFunc.Kind == KindPropOwner {
+			u.unifyPropOwner(leftFunc, rightFunc)
 		}
 
 		// Rule to equate container subtypes with their concrete type func
@@ -133,25 +136,15 @@ func (u *Unifier) unify(con *TCons) error {
 
 	return nil
 }
-//
-//	// Base Type Replacements
-//	leftBase, leftIsBase := con.Left.(*TypeBase)
-//	rightBase, rightIsBase := con.Right.(*TypeBase)
-//	if leftIsVar && rightIsBase {
-//		return u.SetBase(leftVar, rightBase)
-//	}
-//	if leftIsBase && rightIsBase {
-//		if !types.Equals(leftBase.Type, rightBase.Type) {
-//			return fmt.Errorf("can't infer type, base type %s != %s", leftBase.Type.TypeString(), rightBase.Type.TypeString())
-//		}
-//	}
-//
-//	return nil
-//}
-//
-//func (u *Unifier) printBases() {
-//	fmt.Println("----- BASES -----")
-//	for v, base := range u.bases {
-//		fmt.Printf("%s = %s\n", v.ExprString(), base.TypeString())
-//	}
-//}
+
+func (u *Unifier) unifyPropOwner(propOwner TypeFunc, target TypeFunc) {
+	propName := u.i.Resolve(propOwner.Ret).(FuncMeta).data.(string)
+	switch target.Kind {
+	case KindArray:
+		switch propName {
+		case "push":
+			pushRef := u.i.FuncRef(KindFunc, u.i.BaseRef(TypeBase{types.VoidType{}}), target.Ret)
+			u.i.AddCons(u.i.Resolve(propOwner.Args[0]).(FuncMeta).data.(TypeRef), pushRef)
+		}
+	}
+}

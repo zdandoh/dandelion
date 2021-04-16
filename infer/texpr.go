@@ -62,6 +62,7 @@ const (
 	KindTuple FuncKind = "tup"
 	KindTupleAccess FuncKind = "ta"
 	KindPropAccess FuncKind = "prop"
+	KindPropOwner FuncKind = "own"
 	KindStructInstance FuncKind = "struct"
 	KindCoro FuncKind = "coro"
 	KindContainer FuncKind = "cont"
@@ -74,6 +75,7 @@ var ReducibleKinds = map[FuncKind]bool {
 	KindTupleAccess: true,
 	KindPropAccess: true,
 	KindContainer: true, // TODO think about if this might be a bug
+	KindPropOwner: true,
 }
 
 type TypeFunc struct {
@@ -112,7 +114,7 @@ type FuncMeta struct {
 type FuncMetaKey string
 
 func (f FuncMeta) String() string {
-	return fmt.Sprintf("%v", f.data)
+	return fmt.Sprintf("meta(%v)", f.data)
 }
 
 func (f FuncMeta) ExprString() string {

@@ -172,20 +172,30 @@ func (i *Inferer) SetRef(old TypeRef, new TypeRef) {
 	delete(i.varLibrary, oldVal.Key())
 }
 
-func (i *Inferer) String(t TypeExpr) string {
+func (i *Inferer) String(t TypeExpr, maxDepths... int) string {
+	maxDepth := 0
+	if len(maxDepths) > 0 {
+		maxDepth = maxDepths[0]
+	}
+	if maxDepth > 100 {
+		panic("exceeded string max depth")
+		return "..."
+	}
+	maxDepth++
+
 	switch ty := t.(type) {
 	case TypeVar:
 		return ty.String()
 	case TypeRef:
-		return i.String(i.Resolve(ty).(TypeExpr))
+		return i.String(i.Resolve(ty).(TypeExpr), maxDepth)
 	case TypeBase:
 		return ty.String()
 	case TypeFunc:
 		args := make([]string, len(ty.Args))
 		for k, arg := range ty.Args {
-			args[k] = i.String(arg)
+			args[k] = i.String(arg, maxDepth)
 		}
-		ret := i.String(ty.Ret)
+		ret := i.String(ty.Ret, maxDepth)
 
 		return fmt.Sprintf("%s(%s) -> %s", ty.Kind, strings.Join(args, ", "), ret)
 	case FuncMeta:
