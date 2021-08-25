@@ -248,17 +248,34 @@ return l1.num;
 	}
 }
 
-//func TestCompileMethod(t *testing.T) {
-//	src := `
-//arr = [1, 2, 3];
-//arr.push(4);
-//return 0;
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+func TestCompileMethod(t *testing.T) {
+	src := `
+arr = [1, 2, 3];
+arr.push(4);
+return 0;
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
+func TestComplexArrPush(t *testing.T) {
+	src := `
+arr = []
+
+fun = f() {
+	arr.push(5)
+}
+fun()
+
+return arr[0]
+`
+
+	if !CompileCheckExit(src, 5) {
+		t.Fail()
+	}
+}
 
 func TestInferStruct(t *testing.T) {
 	src := `
