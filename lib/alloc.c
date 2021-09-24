@@ -32,6 +32,8 @@ void* alloc_clo() {
 #endif
 #endif
 
+int zero = 0;
+
 void print(int d) {
 	printf("%d\n", d);
 }

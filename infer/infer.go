@@ -162,6 +162,9 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.CompNode:
 		i.AddCons(i.TypeRef(node.Left), i.TypeRef(node.Right))
 		i.AddCons(currRef, i.BaseRef(TypeBase{types.BoolType{}}))
+	case *ast.Extern:
+		identRef := i.TypeRef(&ast.Ident{node.Name, ast.NoID})
+		i.AddCons(identRef, i.typeToRef(node.Type))
 	case *ast.Ident:
 		// Identifiers don't add any additional constraints
 	case *ast.ReturnExp:

@@ -298,6 +298,7 @@ func (v *TypeValidator) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.BoolExp:
 	case *ast.FloatExp:
 	case *ast.ByteExp:
+	case *ast.Extern:
 	default:
 		panic(fmt.Sprintf("Validation step undefined for node: %v", reflect.TypeOf(node)))
 	}

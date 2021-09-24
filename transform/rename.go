@@ -80,6 +80,8 @@ func (r *Renamer) WalkNode(astNode ast.Node) ast.Node {
 			newName = r.getName(node.Value)
 		}
 		retVal = &ast.Ident{newName, node.NodeID}
+	case *ast.Extern:
+		r.LocalNames[node.Name] = node.Name
 	}
 
 	return retVal

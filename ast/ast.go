@@ -52,6 +52,7 @@ func init() {
 	gob.Register(ByteExp{})
 	gob.Register(BeginExp{})
 	gob.Register(TupleAccess{})
+	gob.Register(Extern{})
 }
 
 type NodeID int
@@ -250,6 +251,16 @@ func (n *Ident) String() string {
 	return n.Value
 }
 
+type Extern struct {
+	Name string
+	Type types.Type
+	NodeID
+}
+
+func (n *Extern) String() string {
+	return fmt.Sprintf("extern %s: %s", n.Name, n.Type.TypeString())
+}
+
 type FunDef struct {
 	Body     *Block
 	Args     []Node
@@ -272,7 +283,7 @@ func (n *FunDef) String() string {
 	for i := 0; i < len(n.Args); i++ {
 		argString := n.Args[i].(*Ident).Value
 		if n.TypeHint != nil && len(n.TypeHint.ArgTypes) > i {
-			argString = fmt.Sprintf("%s %s", n.TypeHint.ArgTypes[i].TypeString(), argString)
+			argString = fmt.Sprintf("%s: %s", argString, n.TypeHint.ArgTypes[i].TypeString())
 		}
 		argStrings = append(argStrings, argString)
 	}
@@ -804,6 +815,8 @@ func Statement(node Node) bool {
 		return true
 	case *FlowControl:
 		return true
+	case *Extern:
+		return true
 	}
 
 	return false
@@ -899,6 +912,8 @@ func SetID(astNode Node, newID NodeID) {
 	case *BeginExp:
 		node.NodeID = newID
 	case *TupleAccess:
+		node.NodeID = newID
+	case *Extern:
 		node.NodeID = newID
 	default:
 		panic("SetID not defined for type:" + reflect.TypeOf(astNode).String())

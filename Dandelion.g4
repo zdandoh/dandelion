@@ -6,23 +6,24 @@ start : line+ EOF;
 
 line: (expr|statement) ';';
 code: (expr|statement);
-typeline: typed ident=IDENT ';';
+typeline: ident=IDENT ':' typed ';';
 arglist: IDENT (',' IDENT)* (',')?;
 typelist: typed? (',' typed)*;
 typed
     : IDENT                                 # BaseType
-    | ANY                                   # BaseType
+    | 'any'                                 # AnyType
     | 'f' '(' ftypelist=typelist ')' typed  # TypedFun
     | '[' ']' typed                         # TypedArr
     | '(' tuptypes=typelist ')'             # TypedTup
     ;
-typedidents: typed IDENT (',' typed IDENT)* (',')?;
+typedidents: IDENT ':' typed (',' IDENT ':' typed)* (',')?;
 explist: expr? (',' expr)*;
 body: lines=line*;
 structbody: lines=typeline*;
 
 expr
    : '(' expr ')'                                 # ParenExp
+   | hintee=expr ':' hint=typed                   # HintExp
    | '[' elems=explist ']'                        # Array
    | '(' elems=explist ')'                        # Tuple
    | expr '.' NUMBER                              # TupleAccess
@@ -48,7 +49,6 @@ expr
    | (TRUE|FALSE)                                 # BoolExp
    | NULL                                         # NullExp
    | COMMAND                                      # CommandExp
-   | idtype=typed id=IDENT                        # Ident
    | id=IDENT                                     # Ident
    ;
 
@@ -63,4 +63,5 @@ statement
    | '{' body '}'                            # BlockExp
    | RETURN expr                             # Return
    | YIELD expr                              # Yield
+   | 'extern' extname=IDENT ':' extype=typed # Extern
    ;

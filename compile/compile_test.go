@@ -48,7 +48,7 @@ return 0;
 
 func TestCompileFunc(t *testing.T) {
 	src := `
-my_func = f(int a, int b) int {
+my_func = f(a: int, b: int) int {
 	a + b;
 };
 
@@ -82,11 +82,11 @@ return d;
 
 func TestCompileFunc2(t *testing.T) {
 	src := `
-fun = f(int a, string b) int {
+fun = f(a: int, b: string, c: byte) int {
 	a;
 };
 
-return fun(4, "data");
+return fun(4, "data", 'c');
 `
 
 	if !CompileCheckExit(src, 4) {
@@ -234,8 +234,8 @@ return arr[1][1];
 func TestCompileStruct(t *testing.T) {
 	src := `
 struct Line {
-	string value;
-	int num;
+	value: string;
+	num: int;
 };
 
 l1 = Line("this is the contents of my line", 3);
@@ -280,8 +280,8 @@ return arr[0]
 func TestInferStruct(t *testing.T) {
 	src := `
 struct Line {
-	string value;
-	int num;
+    value: string;
+	num: int;
 };
 
 fun = f(x) {
@@ -323,8 +323,8 @@ return fun(Line("some data", 7));
 func TestAnonStruct(t *testing.T) {
 	src := `
 l1 = struct {
-	string value;
-	int num;
+    value: string;
+	num: int;
 }("very anonymous, very cool", 54);
 return l1.num;
 `
@@ -337,8 +337,8 @@ return l1.num;
 func TestStructAssign(t *testing.T) {
 	src := `
 struct Line {
-	string value;
-	int num;
+    value: string;
+	num: int;
 };
 
 l1 = Line("hi mr. line", 5);
@@ -571,7 +571,7 @@ return tup_arr[2].0;
 func TestMutableStruct(t *testing.T) {
 	src := `
 struct Line {
-	int num;
+    num: int;
 };
 
 l = Line(45);
@@ -643,8 +643,8 @@ func TestMutableStructClosure(t *testing.T) {
 	src := `
 
 struct Point {
-	int x;
-	int y;
+	x: int;
+	y: int;
 };
 
 p = Point(45, 21);
@@ -727,8 +727,8 @@ return fun(21)() + fun(5)();
 func TestMethod(t *testing.T) {
 	src := `
 struct Point {
-	int x;
-	int y;
+    x: int;
+	y: int;
 };
 
 Point.mul = f() {
@@ -749,8 +749,8 @@ return lol + p.x;
 func TestMethod2(t *testing.T) {
 	src := `
 struct Point {
-	int x;
-	int y;
+    x: int;
+	y: int;
 };
 
 Point.dot = f(other) {
@@ -771,8 +771,8 @@ return lol;
 func TestBoundMethod(t *testing.T) {
 	src := `
 struct Point {
-	int x;
-	int y;
+    x: int;
+	y: int;
 };
 
 Point.dot = f(other) {
@@ -811,14 +811,14 @@ return fun();
 func TestNestedStruct(t *testing.T) {
 	src := `
 struct Point {
-	int x;
-	int y;
+    x: int;
+	y: int;
 };
 
 struct Triangle {
-	Point v1;
-	Point v2;
-	Point v3;
+    v1: Point;
+	v2: Point;
+	v3: Point;
 };
 
 tri = Triangle(Point(1, 2), Point(3, 4), Point(5, 6));
@@ -876,7 +876,7 @@ return sum;
 func TestCoroutine(t *testing.T) {
 	src := `
 struct Box {
-	int num;
+    num: int;
 };
 
 b = Box(5);
@@ -961,9 +961,9 @@ return arr[%d];
 func TestRecursiveStruct(t *testing.T) {
 	src := `
 struct Node {
-	int val;
-	Node left;
-	Node right;
+	val: int;
+    left: Node;
+    right: Node;
 };
 
 n = Node(5, Node(7, null, null), null);
@@ -979,8 +979,8 @@ return n.left.val;
 func TestMaxLinkedList(t *testing.T) {
 	src := `
 struct Node {
-	int val;
-	Node nex;
+    val: int;
+	nex: Node;
 };
 
 list = Node(5, Node(10, Node(1, Node(45, Node(9, null)))));
@@ -1006,29 +1006,18 @@ return max(list);
 	}
 }
 
-//func TestTypeHint(t *testing.T) {
-//	src := `
-//f(int, byte)[]string splitter = null;
-//splitter = f(n, n2) {
-//	return ["hello", "world"];
-//};
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+func TestUninferredTypeHint(t *testing.T) {
+	src := `
+splitter: f(int, byte)[]string = null
+splitter = f(n, n2) {
+	return ["hello", "world"];
+};
+`
 
-//func TestExtern(t *testing.T) {
-//	src := `
-//f(int)void __extern_print(5);
-//return 0;
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
 
 func TestNestedCoro(t *testing.T) {
 	src := `
@@ -1056,9 +1045,9 @@ return sum;
 func TestStructWithFunc(t *testing.T) {
 	src := `
 struct Point {
-	int x;
-	int y;
-	f()int thing;
+    x: int;
+	y: int;
+    thing: f()int;
 };
 
 p = Point(4, 5, f(){5;});
@@ -1298,7 +1287,7 @@ func TestAnyType(t *testing.T) {
 y = any(5);
 
 struct Box {
-	int num;
+    num: int;
 };
 
 b = Box(7);
@@ -1374,9 +1363,21 @@ return sum + sum2;
 	}
 }
 
+func TestExternVal(t *testing.T) {
+	src := `
+extern zero: int
+return zero
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
 func TestExternFunc(t *testing.T) {
 	src := `
-f(int)void __extern_print(5);
+extern print: f(int)void
+print(5)
 `
 
 	if !CompileCheckOutput(src, "5") {
@@ -1386,12 +1387,14 @@ f(int)void __extern_print(5);
 
 func TestPipeline(t *testing.T) {
 	src := `
+extern print: f(int)void
+
 incr = f{
 	e + 1;
 };
 
 p = f{
-	f(int)void __extern_print(e);
+    print(e);
 	0;
 };
 
@@ -1459,7 +1462,8 @@ string = "hello ";
 str2 = "world!";
 
 news = string + str2;
-f(string)void __extern_prints(news);
+extern prints: f(string)void
+prints(news);
 `
 
 	if !CompileCheckOutput(src, "hello world!") {
@@ -1467,8 +1471,6 @@ f(string)void __extern_prints(news);
 	}
 }
 
-// TODO this shouldn't need a type hint, but we can't tell if the
-// return value is a tuple or array, so we just return null
 func TestInferArray2(t *testing.T) {
 	src := `
 fun = f(x) {
@@ -1477,7 +1479,7 @@ fun = f(x) {
 };
 
 arr = [1, 2, 3, 4, 5];
-[]int new_arr = fun(arr);
+new_arr = fun(arr);
 return new_arr[3];
 `
 
@@ -1522,21 +1524,40 @@ return arr[0]() + tup.1();
 	}
 }
 
+func TestExternClosure(t *testing.T) {
+	src := `
+extern print: f(int)void
+
+fun = f() {
+	print(5)
+}
+
+fun()
+`
+
+if !CompileCheckExit(src, 0) {
+	t.Fail()
+}
+}
+
 func TestPrintFun(t *testing.T) {
 	src := `
-p = f(any var)void {
+extern print: f(int)void
+extern prints: f(string)void
+
+per = f(var: any)void {
 	if var is int {
-		f(int)void __extern_print(var.(int));
+		print(var.(int));
 	};
 	if var is string {
-		f(string)void __extern_prints(var.(string));
+		prints(var.(string));
 	};
 };
 
 string = "hello";
 my_int = 32;
-p(any(string));
-p(any(my_int));
+per(any(string));
+per(any(my_int));
 `
 
 	out := `
@@ -1578,8 +1599,10 @@ return f(){ x; }();
 
 func TestCurry(t *testing.T) {
 	src := `
+extern print: f(int)void
+
 p = f(num) {
-	f(int)void __extern_print(num);
+	print(num);
 };
 
 curry = f(fun, arg) {
@@ -1647,7 +1670,8 @@ return thing[2];
 
 func TestPipelineVoid(t *testing.T) {
 	src := `
-["hello", "world", "!"] -> f{ f(string)void __extern_prints(e); };
+extern prints: f(string)void
+["hello", "world", "!"] -> f{ prints(e); };
 `
 
 	if !CompileCheckOutput(src, "hello\nworld\n!") {
@@ -1665,7 +1689,8 @@ mult = f{
 	e * 2;
 };
 
-[1, 2, 3, 4] -> incr -> incr -> mult -> mult -> f{ f(int)void __extern_print(e); };
+extern print: f(int)void
+[1, 2, 3, 4] -> incr -> incr -> mult -> mult -> f{ print(e); };
 `
 
 	if !CompileCheckOutput(src, "12\n16\n20\n24") {
@@ -1681,7 +1706,8 @@ range = f(max) {
 	};
 };
 
-range(5) -> f{ f(int)void __extern_print(e); };
+extern print: f(int)void
+range(5) -> f{ print(e); };
 `
 
 	if !CompileCheckOutput(src, "0\n1\n2\n3\n4") {
@@ -1704,7 +1730,8 @@ range2 = f() {
 	};
 };
 
-range2() -> f{ f(int)void __extern_print(e); };
+extern print: f(int)void
+range2() -> f{ print(e); };
 `
 
 	if !CompileCheckOutput(src, "0\n1\n4\n9\n16") {
@@ -1716,8 +1743,12 @@ func TestStrBuiltin(t *testing.T) {
 	src := `
 arr = ['b', 'a', 'd', ' ', 'g', 'u', 'y'];
 cool_str = str(arr);
-f(string)void __extern_prints(cool_str);
-f(int)void __extern_print(len(cool_str));
+
+extern print: f(int)void
+extern prints: f(string)void
+
+prints(cool_str);
+print(len(cool_str));
 `
 
 	if !CompileCheckOutput(src, "bad guy\n7") {
@@ -1727,10 +1758,12 @@ f(int)void __extern_print(len(cool_str));
 
 func TestArrReset(t *testing.T) {
 	src := `
+extern print: f(int)void
+
 arr = [1, 2, 3];
-f(int)void __extern_print(len(arr));
+print(len(arr));
 arr = [];
-f(int)void __extern_print(len(arr));
+print(len(arr));
 `
 
 	if !CompileCheckOutput(src, "3\n0") {
@@ -1751,6 +1784,30 @@ return fun(arr[0], arr[1])
 	if !CompileCheckExit(src, 3) {
 		t.Fail()
 	}
+}
+
+func TestTypeHint(t *testing.T) {
+	src := `
+fe = f(a) {
+	a: int
+}
+`
+
+	if !CompileCheckExit(src, 0) {
+		t.Fail()
+	}
+}
+
+func TestFuncTypeHint(t *testing.T) {
+	src := `
+fun = f(a: int, b: int)int {
+	a
+}
+`
+
+if !CompileCheckExit(src, 0) {
+	t.Fail()
+}
 }
 
 //func TestStringSlice(t *testing.T) {

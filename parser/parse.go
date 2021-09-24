@@ -124,14 +124,18 @@ func (l *listener) ExitIdent(c *parser.IdentContext) {
 	newIdent.Value = c.GetId().GetText()
 	newIdent.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
-	idType := c.GetIdtype()
-	if idType != nil {
-		newType := l.typeStack.Pop()
-		meta := l.prog.Meta(newIdent)
-		meta.Hint = newType
-	}
-
 	l.nodeStack.Push(newIdent)
+}
+
+func (l *listener) EnterHintExp(c *parser.HintExpContext) {
+	DebugPrintln("Entering hint exp")
+}
+
+func (l *listener) ExitHintExp(c *parser.HintExpContext) {
+	DebugPrintln("Exiting hint exp")
+	lastNode := l.nodeStack.Pop()
+	l.prog.Meta(lastNode).Hint = l.typeStack.Pop()
+	l.nodeStack.Push(lastNode)
 }
 
 func (l *listener) EnterStructDef(c *parser.StructDefContext) {
@@ -214,6 +218,15 @@ func (l *listener) ExitBaseType(c *parser.BaseTypeContext) {
 	}
 
 	l.typeStack.Push(t)
+}
+
+func (l *listener) EnterAnyType(c *parser.AnyTypeContext) {
+	DebugPrintln("Entering any type")
+}
+
+func (l *listener) ExitAnyType(c *parser.AnyTypeContext) {
+	DebugPrintln("Exiting any type")
+	l.typeStack.Push(types.AnyType{})
 }
 
 func (l *listener) EnterTypedFun(c *parser.TypedFunContext) {
@@ -359,6 +372,7 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 	funType := types.FuncType{}
 	isFunTyped := c.GetReturntype() != nil
 
+	// TODO hinting function return type
 	if isFunTyped {
 		funType.RetType = l.typeStack.Pop()
 	}
@@ -368,11 +382,15 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 		args = []ast.Node{&ast.Ident{"e", l.NewNodeID(c.GetStart().GetLine())}, &ast.Ident{"i", l.NewNodeID(c.GetStart().GetLine())}, &ast.Ident{"a", l.NewNodeID(c.GetStart().GetLine())}}
 	} else if c.GetTypedargs() != nil {
 		argTypes := filterCommas(c.GetTypedargs().GetChildren())
-		for _, arg := range argTypes {
+
+		for i := len(argTypes) - 1; i >= 0; i-- {
+			arg := argTypes[i]
 			_, ok := arg.(*antlr.TerminalNodeImpl)
-			if ok {
-				args = append(args, &ast.Ident{fmt.Sprintf("%s", arg), l.NewNodeID(c.GetStart().GetLine())})
-				funType.ArgTypes = append([]types.Type{l.typeStack.Pop()}, funType.ArgTypes...)
+			if ok && fmt.Sprintf("%s", arg) != ":" {
+				argIdent := &ast.Ident{fmt.Sprintf("%s", arg), l.NewNodeID(c.GetStart().GetLine())}
+				argType := l.typeStack.Pop()
+				l.prog.Meta(argIdent).Hint = argType
+				args = append([]ast.Node{argIdent}, args...)
 			}
 		}
 	} else if c.GetArgs() != nil {
@@ -390,9 +408,6 @@ func (l *listener) ExitFunDef(c *parser.FunDefContext) {
 	funDef.Body = l.blockStack.Pop()
 	funDef.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
-	if isFunTyped {
-		funDef.TypeHint = &funType
-	}
 	l.nodeStack.Push(funDef)
 }
 
@@ -438,6 +453,21 @@ func (l *listener) ExitIf(c *parser.IfContext) {
 	ifNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
 
 	l.nodeStack.Push(ifNode)
+}
+
+func (l *listener) EnterExtern(c *parser.ExternContext) {
+	DebugPrintln("Entering extern")
+}
+
+func (l *listener) ExitExtern(c *parser.ExternContext) {
+	DebugPrintln("Exiting extern")
+
+	externNode := &ast.Extern{}
+	externNode.Name = c.GetExtname().GetText()
+	externNode.Type = l.typeStack.Pop()
+	externNode.NodeID = l.NewNodeID(c.GetStart().GetLine())
+
+	l.nodeStack.Push(externNode)
 }
 
 func (l *listener) EnterFor(c *parser.ForContext) {

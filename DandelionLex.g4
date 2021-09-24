@@ -17,6 +17,7 @@ RBRACKET: ']';
 ASSIGN: '=';
 QUOTE: '"';
 ACCESS: '.';
+HINT: ':';
 
 // Primive math ops
 MUL: '*';
@@ -48,6 +49,7 @@ BREAK: 'break';
 CONTINUE: 'continue';
 FSTART: 'f';
 IS: 'is';
+EXTERN: 'extern';
 
 // Builtins
 LEN: 'len';

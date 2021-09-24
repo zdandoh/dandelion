@@ -80,9 +80,9 @@ func (c *ClosureExtractor) ResolveUnboundDeps(fName string, funSources FunSource
 }
 
 func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
-	var retVal ast.Node
-
 	switch node := astNode.(type) {
+	case *ast.Extern:
+		f.Defs[node.Name] = true
 	case *ast.Assign:
 		targetIdent, ok := node.Target.(*ast.Ident)
 		if !ok {
@@ -95,17 +95,9 @@ func (f *UnboundFinder) WalkNode(astNode ast.Node) ast.Node {
 		if !ok {
 			f.Unbound[node.Value] = true
 		}
-	case *ast.FunApp:
-		// Prevent external function definitions from getting marked as unbound
-		if node.Extern {
-			funIdent, isIdent := node.Fun.(*ast.Ident)
-			if isIdent {
-				f.Defs[funIdent.Value] = true
-			}
-		}
 	}
 
-	return retVal
+	return nil
 }
 
 func (f *UnboundFinder) WalkBlock(block *ast.Block) *ast.Block {
@@ -143,7 +135,6 @@ func (c *ClosureExtractor) WalkNode(astNode ast.Node) ast.Node {
 		}
 
 		enclosedFunc.Args = append([]ast.Node{&ast.Ident{argName, ast.NoID}}, enclosedFunc.Args...)
-
 		unboundNames := make([]ast.Node, 0)
 		i := 0
 		// Rewrite function body to unpack all values

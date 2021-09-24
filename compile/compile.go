@@ -765,6 +765,22 @@ func (c *Compiler) CompileNode(astNode ast.Node) value.Value {
 			memberPtr := NewGetElementPtr(c.currBlock, structPtr, Zero, constant.NewInt(IntType, int64(structOffset)))
 			retVal = NewLoad(c.currBlock, memberPtr)
 		}
+	case *ast.Extern:
+		funcType, isFuncType := node.Type.(types.FuncType)
+
+		if isFuncType {
+			params := make([]*ir.Param, 0)
+			for _, argType := range funcType.ArgTypes {
+				params = append(params, ir.NewParam("", c.llType(argType)))
+			}
+			externFunc := c.mod.NewFunc(node.Name, c.llType(funcType.RetType), params...)
+			c.FEnv[node.Name] = &CFunc{externFunc, nil, nil, nil}
+		} else {
+			def := c.mod.NewGlobal(node.Name, c.llType(node.Type))
+			def.Linkage = enum.LinkageExternal
+			def.ExternallyInitialized = true
+			c.PEnv.Set(c.currFun.Name(), node.Name, def)
+		}
 	default:
 		panic("No compilation step defined for node of type: " + reflect.TypeOf(node).String())
 	}

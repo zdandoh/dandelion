@@ -40,10 +40,6 @@ var ThrowEx value.Value
 var IndexError value.Value
 
 func (c *Compiler) setupIntrinsics() {
-	Print = c.mod.NewFunc(
-		"print",
-		lltypes.Void,
-		ir.NewParam("d", lltypes.I32))
 	PrintB = c.mod.NewFunc(
 		"printb",
 		lltypes.Void,
@@ -52,10 +48,6 @@ func (c *Compiler) setupIntrinsics() {
 		"printp",
 		lltypes.Void,
 		ir.NewParam("p", lltypes.I8Ptr))
-	PrintS = c.mod.NewFunc(
-		"prints",
-		lltypes.Void,
-		ir.NewParam("s", lltypes.NewPointer(StrType)))
 	InitTrampoline = c.mod.NewFunc(
 		"llvm.init.trampoline",
 		lltypes.Void,
