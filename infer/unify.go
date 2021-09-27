@@ -68,11 +68,6 @@ func (u *Unifier) unify(con *TCons) error {
 			return u.unify(swap(con))
 		}
 
-		// Rules to process prop owners
-		if leftFunc.Kind == KindPropOwner {
-			u.unifyPropOwner(leftFunc, rightFunc)
-		}
-
 		// Rule to equate container subtypes with their concrete type func
 		if leftFunc.Kind == KindContainer && rightFunc.Kind == KindArray {
 			u.i.AddCons(leftFunc.Ret, rightFunc.Ret)
@@ -135,16 +130,4 @@ func (u *Unifier) unify(con *TCons) error {
 	}
 
 	return nil
-}
-
-func (u *Unifier) unifyPropOwner(propOwner TypeFunc, target TypeFunc) {
-	propName := u.i.Resolve(propOwner.Ret).(FuncMeta).data.(string)
-	switch target.Kind {
-	case KindArray:
-		switch propName {
-		case "push":
-			pushRef := u.i.FuncRef(KindFunc, u.i.BaseRef(TypeBase{types.VoidType{}}), target.Ret)
-			u.i.AddCons(u.i.Resolve(propOwner.Args[0]).(FuncMeta).data.(TypeRef), pushRef)
-		}
-	}
 }

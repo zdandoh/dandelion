@@ -62,7 +62,6 @@ const (
 	KindTuple FuncKind = "tup"
 	KindTupleAccess FuncKind = "ta"
 	KindPropAccess FuncKind = "prop"
-	KindPropOwner FuncKind = "own"
 	KindStructInstance FuncKind = "struct"
 	KindCoro FuncKind = "coro"
 	KindContainer FuncKind = "cont"
@@ -75,7 +74,6 @@ var ReducibleKinds = map[FuncKind]bool {
 	KindTupleAccess: true,
 	KindPropAccess: true,
 	KindContainer: true, // TODO think about if this might be a bug
-	KindPropOwner: true,
 }
 
 type TypeFunc struct {

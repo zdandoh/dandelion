@@ -191,10 +191,8 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 		target := i.TypeRef(node.Target)
 		propName := node.Field.(*ast.Ident).Value
 		propAccess := i.FuncRef(KindPropAccess, i.FuncMeta(propName), target)
-		propOwner := i.FuncRef(KindPropOwner, i.FuncMeta(propName), i.FuncMeta(currRef))
 
 		i.AddCons(currRef, propAccess)
-		i.AddCons(i.TypeRef(node.Target), propOwner)
 	case *ast.TypeAssert:
 		targetType := i.typeToRef(node.TargetType)
 		i.AddCons(currRef, targetType)

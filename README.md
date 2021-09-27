@@ -23,7 +23,7 @@ Language Features
 - [x] Functions
 - [x] Struct methods
 - [x] Pipelines
-- [x] Global type inference
+- [x] Global type inference (WIP - can't handle all cases)
 - [x] Type annotations (for when types can't be inferred)
 - [x] Closures
 - [x] Implicit return values
@@ -31,9 +31,10 @@ Language Features
 - [ ] Function modifiers
 - [x] Coroutines
 - [x] GC
+- [ ] Comments
 - [ ] Command invocation syntactic sugar
 - [ ] String interpolation
-- [ ] Automatic semi-colon insertion
+- [x] Automatic semi-colon insertion
 - [ ] Cross platform (Windows, Mac, & Linux)
 
 Planned Features

@@ -113,7 +113,7 @@ func CompileSource(progText string, optLevel int) string {
 	errs.SetProg(prog)
 	transform.TransformAst(prog)
 
-	progTypes := typecheck.Infer(prog)
+	progTypes := infer.InferTypes(prog)
 	typecheck.ValidateProg(prog, progTypes)
 	errs.CheckExit()
 
