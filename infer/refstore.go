@@ -2,7 +2,6 @@ package infer
 
 import (
 	"dandelion/ast"
-	"dandelion/types"
 	"fmt"
 	"reflect"
 	"strings"
@@ -78,9 +77,9 @@ func (i *Inferer) FuncRef(kind FuncKind, ret TypeRef, args... TypeRef) TypeRef {
 	return TypeRef(len(i.varList) - 1)
 }
 
-func (i *Inferer) TupleRef(typs... TypeRef) TypeRef {
+func (i *Inferer) TupleRef(partial int, typs... TypeRef) TypeRef {
 	// Use int type as a dummy return type since we can't return nothing
-	tupRef := i.FuncRef(KindTuple, i.BaseRef(TypeBase{types.IntType{}}), typs...)
+	tupRef := i.FuncRef(KindTuple, i.FuncMeta(partial), typs...)
 	return tupRef
 }
 

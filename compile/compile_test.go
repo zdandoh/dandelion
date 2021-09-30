@@ -248,10 +248,22 @@ return l1.num;
 	}
 }
 
+func TestCompileTupleNested(t *testing.T) {
+	src := `
+extern print: f(int)void
+tup = (1, 2, f(a: int)void { print(a + 5); })
+tup.2(3)
+`
+
+	if !CompileCheckOutput(src, "8") {
+		t.Fail()
+	}
+}
+
 func TestCompileMethod(t *testing.T) {
 	src := `
 arr = [1, 2, 3];
-arr.push(4);
+arr.push(5);
 return 0;
 `
 

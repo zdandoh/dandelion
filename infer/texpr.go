@@ -55,6 +55,8 @@ func (t TypeRef) ExprString() string {
 	return t.String()
 }
 
+const WholeTuple = -1
+
 type FuncKind string
 const (
 	KindFunc FuncKind = "f"

@@ -2,6 +2,7 @@ package infer
 
 import (
 	"dandelion/ast"
+	"dandelion/transform"
 	"dandelion/types"
 	"fmt"
 	"reflect"
@@ -179,12 +180,14 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 		lastItem := node.Nodes[len(node.Nodes)-1]
 		i.AddCons(currRef, i.TypeRef(lastItem))
 	case *ast.TupleLiteral:
-		i.AddCons(currRef, i.TupleRef(i.TypeRefs(node.Exprs)...))
+		i.AddCons(currRef, i.TupleRef(WholeTuple, i.TypeRefs(node.Exprs)...))
 	case *ast.TupleAccess:
+		parent := i.TupleRef(node.Index, currRef)
 		sourceTup := i.TypeRef(node.Tup)
-		tupAccess := i.FuncRef(KindTupleAccess, i.FuncMeta(node.Index), sourceTup)
 
-		i.AddCons(currRef, tupAccess)
+		if !transform.IsCloArg(node.Tup) {
+			i.AddCons(sourceTup, parent)
+		}
 	case *ast.StructInstance:
 		i.AddCons(currRef, i.StructRef(node.DefRef))
 	case *ast.StructAccess:
@@ -274,7 +277,7 @@ func (i *Inferer) typeToRef(hintType types.Type) TypeRef {
 		for k, arg := range ty.Types {
 			args[k] = i.typeToRef(arg)
 		}
-		return i.TupleRef(args...)
+		return i.TupleRef(WholeTuple, args...)
 	case types.ArrayType:
 		return i.ArrRef(i.typeToRef(ty.Subtype))
 	case types.StructType:

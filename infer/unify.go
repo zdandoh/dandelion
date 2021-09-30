@@ -76,6 +76,22 @@ func (u *Unifier) unify(con *TCons) error {
 			u.i.AddCons(leftFunc.Ret, rightFunc.Args[0])
 		}
 
+		// Unify partial tuples (aka tuple accesses) and normal tuples such that
+		// tuple accesses are overwritten by tuples
+		if leftFunc.Kind == KindTuple && rightFunc.Kind == KindTuple {
+			rightIdx := u.i.Resolve(rightFunc.Ret).(FuncMeta).data.(int)
+			leftIdx := u.i.Resolve(leftFunc.Ret).(FuncMeta).data.(int)
+			if rightIdx == WholeTuple && leftIdx != WholeTuple {
+				return u.unify(swap(con))
+			}
+			if rightIdx != WholeTuple && leftIdx == WholeTuple {
+				u.i.AddCons(rightFunc.Args[0], leftFunc.Args[rightIdx])
+				rightFunc.Args = leftFunc.Args[:]
+				rightFunc.Ret = leftFunc.Ret
+				return nil
+			}
+		}
+
 		if leftFunc.Kind != rightFunc.Kind && !leftFunc.Reducible() && !rightFunc.Reducible() {
 			return fmt.Errorf("incomparable non-reducible type functions with non-like kinds: %s != %s", u.i.String(leftFunc), u.i.String(rightFunc))
 		}
