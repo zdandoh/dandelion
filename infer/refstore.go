@@ -105,12 +105,26 @@ func (i *Inferer) ArrRef(subtype TypeRef) TypeRef {
 }
 
 func (i *Inferer) StructRef(def *ast.StructDef) TypeRef {
+	oldRef, ok := i.structRefs[def]
+	if ok {
+		return oldRef
+	}
+
 	props := make(map[string]TypeRef)
+	structFun := i.FuncRef(KindStructInstance, i.FuncMeta(WholeStruct), i.FuncMeta(props), i.FuncMeta(def))
+	i.structRefs[def] = structFun
+
 	for _, member := range def.Members {
 		props[member.Name.Value] = i.typeToRef(member.Type)
 	}
 
-	structFun := i.FuncRef(KindStructInstance, i.FuncMeta(WholeStruct), i.FuncMeta(props), i.FuncMeta(def))
+	for _, method := range def.Methods {
+		// Exclude the first arg because that's the "this" argument
+		methodFunc := i.prog.Funcs[method.TargetName]
+		funcRef := i.funDefCons(method.TargetName, methodFunc, true)
+		props[method.Name] = funcRef
+	}
+
 	return structFun
 }
 

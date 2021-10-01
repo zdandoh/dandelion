@@ -19,6 +19,7 @@ type Inferer struct {
 	cons []*TCons
 	currMeta int
 	funLookup map[string]TypeRef
+	structRefs map[*ast.StructDef]TypeRef // Cache these defs for recursive structs
 }
 
 func NewInferer() *Inferer {
@@ -26,6 +27,7 @@ func NewInferer() *Inferer {
 	i.varLibrary = make(map[StoreKey][]TypeRef, 0)
 	i.refs = make(map[ast.NodeHash]TypeRef)
 	i.funLookup = make(map[string]TypeRef)
+	i.structRefs = make(map[*ast.StructDef]TypeRef)
 	return i
 }
 
@@ -58,7 +60,7 @@ func InferTypes(prog *ast.Program) map[ast.NodeHash]types.Type {
 func (i *Inferer) inferProg(prog *ast.Program) {
 	// Give all functions a basic type ref that they can reference
 	for name, fun := range prog.Funcs {
-		i.funLookup[name] = i.funDefCons(name, fun)
+		i.funLookup[name] = i.funDefCons(name, fun, false)
 
 		// Add the function name to the global scope
 		i.AddCons(i.TypeRef(&ast.Ident{name, prog.NewNodeID()}), i.TypeRef(fun))
@@ -74,13 +76,24 @@ func (i *Inferer) inferProg(prog *ast.Program) {
 	}
 }
 
-func (i *Inferer) funDefCons(fName string, node *ast.FunDef) TypeRef {
+func (i *Inferer) funDefCons(fName string, node *ast.FunDef, asMethod bool) TypeRef {
 	currRef := i.TypeRef(node)
 	retVar := i.NewVar()
-	funRef := i.FuncRef(KindFunc, retVar, i.TypeRefs(node.Args)...)
-	i.AddCons(currRef, funRef)
 
-	if node.TypeHint != nil {
+	var argRefs []TypeRef
+	if asMethod {
+		argRefs = i.TypeRefs(node.Args[1:])
+	} else {
+		argRefs = i.TypeRefs(node.Args)
+	}
+
+	funRef := i.FuncRef(KindFunc, retVar, argRefs...)
+
+	if !asMethod {
+		i.AddCons(currRef, funRef)
+	}
+
+	if node.TypeHint != nil && !asMethod {
 		i.AddCons(currRef, i.typeToRef(*node.TypeHint))
 	}
 
