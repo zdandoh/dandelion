@@ -2,7 +2,6 @@ package main
 
 import (
 	"dandelion/compile"
-	"dandelion/typecheck"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +38,6 @@ func parseArgs() (string, string, string, int) {
 }
 
 func main() {
-	typecheck.DebugTypeInf = false
 	sourceFile, outBin, outIR, optLevel := parseArgs()
 
 	var src []byte
