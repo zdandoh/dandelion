@@ -55,27 +55,39 @@ func (r *Resolver) resolve(nodeRef TypeRef) (types.Type, error) {
 			retType = arrType
 		case KindTuple:
 			tupType := types.TupleType{}
-			for _, arg := range ty.Args {
-				resArg, err := r.resolve(arg)
+			wholeTup := r.i.Resolve(ty.Ret).(FuncMeta).data.(int)
+			if wholeTup != WholeTuple {
+				panic("partial tuple left after inference")
+			}
+
+			tupElems := r.i.Resolve(ty.Args[0]).(FuncMeta).data.(map[int]TypeRef)
+			for k := 0; k < len(tupElems); k++ {
+				tupElem := tupElems[k]
+				resElem, err := r.resolve(tupElem)
 				if err != nil {
 					return nil, fmt.Errorf("tuple: %w", err)
 				}
-				tupType.Types = append(tupType.Types, resArg)
+				tupType.Types = append(tupType.Types, resElem)
 			}
 
 			retType = tupType
 		case KindStructInstance:
-			structType := r.i.Resolve(ty.Ret).(FuncMeta).data.(*ast.StructDef).Type
-			retType = structType
-		case KindPropAccess:
-			target, err := r.resolve(ty.Args[0])
-			if err != nil {
-				return nil, fmt.Errorf("prop access: %w", err)
+			structType := r.i.Resolve(ty.Ret).(FuncMeta).data.(int)
+			if structType == PartialStruct {
+				panic("partial struct left after inference")
 			}
-
-			// TODO right now the only prop access is to a struct, won't be the case later
-			structType := target.(types.StructType)
-			retType = r.i.prog.Struct(structType.Name).MemberType(r.i.Resolve(ty.Ret).(FuncMeta).data.(string))
+			if structType == WholeStruct {
+				structType := r.i.Resolve(ty.Args[1]).(FuncMeta).data.(*ast.StructDef).Type
+				retType = structType
+			} else if structType == ArrStruct {
+				arrSubtype, err := r.resolve(ty.Args[1])
+				if err != nil {
+					return nil, fmt.Errorf("unknown array subtype: %s", r.i.String(nodeRef))
+				}
+				retType = types.ArrayType{arrSubtype}
+			} else {
+				panic("unknown partial struct type")
+			}
 		case KindCoro:
 			yields, err := r.resolve(ty.Args[0])
 			if err != nil {

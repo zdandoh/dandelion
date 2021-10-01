@@ -55,7 +55,16 @@ func (t TypeRef) ExprString() string {
 	return t.String()
 }
 
-const WholeTuple = -1
+const (
+	WholeTuple = 1
+	PartialTuple = 2
+)
+
+const (
+	PartialStruct = 1
+	WholeStruct = 2
+	ArrStruct = 3
+)
 
 type FuncKind string
 const (

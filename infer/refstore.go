@@ -2,6 +2,7 @@ package infer
 
 import (
 	"dandelion/ast"
+	"dandelion/types"
 	"fmt"
 	"reflect"
 	"strings"
@@ -77,19 +78,46 @@ func (i *Inferer) FuncRef(kind FuncKind, ret TypeRef, args... TypeRef) TypeRef {
 	return TypeRef(len(i.varList) - 1)
 }
 
-func (i *Inferer) TupleRef(partial int, typs... TypeRef) TypeRef {
-	// Use int type as a dummy return type since we can't return nothing
-	tupRef := i.FuncRef(KindTuple, i.FuncMeta(partial), typs...)
+func (i *Inferer) TupleRef(typs... TypeRef) TypeRef {
+	tupElems := make(map[int]TypeRef)
+	for k, elem := range typs {
+		tupElems[k] = elem
+	}
+
+	tupRef := i.FuncRef(KindTuple, i.FuncMeta(WholeTuple), i.FuncMeta(tupElems))
+	return tupRef
+}
+
+func (i *Inferer) PartialTupleRef(index int, elem TypeRef) TypeRef {
+	tupElems := make(map[int]TypeRef)
+	tupElems[index] = elem
+
+	tupRef := i.FuncRef(KindTuple, i.FuncMeta(PartialTuple), i.FuncMeta(tupElems))
 	return tupRef
 }
 
 func (i *Inferer) ArrRef(subtype TypeRef) TypeRef {
-	arrRef := i.FuncRef(KindArray, subtype, subtype)
+	props := make(map[string]TypeRef)
+	props["push"] = i.FuncRef(KindFunc, i.BaseRef(TypeBase{types.VoidType{}}), subtype)
+
+	arrRef := i.FuncRef(KindStructInstance, i.FuncMeta(ArrStruct), i.FuncMeta(props), subtype)
 	return arrRef
 }
 
 func (i *Inferer) StructRef(def *ast.StructDef) TypeRef {
-	structFun := i.FuncRef(KindStructInstance, i.FuncMeta(def))
+	props := make(map[string]TypeRef)
+	for _, member := range def.Members {
+		props[member.Name.Value] = i.typeToRef(member.Type)
+	}
+
+	structFun := i.FuncRef(KindStructInstance, i.FuncMeta(WholeStruct), i.FuncMeta(props), i.FuncMeta(def))
+	return structFun
+}
+
+func (i *Inferer) PartialStructRef(propName string, propRef TypeRef) TypeRef {
+	props := make(map[string]TypeRef)
+	props[propName] = propRef
+	structFun := i.FuncRef(KindStructInstance, i.FuncMeta(PartialStruct), i.FuncMeta(props))
 	return structFun
 }
 
@@ -154,9 +182,6 @@ func (i *Inferer) SetRef(old TypeRef, new TypeRef) {
 	}
 	if isNewFun && i.Contains(newFun, old) {
 		return
-	}
-	if isOldFun && isNewFun && !oldFun.Reducible() {
-		panic("cannot replace irreducible function")
 	}
 	if isOldFun && !isNewFun && !oldFun.Reducible() {
 		panic("trying to simplify non-reducible func kind")

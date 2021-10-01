@@ -147,9 +147,7 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 		arrRef := i.ArrRef(elemType)
 		i.AddCons(currRef, arrRef)
 	case *ast.SliceNode:
-		elemType := i.TypeRef(node)
-		arrRef := i.FuncRef(KindArray, elemType, elemType)
-
+		arrRef := i.ArrRef(currRef)
 		i.AddCons(arrRef, i.TypeRef(node.Arr))
 	case *ast.AddSub:
 		i.AddCons(i.TypeRef(node.Right), i.TypeRef(node.Left))
@@ -180,9 +178,10 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 		lastItem := node.Nodes[len(node.Nodes)-1]
 		i.AddCons(currRef, i.TypeRef(lastItem))
 	case *ast.TupleLiteral:
-		i.AddCons(currRef, i.TupleRef(WholeTuple, i.TypeRefs(node.Exprs)...))
+		tupRef := i.TupleRef(i.TypeRefs(node.Exprs)...)
+		i.AddCons(currRef, tupRef)
 	case *ast.TupleAccess:
-		parent := i.TupleRef(node.Index, currRef)
+		parent := i.PartialTupleRef(node.Index, currRef)
 		sourceTup := i.TypeRef(node.Tup)
 
 		if !transform.IsCloArg(node.Tup) {
@@ -193,9 +192,9 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.StructAccess:
 		target := i.TypeRef(node.Target)
 		propName := node.Field.(*ast.Ident).Value
-		propAccess := i.FuncRef(KindPropAccess, i.FuncMeta(propName), target)
+		parent := i.PartialStructRef(propName, currRef)
 
-		i.AddCons(currRef, propAccess)
+		i.AddCons(target, parent)
 	case *ast.TypeAssert:
 		targetType := i.typeToRef(node.TargetType)
 		i.AddCons(currRef, targetType)
@@ -277,7 +276,7 @@ func (i *Inferer) typeToRef(hintType types.Type) TypeRef {
 		for k, arg := range ty.Types {
 			args[k] = i.typeToRef(arg)
 		}
-		return i.TupleRef(WholeTuple, args...)
+		return i.TupleRef(args...)
 	case types.ArrayType:
 		return i.ArrRef(i.typeToRef(ty.Subtype))
 	case types.StructType:

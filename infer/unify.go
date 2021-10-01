@@ -79,17 +79,105 @@ func (u *Unifier) unify(con *TCons) error {
 		// Unify partial tuples (aka tuple accesses) and normal tuples such that
 		// tuple accesses are overwritten by tuples
 		if leftFunc.Kind == KindTuple && rightFunc.Kind == KindTuple {
-			rightIdx := u.i.Resolve(rightFunc.Ret).(FuncMeta).data.(int)
-			leftIdx := u.i.Resolve(leftFunc.Ret).(FuncMeta).data.(int)
-			if rightIdx == WholeTuple && leftIdx != WholeTuple {
+			rightType := u.i.Resolve(rightFunc.Ret).(FuncMeta).data.(int)
+			leftType := u.i.Resolve(leftFunc.Ret).(FuncMeta).data.(int)
+			rightElems := u.i.Resolve(rightFunc.Args[0]).(FuncMeta).data.(map[int]TypeRef)
+			leftElems := u.i.Resolve(leftFunc.Args[0]).(FuncMeta).data.(map[int]TypeRef)
+			if leftType == PartialTuple && rightType != PartialTuple {
 				return u.unify(swap(con))
 			}
-			if rightIdx != WholeTuple && leftIdx == WholeTuple {
-				u.i.AddCons(rightFunc.Args[0], leftFunc.Args[rightIdx])
-				rightFunc.Args = leftFunc.Args[:]
-				rightFunc.Ret = leftFunc.Ret
+			if rightType == PartialTuple && leftType == WholeTuple {
+				for propName, propValue := range rightElems {
+					sourceProp, ok := leftElems[propName]
+					if !ok {
+						panic("property doesn't belong to tuple")
+					}
+					u.i.AddCons(propValue, sourceProp)
+				}
+				u.i.SetRef(con.Right, con.Left)
 				return nil
 			}
+			if leftType == PartialTuple && rightType == PartialTuple {
+				for propName, propValue := range rightElems {
+					leftPartial, ok := leftElems[propName]
+					if !ok {
+						continue
+					}
+					u.i.AddCons(propValue, leftPartial)
+				}
+
+				for propName, propValue := range leftElems {
+					rightPartial, ok := rightElems[propName]
+					if !ok {
+						rightElems[propName] = propValue
+						continue
+					}
+					u.i.AddCons(propValue, rightPartial)
+				}
+				u.i.SetRef(con.Left, con.Right)
+				return nil
+			}
+			if rightType == WholeTuple && leftType == WholeTuple {
+				return nil
+			}
+			panic(fmt.Sprintf("tuple instance case unhandled: %d %d", rightType, leftType))
+		}
+
+		if leftFunc.Kind == KindStructInstance && rightFunc.Kind == KindStructInstance {
+			rightType := u.i.Resolve(rightFunc.Ret).(FuncMeta).data.(int)
+			leftType := u.i.Resolve(leftFunc.Ret).(FuncMeta).data.(int)
+
+			// If there is a partial, it will always be on the right
+			if leftType == PartialStruct && rightType != PartialStruct {
+				return u.unify(swap(con))
+			}
+			if (leftType == WholeStruct || leftType == ArrStruct) && rightType == PartialStruct {
+				partialProps := u.i.Resolve(rightFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
+				wholeProps := u.i.Resolve(leftFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
+				for propName, propValue := range partialProps {
+					wholeProp, ok := wholeProps[propName]
+					if !ok {
+						panic("property doesn't belong to struct")
+					}
+					u.i.AddCons(propValue, wholeProp)
+				}
+				u.i.SetRef(con.Right, con.Left)
+				return nil
+			}
+			if leftType == PartialStruct && rightType == PartialStruct {
+				// UNTESTED
+				rightPartials := u.i.Resolve(rightFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
+				leftPartials := u.i.Resolve(leftFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
+				for propName, propValue := range rightPartials {
+					leftPartial, ok := leftPartials[propName]
+					if !ok {
+						continue
+					}
+					u.i.AddCons(propValue, leftPartial)
+				}
+
+				for propName, propValue := range leftPartials {
+					rightPartial, ok := rightPartials[propName]
+					if !ok {
+						rightPartials[propName] = propValue
+						continue
+					}
+					u.i.AddCons(propValue, rightPartial)
+				}
+				u.i.SetRef(con.Left, con.Right)
+				return nil
+			}
+			if leftType == ArrStruct && rightType == ArrStruct {
+				leftSub := leftFunc.Args[1]
+				rightSub := rightFunc.Args[1]
+				u.i.AddCons(leftSub, rightSub)
+				u.i.SetRef(con.Left, con.Right)
+				return nil
+			}
+			if leftType == WholeStruct && rightType == WholeStruct {
+				return nil
+			}
+			panic(fmt.Sprintf("struct instance case unhandled: %d %d", leftType, rightType))
 		}
 
 		if leftFunc.Kind != rightFunc.Kind && !leftFunc.Reducible() && !rightFunc.Reducible() {
