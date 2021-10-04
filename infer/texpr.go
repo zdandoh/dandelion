@@ -64,6 +64,7 @@ const (
 	PartialStruct = 1
 	WholeStruct = 2
 	ArrStruct = 3
+	StrStruct = 4
 )
 
 type FuncKind string

@@ -96,12 +96,28 @@ func (i *Inferer) PartialTupleRef(index int, elem TypeRef) TypeRef {
 	return tupRef
 }
 
+func (i *Inferer) SliceRef(sliceRef TypeRef, argRef TypeRef) TypeRef {
+	props := make(map[string]TypeRef)
+	props["__slice__"] = i.FuncRef(KindFunc, sliceRef, argRef)
+
+	return i.FuncRef(KindStructInstance, i.FuncMeta(PartialStruct), i.FuncMeta(props))
+}
+
 func (i *Inferer) ArrRef(subtype TypeRef) TypeRef {
 	props := make(map[string]TypeRef)
 	props["push"] = i.FuncRef(KindFunc, i.BaseRef(TypeBase{types.VoidType{}}), subtype)
+	props["__slice__"] = i.FuncRef(KindFunc, subtype, i.BaseRef(TypeBase{types.IntType{}}))
 
 	arrRef := i.FuncRef(KindStructInstance, i.FuncMeta(ArrStruct), i.FuncMeta(props), subtype)
 	return arrRef
+}
+
+func (i *Inferer) StrRef() TypeRef {
+	props := make(map[string]TypeRef)
+	props["__slice__"] = i.FuncRef(KindFunc, i.BaseRef(TypeBase{types.ByteType{}}), i.BaseRef(TypeBase{types.IntType{}}))
+
+	strRef := i.FuncRef(KindStructInstance, i.FuncMeta(StrStruct), i.FuncMeta(props))
+	return strRef
 }
 
 func (i *Inferer) StructRef(def *ast.StructDef) TypeRef {

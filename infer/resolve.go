@@ -85,8 +85,10 @@ func (r *Resolver) resolve(nodeRef TypeRef) (types.Type, error) {
 					return nil, fmt.Errorf("unknown array subtype: %s", r.i.String(nodeRef))
 				}
 				retType = types.ArrayType{arrSubtype}
+			} else if structType == StrStruct {
+				retType = types.StringType{}
 			} else {
-				panic("unknown partial struct type")
+				panic("unknown partial struct type during resolution")
 			}
 		case KindCoro:
 			yields, err := r.resolve(ty.Args[0])

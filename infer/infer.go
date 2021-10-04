@@ -148,7 +148,7 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 	case *ast.FloatExp:
 		i.AddCons(currRef, i.BaseRef(TypeBase{types.FloatType{}}))
 	case *ast.StrExp:
-		i.AddCons(currRef, i.BaseRef(TypeBase{types.StringType{}}))
+		i.AddCons(currRef, i.StrRef())
 	case *ast.ByteExp:
 		i.AddCons(currRef, i.BaseRef(TypeBase{types.ByteType{}}))
 	case *ast.ArrayLiteral:
@@ -160,7 +160,7 @@ func (i *Inferer) WalkNode(astNode ast.Node) ast.Node {
 		arrRef := i.ArrRef(elemType)
 		i.AddCons(currRef, arrRef)
 	case *ast.SliceNode:
-		arrRef := i.ArrRef(currRef)
+		arrRef := i.SliceRef(currRef, i.TypeRef(node.Index))
 		i.AddCons(arrRef, i.TypeRef(node.Arr))
 	case *ast.AddSub:
 		i.AddCons(i.TypeRef(node.Right), i.TypeRef(node.Left))
@@ -294,7 +294,9 @@ func (i *Inferer) typeToRef(hintType types.Type) TypeRef {
 		return i.ArrRef(i.typeToRef(ty.Subtype))
 	case types.StructType:
 		return i.StructRef(i.prog.Struct(ty.Name))
-	case types.IntType, types.StringType, types.FloatType, types.ByteType, types.BoolType, types.VoidType, types.AnyType:
+	case types.StringType:
+		return i.StrRef()
+	case types.IntType, types.FloatType, types.ByteType, types.BoolType, types.VoidType, types.AnyType:
 		return i.BaseRef(TypeBase{ty})
 	default:
 		panic("unknown type hint: " + hintType.TypeString())
@@ -319,7 +321,7 @@ func (i *Inferer) genBuiltinConstraints(node *ast.BuiltinExp, ref TypeRef) {
 	case ast.BuiltinLen:
 		i.AddCons(ref, i.BaseRef(TypeBase{types.IntType{}}))
 	case ast.BuiltinStr:
-		i.AddCons(ref, i.BaseRef(TypeBase{types.StringType{}}))
+		i.AddCons(ref, i.StrRef())
 	case ast.BuiltinType:
 		i.AddCons(ref, i.BaseRef(TypeBase{types.IntType{}}))
 	}

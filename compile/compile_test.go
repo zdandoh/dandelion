@@ -1822,17 +1822,19 @@ if !CompileCheckExit(src, 0) {
 }
 }
 
-//func TestStringSlice(t *testing.T) {
-//	src := `
-//my_str = "hi friend!";
-//b = my_str[1];
-//return b;
-//`
-//
-//	if !CompileCheckExit(src, 0) {
-//		t.Fail()
-//	}
-//}
+func TestStringSlice(t *testing.T) {
+	src := `
+extern print: f(byte)void
+
+my_str = "hi friend!"
+chr = my_str[1]
+print(chr)
+`
+
+	if !CompileCheckOutput(src, "105") {
+		t.Fail()
+	}
+}
 
 //func TestMutableNumClosure(t *testing.T) {
 //	src := `

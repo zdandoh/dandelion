@@ -131,7 +131,7 @@ func (u *Unifier) unify(con *TCons) error {
 			if leftType == PartialStruct && rightType != PartialStruct {
 				return u.unify(swap(con))
 			}
-			if (leftType == WholeStruct || leftType == ArrStruct) && rightType == PartialStruct {
+			if (leftType == WholeStruct || leftType == ArrStruct || leftType == StrStruct) && rightType == PartialStruct {
 				partialProps := u.i.Resolve(rightFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
 				wholeProps := u.i.Resolve(leftFunc.Args[0]).(FuncMeta).data.(map[string]TypeRef)
 				for propName, propValue := range partialProps {
@@ -172,6 +172,9 @@ func (u *Unifier) unify(con *TCons) error {
 				rightSub := rightFunc.Args[1]
 				u.i.AddCons(leftSub, rightSub)
 				u.i.SetRef(con.Left, con.Right)
+				return nil
+			}
+			if leftType == StrStruct && rightType == StrStruct {
 				return nil
 			}
 			if leftType == WholeStruct && rightType == WholeStruct {
