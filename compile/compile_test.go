@@ -1425,48 +1425,49 @@ arr -> incr -> incr -> p;
 	}
 }
 
-//func TestMultiFeatures(t *testing.T) {
-//	src := `
-//struct Conn {
-//	int fd;
-//	string name;
-//};
-//
-//p = f{
-//	f(int)void __extern_print(e);
-//	0;
-//};
-//
-//Conn.read = f(fd) {
-//	data_size = 512;
-//	if fd < 2 {
-//		data_size = 1024;
-//	};
-//	data_size;
-//};
-//
-//conn_gen = f() {
-//	for i = 0; i < 4; i = i + 1 {
-//		yield Conn(i, "bob");
-//	};
-//};
-//
-//conn_gen() -> f{
-//	e.read(e.fd);
-//} -> p;
-//`
-//
-//	output := `
-//1024
-//1024
-//512
-//512
-//`
-//
-//	if !CompileCheckOutput(src, output) {
-//		t.Fail()
-//	}
-//}
+func TestMultiFeatures(t *testing.T) {
+	src := `
+extern print: f(int)void
+
+struct Conn {
+    fd: int;
+	name: string;
+};
+
+p = f{
+	print(e);
+};
+
+Conn.read = f(fd) {
+	data_size = 512;
+	if fd < 2 {
+		data_size = 1024;
+	};
+	data_size;
+};
+
+conn_gen = f() {
+	for i = 0; i < 4; i = i + 1 {
+		yield Conn(i, "bob");
+	};
+};
+
+conn_gen() -> f{
+	e.read(e.fd);
+} -> p;
+`
+
+	output := `
+1024
+1024
+512
+512
+`
+
+	if !CompileCheckOutput(src, output) {
+		t.Fail()
+	}
+}
 
 func TestStringAdd(t *testing.T) {
 	src := `

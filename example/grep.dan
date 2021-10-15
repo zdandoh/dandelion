@@ -1,3 +1,7 @@
+extern d_open: f(string)int;
+extern d_read: f(int, []byte)int
+extern prints: f(string)void
+
 in_str = f(sub, full) {
 	scanned = 0;
 	cursor = 0;
@@ -19,7 +23,7 @@ in_str = f(sub, full) {
 };
 
 lines = f(fname) {
-	fd = f(string)int __extern_d_open(fname);
+	fd = d_open(fname);
 
 	buff = [];
 	for i = 0; i < 8192; i = i + 1 {
@@ -29,7 +33,7 @@ lines = f(fname) {
 	lc = 0;
 	tot_bytes = 0;
 	while true {
-		bytes_read = f(int, []byte)int __extern_d_read(fd, buff);
+		bytes_read = d_read(fd, buff);
 		if bytes_read == 0 {
 			break;
 		};
@@ -53,7 +57,7 @@ lines = f(fname) {
 
 filter = f{
 	if in_str("friend", e) {
-		f(string)void __extern_prints(e);
+		prints(e);
 	};
 };
 
