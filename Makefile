@@ -1,3 +1,6 @@
+# On MacOS:
+# brew install libgc
+
 UNAME := $(shell uname)
 
 build: runtime
@@ -9,6 +12,13 @@ ifeq ($(UNAME), Linux)
 	clang -shared -Wall -fPIC -o lib/lib.so lib/alloc.c lib/exception.c
 	clang -Wall -o lib/linux/alloc.o -c lib/alloc.c
 	clang -Wall -o lib/linux/exception.o -c lib/exception.c
+endif
+
+ifeq ($(UNAME), Darwin)
+	mkdir -p lib/darwin
+	clang -shared -Wall -fPIC -o lib/lib.dylib lib/alloc.c lib/exception.c
+	clang -Wall -o lib/darwin/alloc.o -c lib/alloc.c
+	clang -Wall -o lib/darwin/exception.o -c lib/exception.c
 endif
 
 ifeq ($(UNAME), windows32)
